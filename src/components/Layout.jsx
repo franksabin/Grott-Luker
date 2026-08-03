@@ -1,7 +1,9 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 
-export default function Layout() {
+// `client` renders the public, client-facing chrome: same branding, but no
+// links into the internal CPA toolkit.
+export default function Layout({ client = false }) {
   const { pathname } = useLocation()
 
   // Scroll to top on route change.
@@ -15,18 +17,32 @@ export default function Layout() {
     <div className="app">
       <header className="site-header no-print">
         <div className="container">
-          <Link to="/" className="brand-link" aria-label="Grott Luker & Co. — home">
-            <img
-              className="brand-logo"
-              src="/brand/gl-logo-white.png"
-              alt="Grott Luker & Co."
-            />
-            <span className="brand-divider" aria-hidden="true" />
-            <span className="brand-tag">Client Decision Support Toolkit</span>
-          </Link>
-          <nav className="header-nav">
-            <Link to="/">Dashboard</Link>
-          </nav>
+          {client ? (
+            <span className="brand-link">
+              <img
+                className="brand-logo"
+                src="/brand/gl-logo-white.png"
+                alt="Grott Luker & Co."
+              />
+              <span className="brand-divider" aria-hidden="true" />
+              <span className="brand-tag">Certified Public Accountants</span>
+            </span>
+          ) : (
+            <>
+              <Link to="/" className="brand-link" aria-label="Grott Luker & Co. — home">
+                <img
+                  className="brand-logo"
+                  src="/brand/gl-logo-white.png"
+                  alt="Grott Luker & Co."
+                />
+                <span className="brand-divider" aria-hidden="true" />
+                <span className="brand-tag">Client Decision Support Toolkit</span>
+              </Link>
+              <nav className="header-nav">
+                <Link to="/">Dashboard</Link>
+              </nav>
+            </>
+          )}
         </div>
       </header>
 

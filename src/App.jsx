@@ -16,9 +16,14 @@ import Rollover401k from './pages/Rollover401k.jsx'
 import DivorceDivision from './pages/DivorceDivision.jsx'
 import KnowYourNumbers from './pages/KnowYourNumbers.jsx'
 
+// Client-facing intake + the CPA-side viewer for what clients submit
+import ClientKnowYourNumbers from './pages/ClientKnowYourNumbers.jsx'
+import ClientResults from './pages/ClientResults.jsx'
+
 export default function App() {
   return (
     <Routes>
+      {/* Internal CPA toolkit */}
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
         {/* CPA */}
@@ -33,6 +38,13 @@ export default function App() {
         <Route path="tools/rollover-401k" element={<Rollover401k />} />
         <Route path="tools/divorce-division" element={<DivorceDivision />} />
         <Route path="tools/know-your-numbers" element={<KnowYourNumbers />} />
+        {/* Submissions from clients */}
+        <Route path="client-results" element={<ClientResults />} />
+      </Route>
+
+      {/* Public, client-facing — no links back into the toolkit */}
+      <Route path="/client" element={<Layout client />}>
+        <Route path="know-your-numbers" element={<ClientKnowYourNumbers />} />
       </Route>
     </Routes>
   )

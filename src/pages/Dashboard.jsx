@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Inbox } from 'lucide-react'
 import { GROUPS, toolsByGroup } from '../lib/tools.js'
 
 function ToolCard({ tool }) {
@@ -19,7 +19,7 @@ function ToolCard({ tool }) {
   )
 }
 
-function ToolSection({ group }) {
+function ToolSection({ group, actions }) {
   const tools = toolsByGroup(group.id)
   return (
     <section className="tool-section">
@@ -27,6 +27,7 @@ function ToolSection({ group }) {
         <div className="section-eyebrow">{group.eyebrow}</div>
         <h2 className="section-title">{group.title}</h2>
         <p className="section-desc">{group.description}</p>
+        {actions ? <div className="section-actions">{actions}</div> : null}
       </div>
       <div className="card-grid">
         {tools.map((tool) => (
@@ -55,7 +56,14 @@ export default function Dashboard() {
         </p>
       </section>
 
-      <ToolSection group={GROUPS.cpa} />
+      <ToolSection
+        group={GROUPS.cpa}
+        actions={
+          <Link to="/client-results" className="btn btn-primary btn-sm">
+            <Inbox size={15} /> View client results
+          </Link>
+        }
+      />
       <div className="section-divider" />
       <ToolSection group={GROUPS.blueline} />
     </div>

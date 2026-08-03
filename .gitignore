@@ -2,5 +2,8 @@ node_modules
 dist
 dev.out.log
 dev.err.log
+# Local dev SQLite database — contains submitted test data.
+.dev-data
+.wrangler
 *.local
 .DS_Store
