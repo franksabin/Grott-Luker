@@ -35,7 +35,7 @@ export const GROUPS = {
     eyebrow: 'For individuals & families · by BlueLine Advisors',
     title: 'Wealth & Life Planning',
     description:
-      'Client-facing planning resources for retirement readiness, 401(k) decisions, major life transitions, and financial discovery.',
+      'Client-facing planning resources for retirement readiness, 401(k) decisions, major life transitions, and a shareable financial snapshot.',
   },
 }
 
@@ -73,18 +73,6 @@ export const TOOLS = [
     short: 'Roth Conversion Analyzer',
     description:
       'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
-  },
-  {
-    id: 'know-your-numbers',
-    group: 'primary',
-    path: '/tools/know-your-numbers',
-    index: 'GL 04',
-    icon: ClipboardList,
-    shareable: true,
-    title: 'Know Your Numbers',
-    short: 'Know Your Numbers',
-    description:
-      'A clean, client-shareable one-page financial snapshot: net worth, cash flow, savings rate, debt summary, and asset allocation.',
   },
 
   // ---------- Business Owner Planning ----------
@@ -155,6 +143,18 @@ export const TOOLS = [
     short: 'Divorce Financial Impact',
     description:
       'Illustrate the after-tax consequences of a proposed property division across any mix of assets — cash, investments, real estate, retirement, HSA, 529s, and more — and how embedded taxes shift an equalized split.',
+  },
+  {
+    id: 'know-your-numbers',
+    group: 'wealth-life',
+    path: '/tools/know-your-numbers',
+    index: 'WL 04',
+    icon: ClipboardList,
+    shareable: true,
+    title: 'Know Your Numbers',
+    short: 'Know Your Numbers',
+    description:
+      'A clean, client-shareable one-page financial snapshot: net worth, cash flow, savings rate, debt summary, and asset allocation.',
   },
 ]
 
