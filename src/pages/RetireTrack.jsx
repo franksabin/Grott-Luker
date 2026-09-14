@@ -4,6 +4,7 @@ import {
   Panel,
   MoneyField,
   NumberField,
+  SliderField,
   ResultRow,
   Assumptions,
   Note,
@@ -21,7 +22,12 @@ const BLANK = {
   annualContribution: '',
   ssAnnual: '',
   pensionAnnual: '',
+  otherIncome: '',
   annualExpenses: '',
+  growthRate: '6',
+  postRetirementReturn: '4.5',
+  inflationRate: '2.5',
+  withdrawalRate: '4',
 }
 
 const SAMPLE = {
@@ -31,11 +37,13 @@ const SAMPLE = {
   annualContribution: '40000',
   ssAnnual: '42000',
   pensionAnnual: '0',
+  otherIncome: '0',
   annualExpenses: '110000',
+  growthRate: '6',
+  postRetirementReturn: '4.5',
+  inflationRate: '2.5',
+  withdrawalRate: '4',
 }
-
-const GROWTH = 0.06
-const WITHDRAWAL_RATE = 0.04
 
 function compute(form) {
   const age = toNumber(form.age)
@@ -44,20 +52,27 @@ function compute(form) {
   const contribution = toNumber(form.annualContribution)
   const ss = toNumber(form.ssAnnual)
   const pension = toNumber(form.pensionAnnual)
+  const other = toNumber(form.otherIncome)
   const expenses = toNumber(form.annualExpenses)
+  const growth = toNumber(form.growthRate) / 100
+  const inflation = toNumber(form.inflationRate) / 100
+  const withdrawalRate = toNumber(form.withdrawalRate) / 100
 
   const years = Math.max(0, retireAge - age)
 
-  // Future value of current savings + contributions.
-  const grownSavings = savings * Math.pow(1 + GROWTH, years)
+  // Future value of current savings + contributions, at the accumulation return.
+  const grownSavings = savings * Math.pow(1 + growth, years)
   const grownContributions =
-    GROWTH > 0 ? contribution * ((Math.pow(1 + GROWTH, years) - 1) / GROWTH) : contribution * years
+    growth > 0 ? contribution * ((Math.pow(1 + growth, years) - 1) / growth) : contribution * years
   const projectedNestEgg = grownSavings + grownContributions
 
-  const portfolioIncome = projectedNestEgg * WITHDRAWAL_RATE
-  const totalIncome = portfolioIncome + ss + pension
-  const gap = totalIncome - expenses
-  const coverage = expenses > 0 ? (totalIncome / expenses) * 100 : 0
+  // Income need is entered in today's dollars; inflate it to the retirement year.
+  const futureExpenses = expenses * Math.pow(1 + inflation, years)
+
+  const portfolioIncome = projectedNestEgg * withdrawalRate
+  const totalIncome = portfolioIncome + ss + pension + other
+  const gap = totalIncome - futureExpenses
+  const coverage = futureExpenses > 0 ? (totalIncome / futureExpenses) * 100 : 0
   const onTrack = gap >= 0
 
   return {
@@ -66,11 +81,13 @@ function compute(form) {
     portfolioIncome,
     ss,
     pension,
+    other,
     totalIncome,
-    expenses,
+    expenses: futureExpenses,
     gap,
     coverage,
     onTrack,
+    withdrawalRate,
   }
 }
 
@@ -107,12 +124,59 @@ export default function RetireTrack() {
               <MoneyField label="Social Security (annual)" value={form.ssAnnual} onChange={set('ssAnnual')} info="Expected annual Social Security benefit in retirement." />
               <MoneyField label="Pension (annual)" value={form.pensionAnnual} onChange={set('pensionAnnual')} />
             </div>
+            <MoneyField label="Other retirement income (annual)" value={form.otherIncome} onChange={set('otherIncome')} info="Rental income, part-time work, annuities, or any other expected income source." />
             <MoneyField
               label="Estimated annual spending in retirement"
               value={form.annualExpenses}
               onChange={set('annualExpenses')}
               info="Your expected annual expenses in retirement, in today's dollars."
             />
+          </Panel>
+
+          <Panel title="Assumptions">
+            <div className="field-row">
+              <SliderField
+                label="Assumed annual return (accumulation)"
+                value={form.growthRate}
+                onChange={set('growthRate')}
+                min={0}
+                max={12}
+                step={0.25}
+                readout={`${form.growthRate}%`}
+              />
+              <SliderField
+                label="Post-retirement return"
+                value={form.postRetirementReturn}
+                onChange={set('postRetirementReturn')}
+                min={0}
+                max={10}
+                step={0.25}
+                readout={`${form.postRetirementReturn}%`}
+                info="Not yet reflected in the withdrawal math below — informs the conversation about sequence-of-returns risk after retirement."
+              />
+            </div>
+            <div className="field-row">
+              <SliderField
+                label="Assumed inflation rate"
+                value={form.inflationRate}
+                onChange={set('inflationRate')}
+                min={0}
+                max={6}
+                step={0.25}
+                readout={`${form.inflationRate}%`}
+                info="Applied to your stated spending need between now and your target retirement age."
+              />
+              <SliderField
+                label="Assumed withdrawal rate"
+                value={form.withdrawalRate}
+                onChange={set('withdrawalRate')}
+                min={2}
+                max={7}
+                step={0.25}
+                readout={`${form.withdrawalRate}%`}
+                info="The share of the projected nest egg drawn as income in the first year of retirement."
+              />
+            </div>
           </Panel>
         </div>
 
@@ -130,11 +194,12 @@ export default function RetireTrack() {
             />
             <Narrative>
               Growing your savings for {r.years} years, we project a nest egg of
-              about {money(r.projectedNestEgg)} at retirement. At a {percent(WITHDRAWAL_RATE * 100, 0)}{' '}
+              about {money(r.projectedNestEgg)} at retirement. At a {percent(r.withdrawalRate * 100, 0)}{' '}
               withdrawal rate that provides roughly {money(r.portfolioIncome)} a
-              year, plus {money(r.ss + r.pension)} from Social Security and
-              pension — about {money(r.totalIncome)} of total annual income
-              against an estimated {money(r.expenses)} of spending, a{' '}
+              year, plus {money(r.ss + r.pension + r.other)} from Social Security,
+              pension, and other income — about {money(r.totalIncome)} of total
+              annual income against an estimated {money(r.expenses)} of spending
+              (inflated to your retirement year), a{' '}
               {r.gap >= 0 ? 'surplus' : 'shortfall'} of {money(Math.abs(r.gap))}.
             </Narrative>
 
@@ -150,6 +215,7 @@ export default function RetireTrack() {
                     { label: 'Portfolio', value: r.portfolioIncome, color: PALETTE[0] },
                     { label: 'Social Security', value: r.ss, color: PALETTE[2] },
                     { label: 'Pension', value: r.pension, color: PALETTE[4] },
+                    { label: 'Other', value: r.other, color: PALETTE[3] },
                   ]}
                 />
               </div>
@@ -168,8 +234,8 @@ export default function RetireTrack() {
 
             <div className="result-list" style={{ marginTop: 18 }}>
               <ResultRow label="Projected nest egg at retirement" value={r.projectedNestEgg} />
-              <ResultRow label={`Sustainable portfolio income (${percent(WITHDRAWAL_RATE * 100, 0)})`} value={r.portfolioIncome} sub />
-              <ResultRow label="Social Security + pension" value={r.ss + r.pension} sub />
+              <ResultRow label={`Sustainable portfolio income (${percent(r.withdrawalRate * 100, 0)})`} value={r.portfolioIncome} sub />
+              <ResultRow label="Social Security + pension + other" value={r.ss + r.pension + r.other} sub />
               <ResultRow label="Total projected income" value={r.totalIncome} total />
               <ResultRow
                 label={r.gap >= 0 ? 'Annual surplus' : 'Annual shortfall'}
@@ -186,10 +252,11 @@ export default function RetireTrack() {
 
       <Assumptions
         items={[
-          'Savings grow at an assumed 6% annual return until your target retirement age; contributions are assumed level and invested each year.',
-          'Sustainable income uses a 4% withdrawal rate on the projected nest egg — a common planning guideline, not a guarantee.',
-          'Social Security and pension are entered as expected annual amounts and are not inflation-adjusted here.',
-          'Expenses are treated in today’s dollars; taxes, healthcare shocks, and market sequence risk are not modeled.',
+          'Savings grow at the assumed accumulation return until your target retirement age; contributions are assumed level and invested each year.',
+          'Your stated spending need (in today\'s dollars) is inflated to your retirement year at the assumed inflation rate before comparing it to projected income.',
+          'Sustainable income applies the assumed withdrawal rate to the projected nest egg — a planning guideline, not a guarantee. The post-retirement return assumption is not yet reflected in this withdrawal math; it is shown to frame a conversation about sequence-of-returns risk.',
+          'Social Security, pension, and other income are entered as expected annual amounts and are not separately inflation-adjusted.',
+          'Taxes, healthcare shocks, and market sequence risk are not modeled.',
           'This is a high-level readiness snapshot to frame a planning conversation, not a comprehensive retirement plan.',
         ]}
       />

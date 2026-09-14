@@ -65,6 +65,20 @@ export const ASSET_TYPES = [
     help: 'Qualified withdrawals are tax-free. No embedded tax is applied.',
   },
   {
+    id: 'hsa',
+    label: 'HSA balance',
+    treatment: 'none',
+    usesBasis: false,
+    help: 'Treated as after-tax here; qualified medical withdrawals are tax-free, and this tool does not model non-qualified withdrawal penalties.',
+  },
+  {
+    id: 'education_529',
+    label: '529 college savings',
+    treatment: 'none',
+    usesBasis: false,
+    help: 'Treated as after-tax here; qualified education withdrawals are tax-free, and this tool does not model non-qualified withdrawal penalties.',
+  },
+  {
     id: 'other',
     label: 'Other asset',
     treatment: 'none',

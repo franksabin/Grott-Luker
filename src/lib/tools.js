@@ -1,65 +1,51 @@
-// Registry of tools, split into two dashboard sections:
-//   'cpa'      — internal CPA decision-support tools (Grott Luker staff)
-//   'blueline' — client-facing planning tools showcasing BlueLine's expertise
+// Registry of tools, split into three dashboard sections:
+//   'primary'        — Grott Luker's own CPA decision-support tools
+//   'business-owner' — BlueLine tools for specific business-owner questions
+//   'wealth-life'     — BlueLine tools for individual/family wealth & life events
 import {
   RefreshCw,
-  Wallet,
   CalendarClock,
   LineChart,
   Percent,
   Target,
   PiggyBank,
+  Wallet,
   ArrowLeftRight,
   Scale,
   ClipboardList,
 } from 'lucide-react'
 
 export const GROUPS = {
-  cpa: {
-    id: 'cpa',
+  primary: {
+    id: 'primary',
     eyebrow: 'For Grott Luker CPAs',
-    title: 'CPA Decision Support Toolkit',
+    title: 'Primary Grott Luker Toolkit',
     description:
       'Internal planning tools used by Grott Luker CPAs during client meetings and year-end planning. The CPA enters information collected from the client, models scenarios, and generates a polished summary to guide the conversation.',
   },
-  blueline: {
-    id: 'blueline',
-    eyebrow: 'Specialized planning by BlueLine Advisors',
-    title: 'BlueLine Specialty Planning Tools',
+  'business-owner': {
+    id: 'business-owner',
+    eyebrow: 'For business-owner clients · by BlueLine Advisors',
+    title: 'Business Owner Planning',
     description:
-      'Client-facing planning resources that showcase the areas BlueLine Advisors specializes in — retirement income, cash balance plans, rollovers, life transitions, and financial discovery.',
+      'Specific questions business owners ask before a plan document, payroll change, or entity election — retirement plan design and owner compensation strategy.',
+  },
+  'wealth-life': {
+    id: 'wealth-life',
+    eyebrow: 'For individuals & families · by BlueLine Advisors',
+    title: 'Wealth & Life Planning',
+    description:
+      'Client-facing planning resources for retirement readiness, 401(k) decisions, major life transitions, and financial discovery.',
   },
 }
 
 export const TOOLS = [
-  // ---------- CPA Decision Support Toolkit ----------
-  {
-    id: 'roth-conversion',
-    group: 'cpa',
-    path: '/tools/roth-conversion',
-    index: 'CPA 01',
-    icon: RefreshCw,
-    title: 'Roth Conversion Analyzer',
-    short: 'Roth Conversion Analyzer',
-    description:
-      'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
-  },
-  {
-    id: 'owner-comp',
-    group: 'cpa',
-    path: '/tools/owner-comp',
-    index: 'CPA 02',
-    icon: Wallet,
-    title: 'Owner Compensation Optimizer',
-    short: 'Owner Compensation Optimizer',
-    description:
-      'Compare owner compensation strategies — reasonable salary vs. distributions for an S-corporation — including payroll and self-employment tax, QBI effects, and estimated total tax by strategy.',
-  },
+  // ---------- Primary Grott Luker Toolkit ----------
   {
     id: 'estimated-tax',
-    group: 'cpa',
+    group: 'primary',
     path: '/tools/estimated-tax',
-    index: 'CPA 03',
+    index: 'GL 01',
     icon: CalendarClock,
     title: 'Estimated Tax & Safe Harbor Planner',
     short: 'Estimated Tax & Safe Harbor',
@@ -68,9 +54,9 @@ export const TOOLS = [
   },
   {
     id: 'multi-year-projection',
-    group: 'cpa',
+    group: 'primary',
     path: '/tools/multi-year-projection',
-    index: 'CPA 04',
+    index: 'GL 02',
     icon: LineChart,
     title: 'Multi-Year Tax Projection Planner',
     short: 'Multi-Year Tax Projection',
@@ -78,72 +64,97 @@ export const TOOLS = [
       'Project taxable income and tax across several years to visualize the impact of Roth conversions, RMDs, Social Security timing, and other events — and find low-bracket planning windows.',
   },
   {
+    id: 'roth-conversion',
+    group: 'primary',
+    path: '/tools/roth-conversion',
+    index: 'GL 03',
+    icon: RefreshCw,
+    title: 'Roth Conversion Analyzer',
+    short: 'Roth Conversion Analyzer',
+    description:
+      'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
+  },
+  {
+    id: 'know-your-numbers',
+    group: 'primary',
+    path: '/tools/know-your-numbers',
+    index: 'GL 04',
+    icon: ClipboardList,
+    shareable: true,
+    title: 'Know Your Numbers',
+    short: 'Know Your Numbers',
+    description:
+      'A clean, client-shareable one-page financial snapshot: net worth, cash flow, savings rate, debt summary, and asset allocation.',
+  },
+
+  // ---------- Business Owner Planning ----------
+  {
     id: 'qbi-optimizer',
-    group: 'cpa',
+    group: 'business-owner',
     path: '/tools/qbi-optimizer',
-    index: 'CPA 05',
+    index: 'BO 01',
     icon: Percent,
     title: 'QBI Deduction Optimizer',
     short: 'QBI Deduction Optimizer',
     description:
       'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
   },
-
-  // ---------- BlueLine Specialty Planning Tools ----------
   {
-    id: 'retire-track',
-    group: 'blueline',
-    path: '/tools/retire-track',
-    index: 'BL 01',
-    icon: Target,
-    title: 'Am I on Track to Retire?',
-    short: 'Retirement Readiness',
+    id: 'owner-comp',
+    group: 'business-owner',
+    path: '/tools/owner-comp',
+    index: 'BO 02',
+    icon: Wallet,
+    title: 'Owner Compensation Optimizer',
+    short: 'Owner Compensation Optimizer',
     description:
-      'A retirement readiness snapshot — projected retirement income from all sources against estimated needs, with a simple view of sustainability through retirement.',
+      'Compare owner compensation strategies — reasonable salary vs. distributions for an S-corporation — including payroll and self-employment tax, QBI effects, and estimated total tax by strategy.',
   },
   {
     id: 'cash-balance',
-    group: 'blueline',
+    group: 'business-owner',
     path: '/tools/cash-balance',
-    index: 'BL 02',
+    index: 'BO 03',
     icon: PiggyBank,
     title: 'Cash Balance Plan Analyzer',
     short: 'Cash Balance Analyzer',
     description:
       'Understand the characteristics of businesses that commonly evaluate Cash Balance Plans, with illustrative contribution and deduction ranges.',
   },
+
+  // ---------- Wealth & Life Planning ----------
+  {
+    id: 'retire-track',
+    group: 'wealth-life',
+    path: '/tools/retire-track',
+    index: 'WL 01',
+    icon: Target,
+    title: 'Am I on Track to Retire?',
+    short: 'Retirement Readiness',
+    description:
+      'A retirement readiness snapshot with an income-coverage score — projected income from savings, Social Security, pension, and other sources against estimated needs, with adjustable return, inflation, and withdrawal-rate assumptions.',
+  },
   {
     id: 'rollover-401k',
-    group: 'blueline',
+    group: 'wealth-life',
     path: '/tools/rollover-401k',
-    index: 'BL 03',
+    index: 'WL 02',
     icon: ArrowLeftRight,
     title: 'Should I Roll Over My 401(k)?',
     short: '401(k) Rollover',
     description:
-      'Compare leaving a 401(k) in place against rolling it to an IRA — weighing fees, investment flexibility, creditor protection, and other planning considerations side by side.',
+      'Compares all four options side by side — rolling to a new employer plan, leaving it in place, rolling to an IRA, or cashing out — with fee drag, tax and penalty impact, and the qualitative factors that matter alongside the numbers.',
   },
   {
     id: 'divorce-division',
-    group: 'blueline',
+    group: 'wealth-life',
     path: '/tools/divorce-division',
-    index: 'BL 04',
+    index: 'WL 03',
     icon: Scale,
     title: 'How Will Divorce Affect My Finances?',
     short: 'Divorce Financial Impact',
     description:
-      'Illustrate the after-tax consequences of a proposed property division and how embedded taxes affect an equalized split.',
-  },
-  {
-    id: 'know-your-numbers',
-    group: 'blueline',
-    path: '/tools/know-your-numbers',
-    index: 'BL 05',
-    icon: ClipboardList,
-    title: 'Know Your Numbers',
-    short: 'Know Your Numbers',
-    description:
-      'A clean, client-shareable one-page financial snapshot: net worth, cash flow, savings rate, debt summary, and asset allocation.',
+      'Illustrate the after-tax consequences of a proposed property division across any mix of assets — cash, investments, real estate, retirement, HSA, 529s, and more — and how embedded taxes shift an equalized split.',
   },
 ]
 

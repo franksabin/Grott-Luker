@@ -119,7 +119,7 @@ p {
   padding: 44px 0 72px;
 }
 
-/* ------- Top navy header ------- */
+/* ------- Top header: Grott Luker primary, BlueLine "Powered by" ------- */
 .site-header {
   background: var(--navy-900);
   color: #fff;
@@ -129,55 +129,83 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 100px;
-  gap: 20px;
+  min-height: 92px;
+  gap: 24px;
+  padding-top: 16px;
+  padding-bottom: 16px;
 }
-.brand-link {
+.brand-stack {
   display: flex;
-  align-items: center;
-  gap: 18px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
 }
-.brand-link:hover {
+.brand-stack:hover {
   text-decoration: none;
 }
-.brand-logo {
-  height: 62px;
+.brand-full-logo {
+  height: 40px;
   width: auto;
   display: block;
 }
-.brand-divider {
-  width: 1px;
-  height: 46px;
-  background: rgba(255, 255, 255, 0.22);
-}
-@media (max-width: 620px) {
-  .brand-logo {
-    height: 48px;
-  }
-  .brand-tag {
-    display: none;
-  }
-}
-.brand-tag {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.brand-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
 }
-.header-nav {
+.brand-kicker::before {
+  content: '';
+  width: 18px;
+  height: 2px;
+  background: var(--navy-500);
+  flex-shrink: 0;
+}
+.brand-powered-pill {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
 }
-.header-nav a {
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 14px;
-  font-weight: 500;
+.powered-by-label {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
 }
-.header-nav a:hover {
-  color: #fff;
-  text-decoration: none;
+.brand-bl-logo {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+@media (max-width: 760px) {
+  .site-header .container {
+    min-height: 84px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .brand-full-logo {
+    height: 26px;
+  }
+  .brand-kicker {
+    display: none;
+  }
+  .brand-powered-pill {
+    padding: 8px 14px;
+  }
+  .brand-bl-logo {
+    height: 22px;
+  }
 }
 
 /* ------- Footer ------- */
@@ -215,10 +243,12 @@ p {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.55);
 }
-.footer-attrib img {
-  height: 52px;
-  width: auto;
-  opacity: 0.95;
+.brand-lockup {
+  display: flex;
+  align-items: center;
+}
+.brand-lockup-lg .brand-full-logo {
+  height: 54px;
 }
 @media (max-width: 620px) {
   .footer-attrib {
@@ -259,6 +289,16 @@ p {
 }
 
 /* ------- Dashboard sections ------- */
+.card-index {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  white-space: nowrap;
+}
 .tool-section {
   margin-bottom: 8px;
 }
@@ -284,7 +324,7 @@ p {
   background: var(--navy-600);
 }
 .section-title {
-  font-size: 27px;
+  font-size: 26px;
   margin-bottom: 10px;
 }
 .section-desc {
@@ -332,6 +372,13 @@ p {
   transform: translateY(-3px);
   border-color: var(--border-strong);
 }
+.tool-card .card-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
 .tool-card .card-icon {
   width: 46px;
   height: 46px;
@@ -341,26 +388,26 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 18px;
+  flex: 0 0 auto;
+}
+.tool-card .card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .tool-card h3 {
-  font-size: 18px;
+  font-size: 19px;
+  font-weight: 700;
   margin-bottom: 8px;
 }
 .tool-card .card-desc {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.55;
   flex: 1 0 auto;
   margin-bottom: 20px;
-}
-.tool-card .card-index {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted-2);
-  font-weight: 600;
-  margin-bottom: 6px;
 }
 
 /* ------- Buttons ------- */
@@ -1379,7 +1426,7 @@ input[type='range'].slider::-moz-range-thumb {
   margin: 14px 0 0;
 }
 
-/* Card top-accent on hover — subtle premium cue */
+/* Card top-accent — always-on gradient rule, premium editorial cue */
 .tool-card {
   position: relative;
   overflow: hidden;
@@ -1391,13 +1438,88 @@ input[type='range'].slider::-moz-range-thumb {
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--navy-600);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.25s ease;
+  background: linear-gradient(90deg, var(--navy-500), var(--warn-border));
 }
-.tool-card:hover::before {
-  transform: scaleX(1);
+
+/* ------- Dashboard: callout + marketing panels (same system as the tools) ------- */
+.dash-callout {
+  background: var(--navy-800);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  margin: 0 0 44px;
+  max-width: 860px;
+}
+.dash-callout h3 {
+  color: #fff;
+  font-size: 19px;
+  margin-bottom: 8px;
+}
+.dash-callout p {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 15px;
+  line-height: 1.65;
+  margin: 0;
+}
+.dash-about {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) {
+  .dash-about {
+    grid-template-columns: 1fr;
+  }
+}
+.dash-panel {
+  margin-bottom: 0;
+  padding: 28px 30px;
+}
+.dash-panel .section-title {
+  font-size: 26px;
+}
+.dash-panel p {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.dash-kicker {
+  font-style: italic;
+  color: var(--muted) !important;
+  margin-top: -4px;
+}
+.dash-contact {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.dash-contact img {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border: 2px solid var(--bg-2);
+}
+.dash-contact-name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--navy);
+  font-size: 16px;
+}
+.dash-contact-title {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.dash-contact a {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* ==========================================================================

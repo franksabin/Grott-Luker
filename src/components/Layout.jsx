@@ -12,37 +12,29 @@ export default function Layout({ client = false }) {
   }, [pathname])
 
   const year = new Date().getFullYear()
+  // The dashboard hero already carries the toolkit eyebrow; repeating it in
+  // the header 120px above reads as clutter. Show it only where it adds context.
+  const showKicker = pathname !== '/'
 
   return (
     <div className="app">
       <header className="site-header no-print">
         <div className="container">
           {client ? (
-            <span className="brand-link">
-              <img
-                className="brand-logo"
-                src="/brand/gl-logo-white.png"
-                alt="Grott Luker & Co."
-              />
-              <span className="brand-divider" aria-hidden="true" />
-              <span className="brand-tag">Certified Public Accountants</span>
+            <span className="brand-stack">
+              <img className="brand-full-logo" src="/brand/grottluker-wordmark.png" alt="Grott Luker & Co." />
+              {showKicker ? <span className="brand-kicker">Client Decision Support Toolkit</span> : null}
             </span>
           ) : (
-            <>
-              <Link to="/" className="brand-link" aria-label="Grott Luker & Co. — home">
-                <img
-                  className="brand-logo"
-                  src="/brand/gl-logo-white.png"
-                  alt="Grott Luker & Co."
-                />
-                <span className="brand-divider" aria-hidden="true" />
-                <span className="brand-tag">Client Decision Support Toolkit</span>
-              </Link>
-              <nav className="header-nav">
-                <Link to="/">Dashboard</Link>
-              </nav>
-            </>
+            <Link to="/" className="brand-stack" aria-label="Grott Luker & Co. — home">
+              <img className="brand-full-logo" src="/brand/grottluker-wordmark.png" alt="Grott Luker & Co." />
+              {showKicker ? <span className="brand-kicker">Client Decision Support Toolkit</span> : null}
+            </Link>
           )}
+          <span className="brand-powered-pill">
+            <span className="powered-by-label">Powered by</span>
+            <img className="brand-bl-logo" src="/brand/blueline-logo-white.png" alt="BlueLine Advisors" />
+          </span>
         </div>
       </header>
 
@@ -69,8 +61,13 @@ export default function Layout({ client = false }) {
             </div>
             <div className="footer-attrib">
               <span className="footer-attrib-label">Decision Support Technology by</span>
-              <a href="https://www.blueline-advisors.com" target="_blank" rel="noopener noreferrer">
-                <img src="/brand/blueline-logo.png" alt="BlueLine Advisors" />
+              <a
+                href="https://www.blueline-advisors.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="brand-lockup brand-lockup-lg"
+              >
+                <img className="brand-full-logo" src="/brand/blueline-logo-white.png" alt="BlueLine Advisors" />
               </a>
             </div>
           </div>
