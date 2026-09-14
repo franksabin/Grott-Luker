@@ -27,7 +27,7 @@ function ToolCard({ tool }) {
 function ToolSection({ group, actions }) {
   const tools = toolsByGroup(group.id)
   return (
-    <section className="tool-section">
+    <section className="tool-section" data-group={group.id}>
       <div className="section-head">
         <div className="section-eyebrow">{group.eyebrow}</div>
         <h2 className="section-title">{group.title}</h2>

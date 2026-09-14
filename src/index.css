@@ -1437,8 +1437,50 @@ input[type='range'].slider::-moz-range-thumb {
   top: 0;
   left: 0;
   right: 0;
+  height: 4px;
+  background: var(--accent, var(--navy-500));
+}
+
+/* ------- Dashboard section accents: color that means something ------- */
+.tool-section[data-group='primary'] {
+  --accent: var(--navy-500);
+  --accent-soft: #e3eaf3;
+}
+.tool-section[data-group='business-owner'] {
+  --accent: #b9903d;
+  --accent-soft: #f6ecd6;
+}
+.tool-section[data-group='wealth-life'] {
+  --accent: var(--positive);
+  --accent-soft: #e2eee6;
+}
+.tool-section .section-eyebrow,
+.tool-section .section-eyebrow::before {
+  color: var(--accent);
+  background-color: var(--accent);
+}
+.tool-section .section-eyebrow {
+  background-color: transparent;
+}
+.tool-section .card-icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tool-section .card-index {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.hero h1::after {
+  content: '';
+  display: block;
+  width: 56px;
   height: 3px;
-  background: linear-gradient(90deg, var(--navy-500), var(--warn-border));
+  background: var(--warn-border);
+  margin-top: 14px;
+}
+.dash-callout {
+  border-left: 5px solid var(--warn-border);
 }
 
 /* ------- Dashboard: callout + marketing panels (same system as the tools) ------- */
