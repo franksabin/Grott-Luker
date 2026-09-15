@@ -46,3 +46,18 @@ CREATE TABLE IF NOT EXISTS mileage_logs (
   estimated_deduction  REAL
 );
 CREATE INDEX IF NOT EXISTS idx_mileage_logs_created_at ON mileage_logs (created_at DESC);
+
+-- Charitable Donation Log client submissions.
+CREATE TABLE IF NOT EXISTS donation_logs (
+  id                   TEXT PRIMARY KEY,
+  created_at           TEXT NOT NULL,
+  name                 TEXT NOT NULL,
+  email                TEXT NOT NULL,
+  phone                TEXT,
+  notes                TEXT,
+  tax_year             INTEGER NOT NULL,
+  log                  TEXT NOT NULL,
+  total_gifts          REAL,
+  estimated_deduction  REAL
+);
+CREATE INDEX IF NOT EXISTS idx_donation_logs_created_at ON donation_logs (created_at DESC);

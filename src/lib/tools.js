@@ -348,7 +348,6 @@ export const TOOLS = [
     group: 'client-intake',
     owner: 'grott',
     status: 'testing',
-    planned: true,
     shareable: true,
     clientPath: '/client/charitable-donation-log',
     path: '/tools/charitable-donation-log',

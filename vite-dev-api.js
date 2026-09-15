@@ -11,6 +11,7 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { normalizeSubmission, LIMITS } from './src/lib/submission.js'
 import { normalizeMileageSubmission, MILEAGE_LIMITS } from './src/lib/mileage.js'
+import { normalizeDonationSubmission, DONATION_LIMITS } from './src/lib/donations.js'
 
 const DATA_DIR = '.dev-data'
 const DB_FILE = 'snapshots.db'
@@ -182,6 +183,35 @@ export default function devApi() {
             } catch {
               log = null
             }
+            return send(res, 200, { log: { ...row, log } })
+          }
+          if (route === '/donation-logs' && req.method === 'POST') {
+            const { raw, tooLarge } = await readBody(req, DONATION_LIMITS.body)
+            if (tooLarge) return send(res, 413, { error: 'Submission is too large.' })
+            let body
+            try { body = JSON.parse(raw) } catch { return send(res, 400, { error: 'Invalid JSON.' }) }
+            const { value, error } = normalizeDonationSubmission(body)
+            if (error) return send(res, 400, { error })
+            const id = crypto.randomUUID()
+            db.prepare(`INSERT INTO donation_logs (id, created_at, name, email, phone, notes, tax_year, log, total_gifts, estimated_deduction)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+              .run(id, new Date().toISOString(), value.name, value.email, value.phone || null, value.notes || null,
+                value.taxYear, JSON.stringify(value.log), value.totalGifts, value.estimatedDeduction)
+            return send(res, 201, { ok: true, id })
+          }
+          if (route === '/donation-logs' && req.method === 'GET') {
+            if (!isStaff(req)) return send(res, 401, { error: 'Unauthorized.' })
+            const rows = db.prepare(`SELECT id, created_at, name, email, phone, tax_year, total_gifts, estimated_deduction FROM donation_logs ORDER BY created_at DESC LIMIT ?`).all(LIST_LIMIT)
+            return send(res, 200, { logs: rows })
+          }
+          const ddetail = route.match(/^\/donation-logs\/([^/]+)$/)
+          if (ddetail) {
+            if (req.method !== 'GET') return send(res, 405, { error: 'Method not allowed.' })
+            if (!isStaff(req)) return send(res, 401, { error: 'Unauthorized.' })
+            const row = db.prepare(`SELECT * FROM donation_logs WHERE id = ?`).get(decodeURIComponent(ddetail[1]))
+            if (!row) return send(res, 404, { error: 'Not found.' })
+            let log = null
+            try { log = JSON.parse(row.log) } catch { log = null }
             return send(res, 200, { log: { ...row, log } })
           }
           if (route === '/usage' && req.method === 'POST') {

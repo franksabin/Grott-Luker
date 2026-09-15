@@ -2036,3 +2036,10 @@ button.backlink {
 .baseline-banner { background: var(--status-testing-soft); border: 1px dashed var(--status-testing); border-radius: var(--radius-sm); padding: 12px 16px; margin: 0 0 20px; font-size: 13.5px; color: var(--ink-soft); }
 .baseline-banner strong { color: var(--status-testing); }
 @media print { .baseline-banner { border-style: solid; } }
+
+/* Donation log */
+.dlog-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.dlog-flag td { background: #fffaf3; }
+.dlog-flagtxt { display: inline-flex; align-items: center; gap: 4px; color: var(--warn-border); font-weight: 700; font-size: 12px; }
+.dlog-flaglist { margin: 12px 0 0; padding: 12px 14px 12px 30px; background: var(--warn-bg); border-left: 4px solid var(--warn-border); border-radius: 6px; font-size: 13px; color: var(--ink-soft); }
+.dlog-flaglist li { margin-bottom: 4px; }

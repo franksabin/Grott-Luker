@@ -4,6 +4,18 @@
 // the Grott Luker & Co. signature so every email is consistent and professional.
 
 export const EMAIL_REQUESTS = {
+  'charitable-donation-log': {
+    subject: 'Your charitable donation log for this year',
+    intro:
+      'To make sure every gift is documented the way the IRS requires, please keep this log through the year and send it to us in January. It flags when a receipt letter or appraisal is needed as you enter each gift.',
+    questions: [
+      'Cash gifts: date, organization, and amount',
+      'Donated goods: date, organization, what was given, and a fair-market-value estimate',
+      'Appreciated stock or fund shares given: date, organization, shares, value on the gift date, and what you paid',
+      'Whether you received a written acknowledgment for each gift of $250 or more',
+    ],
+  },
+
   'capital-gains-harvesting': {
     subject: 'Information needed for year-end gain and loss planning',
     intro:

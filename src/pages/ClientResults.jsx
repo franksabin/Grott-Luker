@@ -14,11 +14,14 @@ import {
 import { Panel, Field, Note } from '../components/ui.jsx'
 import KynSnapshot from '../components/KynSnapshot.jsx'
 import { MileageReport } from '../components/MileageEditor.jsx'
+import { DonationReport } from '../components/DonationEditor.jsx'
 import {
   listSnapshots,
   getSnapshot,
   listMileageLogs,
   getMileageLog,
+  listDonationLogs,
+  getDonationLog,
   getPasscode,
   setPasscode as persistPasscode,
   clearPasscode,
@@ -29,6 +32,7 @@ import { compute } from '../lib/knowYourNumbers.js'
 const TABS = {
   kyn: { label: 'Know Your Numbers', clientPath: '/client/know-your-numbers' },
   mileage: { label: 'Mileage & Expense Logs', clientPath: '/client/mileage-log' },
+  donations: { label: 'Donation Logs', clientPath: '/client/charitable-donation-log' },
 }
 
 function formatWhen(iso) {
@@ -97,11 +101,13 @@ export default function ClientResults() {
   const [tab, setTab] = useState('kyn')
   const [rows, setRows] = useState([])
   const [logRows, setLogRows] = useState([])
+  const [donRows, setDonRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [listError, setListError] = useState('')
 
   const [active, setActive] = useState(null)
   const [activeLog, setActiveLog] = useState(null)
+  const [activeDon, setActiveDon] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -109,9 +115,10 @@ export default function ClientResults() {
     setLoading(true)
     setListError('')
     try {
-      const [data, logs] = await Promise.all([listSnapshots(code), listMileageLogs(code)])
+      const [data, logs, dons] = await Promise.all([listSnapshots(code), listMileageLogs(code), listDonationLogs(code)])
       setRows(data?.snapshots || [])
       setLogRows(logs?.logs || [])
+      setDonRows(dons?.logs || [])
       return true
     } catch (err) {
       if (err?.status === 401) {
@@ -152,6 +159,8 @@ export default function ClientResults() {
       try {
         const logs = await listMileageLogs(code)
         setLogRows(logs?.logs || [])
+        const dons = await listDonationLogs(code)
+        setDonRows(dons?.logs || [])
       } catch {
         /* mileage table may not exist yet on an un-migrated deployment */
       }
@@ -190,6 +199,19 @@ export default function ClientResults() {
     }
   }
 
+  async function openDon(id) {
+    setDetailLoading(true)
+    try {
+      const data = await getDonationLog(id, passcode)
+      setActiveDon(data?.log || null)
+      window.scrollTo(0, 0)
+    } catch (err) {
+      setListError(err?.message || 'Could not open that log.')
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
   const CLIENT_PATH = TABS[tab].clientPath
 
   function copyClientLink() {
@@ -212,6 +234,32 @@ export default function ClientResults() {
           <ArrowLeft size={15} /> Back to toolkit
         </Link>
         <Gate onUnlock={handleUnlock} error={gateError} busy={checking} />
+      </div>
+    )
+  }
+
+  /* ---------------- Detail view: donation log ---------------- */
+  if (activeDon) {
+    return (
+      <div>
+        <button className="backlink no-print" onClick={() => setActiveDon(null)}>
+          <ArrowLeft size={15} /> Back to all submissions
+        </button>
+        <div className="tool-header">
+          <h1>{activeDon.name}</h1>
+          <p className="tool-sub">
+            Charitable Donation Log · Tax year {activeDon.tax_year} · Submitted {formatWhen(activeDon.created_at)} · {activeDon.email}
+            {activeDon.phone ? ` · ${activeDon.phone}` : ''}
+          </p>
+        </div>
+        <div className="toolbar no-print">
+          <span className="toolbar-spacer" />
+          <button className="btn btn-ghost btn-sm" onClick={() => window.print()}><FileDown size={15} /> Print / Save as PDF</button>
+        </div>
+        {activeDon.notes ? <Note title="Client note">{activeDon.notes}</Note> : null}
+        {activeDon.log ? (
+          <DonationReport log={activeDon.log} clientName={activeDon.name} dateLabel={new Date(activeDon.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
+        ) : <div className="form-error">This submission could not be read.</div>}
       </div>
     )
   }
@@ -325,7 +373,7 @@ export default function ClientResults() {
             className={`seg-btn${tab === id ? ' on' : ''}`}
             onClick={() => setTab(id)}
           >
-            {t.label} <small>{id === 'kyn' ? rows.length : logRows.length}</small>
+            {t.label} <small>{id === 'kyn' ? rows.length : id === 'mileage' ? logRows.length : donRows.length}</small>
           </button>
         ))}
       </div>
@@ -355,7 +403,30 @@ export default function ClientResults() {
 
       {listError ? <div className="form-error no-print">{listError}</div> : null}
 
-      {tab === 'mileage' ? (
+      {tab === 'donations' ? (
+        <Panel>
+          {loading && donRows.length === 0 ? (
+            <div className="empty-state"><Loader2 size={22} className="spin" /><p>Loading submissions…</p></div>
+          ) : donRows.length === 0 ? (
+            <div className="empty-state"><Inbox size={26} strokeWidth={1.5} /><p>No donation logs yet. Use <strong>Copy client link</strong> above to send the log to a client.</p></div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead><tr><th>Client</th><th>Email</th><th>Tax year</th><th>Submitted</th><th className="num">Gifts</th><th className="num">Est. deductible</th><th /></tr></thead>
+                <tbody>
+                  {donRows.map((row) => (
+                    <tr key={row.id}>
+                      <td><strong>{row.name}</strong></td><td>{row.email}</td><td>{row.tax_year}</td><td>{formatWhen(row.created_at)}</td>
+                      <td className="num">{money(row.total_gifts || 0, 2)}</td><td className="num">{money(row.estimated_deduction || 0, 2)}</td>
+                      <td className="num"><button className="btn btn-ghost btn-sm" onClick={() => openDon(row.id)} disabled={detailLoading}><Eye size={14} /> View</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      ) : tab === 'mileage' ? (
         <Panel>
           {loading && logRows.length === 0 ? (
             <div className="empty-state">

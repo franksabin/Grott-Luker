@@ -21,17 +21,18 @@ import RetirementTaxMap from './pages/RetirementTaxMap.jsx'
 import BusinessSale from './pages/BusinessSale.jsx'
 import ConcentratedWealth from './pages/ConcentratedWealth.jsx'
 import MileageLog from './pages/MileageLog.jsx'
-import PlannedTool from './pages/PlannedTool.jsx'
 import WithholdingCheckup from './pages/WithholdingCheckup.jsx'
 import CharitableGiving from './pages/CharitableGiving.jsx'
 import SocialSecurityTiming from './pages/SocialSecurityTiming.jsx'
 import CapitalGainsHarvesting from './pages/CapitalGainsHarvesting.jsx'
 import RetirementPlanComparison from './pages/RetirementPlanComparison.jsx'
+import DonationLog from './pages/DonationLog.jsx'
 
 // Client-facing intake + the CPA-side viewer for what clients submit
 import ClientKnowYourNumbers from './pages/ClientKnowYourNumbers.jsx'
 import ClientResults from './pages/ClientResults.jsx'
 import ClientMileageLog from './pages/ClientMileageLog.jsx'
+import ClientDonationLog from './pages/ClientDonationLog.jsx'
 
 export default function App() {
   return (
@@ -56,13 +57,12 @@ export default function App() {
         <Route path="tools/business-sale" element={<BusinessSale />} />
         <Route path="tools/concentrated-wealth" element={<ConcentratedWealth />} />
         <Route path="tools/mileage-log" element={<MileageLog />} />
-        {/* Planned (roadmap) tools — placeholder pages */}
         <Route path="tools/withholding-checkup" element={<WithholdingCheckup />} />
         <Route path="tools/capital-gains-harvesting" element={<CapitalGainsHarvesting />} />
         <Route path="tools/charitable-giving-optimizer" element={<CharitableGiving />} />
         <Route path="tools/retirement-plan-comparison" element={<RetirementPlanComparison />} />
         <Route path="tools/social-security-timing" element={<SocialSecurityTiming />} />
-        <Route path="tools/charitable-donation-log" element={<PlannedTool />} />
+        <Route path="tools/charitable-donation-log" element={<DonationLog />} />
         {/* Submissions from clients */}
         <Route path="client-results" element={<ClientResults />} />
       </Route>
@@ -71,6 +71,7 @@ export default function App() {
       <Route path="/client" element={<Layout client />}>
         <Route path="know-your-numbers" element={<ClientKnowYourNumbers />} />
         <Route path="mileage-log" element={<ClientMileageLog />} />
+        <Route path="charitable-donation-log" element={<ClientDonationLog />} />
       </Route>
     </Routes>
   )

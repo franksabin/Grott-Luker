@@ -8,12 +8,15 @@
 //   POST /api/mileage-logs     public  — a client submits a mileage/expense log
 //   GET  /api/mileage-logs     staff   — list logs (summary rows)
 //   GET  /api/mileage-logs/:id staff   — one log including all entries
+//   POST /api/donation-logs    public  — a client submits a charitable donation log
+//   GET  /api/donation-logs     staff   — list; GET /api/donation-logs/:id staff — detail
 //
 // Staff routes require the `x-cpa-passcode` header to match the CPA_PASSCODE
 // secret. If that secret is not configured the staff routes fail closed, so a
 // missing secret can never mean open access to client financial data.
 import { normalizeSubmission, LIMITS } from '../src/lib/submission.js'
 import { normalizeMileageSubmission, MILEAGE_LIMITS } from '../src/lib/mileage.js'
+import { normalizeDonationSubmission, DONATION_LIMITS } from '../src/lib/donations.js'
 
 const LIST_LIMIT = 200
 
@@ -168,6 +171,43 @@ async function handleMileageDetail(env, id) {
   return json({ log: { ...row, log } })
 }
 
+/* ---------------- Charitable Donation Log ---------------- */
+
+async function handleDonationCreate(request, env) {
+  const raw = await request.text()
+  if (raw.length > DONATION_LIMITS.body) return json({ error: 'Submission is too large.' }, 413)
+  let body
+  try {
+    body = JSON.parse(raw)
+  } catch {
+    return json({ error: 'Invalid JSON.' }, 400)
+  }
+  const { value, error } = normalizeDonationSubmission(body)
+  if (error) return json({ error }, 400)
+  const id = crypto.randomUUID()
+  await env.DB.prepare(
+    `INSERT INTO donation_logs (id, created_at, name, email, phone, notes, tax_year, log, total_gifts, estimated_deduction)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(id, new Date().toISOString(), value.name, value.email, value.phone || null, value.notes || null,
+    value.taxYear, JSON.stringify(value.log), value.totalGifts, value.estimatedDeduction).run()
+  return json({ ok: true, id }, 201)
+}
+
+async function handleDonationList(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT id, created_at, name, email, phone, tax_year, total_gifts, estimated_deduction FROM donation_logs ORDER BY created_at DESC LIMIT ?`,
+  ).bind(LIST_LIMIT).all()
+  return json({ logs: results || [] })
+}
+
+async function handleDonationDetail(env, id) {
+  const row = await env.DB.prepare(`SELECT * FROM donation_logs WHERE id = ?`).bind(id).first()
+  if (!row) return json({ error: 'Not found.' }, 404)
+  let log = null
+  try { log = JSON.parse(row.log) } catch { log = null }
+  return json({ log: { ...row, log } })
+}
+
 // Anonymous usage ping. Accepts { tool_id } and records a timestamp. No PII.
 async function handleUsage(request, env) {
   let body
@@ -222,6 +262,21 @@ export default {
         if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405)
         if (!isStaff(request, env)) return json({ error: 'Unauthorized.' }, 401)
         return await handleMileageDetail(env, decodeURIComponent(mdetail[1]))
+      }
+
+      if (pathname === '/api/donation-logs') {
+        if (request.method === 'POST') return await handleDonationCreate(request, env)
+        if (request.method === 'GET') {
+          if (!isStaff(request, env)) return json({ error: 'Unauthorized.' }, 401)
+          return await handleDonationList(env)
+        }
+        return json({ error: 'Method not allowed.' }, 405)
+      }
+      const ddetail = pathname.match(/^\/api\/donation-logs\/([^/]+)$/)
+      if (ddetail) {
+        if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405)
+        if (!isStaff(request, env)) return json({ error: 'Unauthorized.' }, 401)
+        return await handleDonationDetail(env, decodeURIComponent(ddetail[1]))
       }
 
       if (pathname === '/api/usage') {

@@ -108,3 +108,14 @@ export function listMileageLogs(passcode) {
 export function getMileageLog(id, passcode) {
   return request(`/mileage-logs/${encodeURIComponent(id)}`, { passcode })
 }
+
+// ---------------- Charitable Donation Log ----------------
+export function submitDonationLog({ name, email, phone, notes, taxYear, gifts }) {
+  return request('/donation-logs', { method: 'POST', body: { name, email, phone, notes, taxYear, gifts } })
+}
+export function listDonationLogs(passcode) {
+  return request('/donation-logs', { passcode })
+}
+export function getDonationLog(id, passcode) {
+  return request(`/donation-logs/${encodeURIComponent(id)}`, { passcode })
+}
