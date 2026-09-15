@@ -1910,6 +1910,7 @@ button.backlink {
   background: var(--card); border-radius: 12px; padding: 18px; box-shadow: var(--shadow-sm);
   display: flex; flex-direction: column; gap: 8px; color: inherit; text-decoration: none;
   transition: box-shadow 0.15s, transform 0.15s;
+  height: 214px;
 }
 .tcard:hover { text-decoration: none; box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .tcard.is-testing { outline: 2px dashed var(--status-testing); outline-offset: -2px; background: #fffaf8; }
@@ -1918,8 +1919,8 @@ button.backlink {
   width: 36px; height: 36px; border-radius: 9px; display: inline-flex; align-items: center;
   justify-content: center; background: var(--g-soft); color: var(--g);
 }
-.tcard h3 { font-size: 15.5px; font-weight: 700; margin: 4px 0 0; }
-.tcard p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; flex: 1; }
+.tcard h3 { font-size: 15.5px; font-weight: 700; margin: 4px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.4em; }
+.tcard p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .tcard-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
 .tcard-open { font-weight: 700; color: var(--navy); font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
 
