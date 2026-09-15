@@ -49,7 +49,6 @@ function ToolCard({ tool }) {
 }
 
 function GroupSection({ group, tools }) {
-  const testingCount = tools.filter((t) => t.status === 'testing').length
   return (
     <section className="tgroup" data-group={group.id}>
       <div className="ribbon">
@@ -57,9 +56,6 @@ function GroupSection({ group, tools }) {
         <span className="ribbon-desc">{group.description}</span>
         <span className="ribbon-count">
           {tools.length} {tools.length === 1 ? 'tool' : 'tools'}
-          {testingCount ? (
-            <em> · {testingCount} in development</em>
-          ) : null}
         </span>
         {group.id === 'client-intake' ? (
           <Link to="/client-results" className="ribbon-action">
