@@ -1,7 +1,11 @@
-// Registry of tools, split into three dashboard sections:
-//   'primary'        — Grott Luker's own CPA decision-support tools
-//   'business-owner' — BlueLine tools for specific business-owner questions
-//   'wealth-life'     — BlueLine tools for individual/family wealth & life events
+// Registry of tools.
+//
+// Each tool carries three independent attributes:
+//   group  — which dashboard section it lives in (who it's for)
+//   owner  — who built it: 'grott' | 'blueline'   (drives the provenance chip)
+//   status — 'live' | 'testing'                    (testing tools are hidden
+//            unless a CPA turns on "Show in-development tools"; never shown
+//            on client routes)
 import {
   RefreshCw,
   CalendarClock,
@@ -13,39 +17,47 @@ import {
   ArrowLeftRight,
   Scale,
   ClipboardList,
+  Briefcase,
+  Layers,
+  Map,
 } from 'lucide-react'
 
+export const OWNERS = {
+  grott: { id: 'grott', label: 'Grott Luker' },
+  blueline: { id: 'blueline', label: 'BlueLine' },
+}
+
 export const GROUPS = {
-  primary: {
-    id: 'primary',
+  cpa: {
+    id: 'cpa',
+    title: 'CPA Tools',
     eyebrow: 'For Grott Luker CPAs',
-    title: 'Primary Grott Luker Toolkit',
-    description:
-      'Internal planning tools used by Grott Luker CPAs during client meetings and year-end planning. The CPA enters information collected from the client, models scenarios, and generates a polished summary to guide the conversation.',
+    description: 'Projections, safe harbors, conversions, and year-end planning.',
   },
   'business-owner': {
     id: 'business-owner',
-    eyebrow: 'For business-owner clients · by BlueLine Advisors',
     title: 'Business Owner Planning',
-    description:
-      'Specific questions business owners ask before a plan document, payroll change, or entity election — retirement plan design and owner compensation strategy.',
+    eyebrow: 'For business-owner clients',
+    description: 'Entity, compensation, and retirement plan design.',
   },
-  'wealth-life': {
-    id: 'wealth-life',
-    eyebrow: 'For individuals & families · by BlueLine Advisors',
-    title: 'Wealth & Life Planning',
-    description:
-      'Client-facing planning resources for retirement readiness, 401(k) decisions, major life transitions, and a shareable financial snapshot.',
+  'individual-family': {
+    id: 'individual-family',
+    title: 'Individual & Family Planning',
+    eyebrow: 'For individuals & families',
+    description: 'Retirement readiness, life transitions, and financial discovery.',
   },
 }
 
+export const GROUP_ORDER = ['cpa', 'business-owner', 'individual-family']
+
 export const TOOLS = [
-  // ---------- Primary Grott Luker Toolkit ----------
+  // ---------- CPA Tools ----------
   {
     id: 'estimated-tax',
-    group: 'primary',
+    group: 'cpa',
+    owner: 'grott',
+    status: 'live',
     path: '/tools/estimated-tax',
-    index: 'GL 01',
     icon: CalendarClock,
     title: 'Estimated Tax & Safe Harbor Planner',
     short: 'Estimated Tax & Safe Harbor',
@@ -54,9 +66,10 @@ export const TOOLS = [
   },
   {
     id: 'multi-year-projection',
-    group: 'primary',
+    group: 'cpa',
+    owner: 'grott',
+    status: 'live',
     path: '/tools/multi-year-projection',
-    index: 'GL 02',
     icon: LineChart,
     title: 'Multi-Year Tax Projection Planner',
     short: 'Multi-Year Tax Projection',
@@ -65,22 +78,36 @@ export const TOOLS = [
   },
   {
     id: 'roth-conversion',
-    group: 'primary',
+    group: 'cpa',
+    owner: 'grott',
+    status: 'live',
     path: '/tools/roth-conversion',
-    index: 'GL 03',
     icon: RefreshCw,
     title: 'Roth Conversion Analyzer',
     short: 'Roth Conversion Analyzer',
     description:
       'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
   },
+  {
+    id: 'retirement-tax-map',
+    group: 'cpa',
+    owner: 'blueline',
+    status: 'testing',
+    path: '/tools/retirement-tax-map',
+    icon: Map,
+    title: 'Retirement Income Tax Map',
+    short: 'Retirement Income Tax Map',
+    description:
+      'See how each retirement income source contributes to taxable income, how Social Security becomes taxable, and where IRMAA and after-tax cash flow land — with a second scenario for comparison.',
+  },
 
   // ---------- Business Owner Planning ----------
   {
     id: 'qbi-optimizer',
     group: 'business-owner',
+    owner: 'blueline',
+    status: 'live',
     path: '/tools/qbi-optimizer',
-    index: 'BO 01',
     icon: Percent,
     title: 'QBI Deduction Optimizer',
     short: 'QBI Deduction Optimizer',
@@ -90,8 +117,9 @@ export const TOOLS = [
   {
     id: 'owner-comp',
     group: 'business-owner',
+    owner: 'blueline',
+    status: 'live',
     path: '/tools/owner-comp',
-    index: 'BO 02',
     icon: Wallet,
     title: 'Owner Compensation Optimizer',
     short: 'Owner Compensation Optimizer',
@@ -101,21 +129,35 @@ export const TOOLS = [
   {
     id: 'cash-balance',
     group: 'business-owner',
+    owner: 'blueline',
+    status: 'live',
     path: '/tools/cash-balance',
-    index: 'BO 03',
     icon: PiggyBank,
     title: 'Cash Balance Plan Analyzer',
     short: 'Cash Balance Analyzer',
     description:
       'Understand the characteristics of businesses that commonly evaluate Cash Balance Plans, with illustrative contribution and deduction ranges.',
   },
+  {
+    id: 'business-sale',
+    group: 'business-owner',
+    owner: 'blueline',
+    status: 'testing',
+    path: '/tools/business-sale',
+    icon: Briefcase,
+    title: 'Business Sale & Net Liquidity Estimator',
+    short: 'Business Sale & Net Liquidity',
+    description:
+      'Estimate after-tax proceeds and net liquidity from the sale of a business — what actually lands after federal, state, and transaction costs.',
+  },
 
-  // ---------- Wealth & Life Planning ----------
+  // ---------- Individual & Family Planning ----------
   {
     id: 'retire-track',
-    group: 'wealth-life',
+    group: 'individual-family',
+    owner: 'blueline',
+    status: 'live',
     path: '/tools/retire-track',
-    index: 'WL 01',
     icon: Target,
     title: 'Am I on Track to Retire?',
     short: 'Retirement Readiness',
@@ -124,9 +166,10 @@ export const TOOLS = [
   },
   {
     id: 'rollover-401k',
-    group: 'wealth-life',
+    group: 'individual-family',
+    owner: 'blueline',
+    status: 'live',
     path: '/tools/rollover-401k',
-    index: 'WL 02',
     icon: ArrowLeftRight,
     title: 'Should I Roll Over My 401(k)?',
     short: '401(k) Rollover',
@@ -135,9 +178,10 @@ export const TOOLS = [
   },
   {
     id: 'divorce-division',
-    group: 'wealth-life',
+    group: 'individual-family',
+    owner: 'blueline',
+    status: 'live',
     path: '/tools/divorce-division',
-    index: 'WL 03',
     icon: Scale,
     title: 'How Will Divorce Affect My Finances?',
     short: 'Divorce Financial Impact',
@@ -146,9 +190,10 @@ export const TOOLS = [
   },
   {
     id: 'know-your-numbers',
-    group: 'wealth-life',
+    group: 'individual-family',
+    owner: 'blueline',
+    status: 'live',
     path: '/tools/know-your-numbers',
-    index: 'WL 04',
     icon: ClipboardList,
     shareable: true,
     title: 'Know Your Numbers',
@@ -156,12 +201,30 @@ export const TOOLS = [
     description:
       'A clean, client-shareable one-page financial snapshot: net worth, cash flow, savings rate, debt summary, and asset allocation.',
   },
+  {
+    id: 'concentrated-wealth',
+    group: 'individual-family',
+    owner: 'blueline',
+    status: 'testing',
+    path: '/tools/concentrated-wealth',
+    icon: Layers,
+    title: 'Concentrated Wealth Exposure Analyzer',
+    short: 'Concentrated Wealth Exposure',
+    description:
+      'Illustrate how much of a client’s wealth and income rests on a single source, how much is liquid, and how a simple shock would affect net worth.',
+  },
 ]
 
 export function getTool(id) {
   return TOOLS.find((t) => t.id === id)
 }
 
-export function toolsByGroup(groupId) {
-  return TOOLS.filter((t) => t.group === groupId)
+export function toolsByGroup(groupId, { includeTesting = false } = {}) {
+  return TOOLS.filter(
+    (t) => t.group === groupId && (includeTesting || t.status === 'live'),
+  )
+}
+
+export function liveTools() {
+  return TOOLS.filter((t) => t.status === 'live')
 }

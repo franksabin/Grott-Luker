@@ -16,6 +16,11 @@ import Rollover401k from './pages/Rollover401k.jsx'
 import DivorceDivision from './pages/DivorceDivision.jsx'
 import KnowYourNumbers from './pages/KnowYourNumbers.jsx'
 
+// In development (status: 'testing' in lib/tools.js)
+import RetirementTaxMap from './pages/RetirementTaxMap.jsx'
+import BusinessSale from './pages/BusinessSale.jsx'
+import ConcentratedWealth from './pages/ConcentratedWealth.jsx'
+
 // Client-facing intake + the CPA-side viewer for what clients submit
 import ClientKnowYourNumbers from './pages/ClientKnowYourNumbers.jsx'
 import ClientResults from './pages/ClientResults.jsx'
@@ -38,6 +43,10 @@ export default function App() {
         <Route path="tools/rollover-401k" element={<Rollover401k />} />
         <Route path="tools/divorce-division" element={<DivorceDivision />} />
         <Route path="tools/know-your-numbers" element={<KnowYourNumbers />} />
+        {/* In development */}
+        <Route path="tools/retirement-tax-map" element={<RetirementTaxMap />} />
+        <Route path="tools/business-sale" element={<BusinessSale />} />
+        <Route path="tools/concentrated-wealth" element={<ConcentratedWealth />} />
         {/* Submissions from clients */}
         <Route path="client-results" element={<ClientResults />} />
       </Route>

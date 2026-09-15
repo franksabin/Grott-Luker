@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
+import { TOOLS } from '../lib/tools.js'
 
 // `client` renders the public, client-facing chrome: same branding, but no
 // links into the internal CPA toolkit.
@@ -10,6 +11,24 @@ export default function Layout({ client = false }) {
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
+
+  // Anonymous usage ping when a tool is opened (staff routes only). Fire-and-
+  // forget; failures are silent and nothing is shown in the UI.
+  useEffect(() => {
+    if (client || !import.meta.env.PROD) return
+    const tool = TOOLS.find((t) => t.path === pathname)
+    if (!tool) return
+    const payload = JSON.stringify({ tool_id: tool.id })
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/usage', new Blob([payload], { type: 'application/json' }))
+      } else {
+        fetch('/api/usage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {})
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [pathname, client])
 
   const year = new Date().getFullYear()
   // The dashboard hero already carries the toolkit eyebrow; repeating it in

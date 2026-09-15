@@ -21,3 +21,12 @@ CREATE TABLE IF NOT EXISTS snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_snapshots_created_at
   ON snapshots (created_at DESC);
+
+-- Anonymous tool-open events. No user or client data — just which tool, when.
+-- Used to inform the roadmap; nothing is displayed in the app.
+CREATE TABLE IF NOT EXISTS usage_events (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  tool_id  TEXT NOT NULL,
+  ts       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_usage_events_tool_ts ON usage_events (tool_id, ts DESC);

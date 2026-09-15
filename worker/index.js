@@ -4,6 +4,7 @@
 //   POST /api/snapshots        public  — a client submits their snapshot
 //   GET  /api/snapshots        staff   — list submissions (summary rows)
 //   GET  /api/snapshots/:id    staff   — one submission including all figures
+//   POST /api/usage            public  — anonymous tool-open ping { tool_id }
 //
 // Staff routes require the `x-cpa-passcode` header to match the CPA_PASSCODE
 // secret. If that secret is not configured the staff routes fail closed, so a
@@ -118,6 +119,22 @@ async function handleDetail(env, id) {
   return json({ snapshot: { ...row, figures } })
 }
 
+// Anonymous usage ping. Accepts { tool_id } and records a timestamp. No PII.
+async function handleUsage(request, env) {
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return json({ error: 'Invalid JSON.' }, 400)
+  }
+  const toolId = typeof body?.tool_id === 'string' ? body.tool_id.slice(0, 64) : ''
+  if (!/^[a-z0-9-]+$/.test(toolId)) return json({ error: 'Invalid tool_id.' }, 400)
+  await env.DB.prepare(`INSERT INTO usage_events (tool_id, ts) VALUES (?, ?)`)
+    .bind(toolId, new Date().toISOString())
+    .run()
+  return new Response(null, { status: 204 })
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
@@ -141,6 +158,11 @@ export default {
           return await handleList(env)
         }
         return json({ error: 'Method not allowed.' }, 405)
+      }
+
+      if (pathname === '/api/usage') {
+        if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
+        return await handleUsage(request, env)
       }
 
       const detail = pathname.match(/^\/api\/snapshots\/([^/]+)$/)

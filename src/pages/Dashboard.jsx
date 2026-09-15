@@ -1,40 +1,59 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Inbox } from 'lucide-react'
-import { GROUPS, toolsByGroup } from '../lib/tools.js'
+import { ArrowRight, Mail, Phone } from 'lucide-react'
+import { GROUPS, GROUP_ORDER, OWNERS, TOOLS } from '../lib/tools.js'
+
+const DEV_KEY = 'gl-show-dev-tools'
+
+function readDevFlag() {
+  try {
+    return localStorage.getItem(DEV_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 function ToolCard({ tool }) {
   const Icon = tool.icon
+  const testing = tool.status === 'testing'
   return (
-    <div className="tool-card">
-      <div className="card-top-row">
-        <div className="card-icon">
-          <Icon size={22} strokeWidth={1.75} />
-        </div>
-        <div className="card-badges">
-          <span className="card-index">{tool.index}</span>
-          {tool.shareable ? <span className="pill">Shareable</span> : null}
-        </div>
+    <Link
+      to={tool.path}
+      className={`tcard owner-${tool.owner}${testing ? ' is-testing' : ''}`}
+    >
+      <div className="tcard-top">
+        <span className="tcard-icon">
+          <Icon size={18} strokeWidth={1.75} />
+        </span>
+        {testing ? <span className="status-chip">Not yet tested</span> : null}
       </div>
       <h3>{tool.title}</h3>
-      <p className="card-desc">{tool.description}</p>
-      <Link to={tool.path} className="btn btn-primary btn-block">
-        Launch Tool <ArrowRight size={16} />
-      </Link>
-    </div>
+      <p>{tool.description}</p>
+      <div className="tcard-foot">
+        <span className="owner-chip">{OWNERS[tool.owner].label}</span>
+        <span className="tcard-open">
+          Open <ArrowRight size={14} />
+        </span>
+      </div>
+    </Link>
   )
 }
 
-function ToolSection({ group, actions }) {
-  const tools = toolsByGroup(group.id)
+function GroupSection({ group, tools }) {
+  const testingCount = tools.filter((t) => t.status === 'testing').length
   return (
-    <section className="tool-section" data-group={group.id}>
-      <div className="section-head">
-        <div className="section-eyebrow">{group.eyebrow}</div>
-        <h2 className="section-title">{group.title}</h2>
-        <p className="section-desc">{group.description}</p>
-        {actions ? <div className="section-actions">{actions}</div> : null}
+    <section className="tgroup" data-group={group.id}>
+      <div className="ribbon">
+        <h2>{group.title}</h2>
+        <span className="ribbon-desc">{group.description}</span>
+        <span className="ribbon-count">
+          {tools.length} {tools.length === 1 ? 'tool' : 'tools'}
+          {testingCount ? (
+            <em> · {testingCount} not yet tested</em>
+          ) : null}
+        </span>
       </div>
-      <div className="card-grid">
+      <div className="tcard-grid">
         {tools.map((tool) => (
           <ToolCard key={tool.id} tool={tool} />
         ))}
@@ -44,96 +63,160 @@ function ToolSection({ group, actions }) {
 }
 
 export default function Dashboard() {
+  const [owner, setOwner] = useState('all')
+  const [showDev, setShowDev] = useState(readDevFlag)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DEV_KEY, showDev ? '1' : '0')
+    } catch {
+      /* private mode etc. — toggle still works for the session */
+    }
+  }, [showDev])
+
+  const visible = useMemo(
+    () => TOOLS.filter((t) => showDev || t.status === 'live'),
+    [showDev],
+  )
+  const filtered = useMemo(
+    () => visible.filter((t) => owner === 'all' || t.owner === owner),
+    [visible, owner],
+  )
+  const countFor = (o) =>
+    visible.filter((t) => o === 'all' || t.owner === o).length
+
   return (
-    <div>
+    <div className="dash">
       <section className="hero">
         <h1>Client Decision Support Toolkit</h1>
         <p className="subhead">
-          A planning platform for Grott Luker &amp; Co. — decision-support
-          tools for CPAs, alongside specialized client planning resources from
-          BlueLine Advisors. Every tool keeps the working assumptions on one
-          side and produces a clean, client-ready report on the other, built
-          for the moment you hand it across the table.
+          Planning tools for Grott Luker CPAs and their clients — built by
+          Grott Luker &amp; Co. and BlueLine Advisors. Assumptions on one side,
+          a clean client-ready report on the other.
+        </p>
+        <p className="hero-note">
+          A starting point, not a final answer — every report here is meant to
+          open a conversation with a client, not close one.
         </p>
       </section>
 
-      <div className="dash-callout">
-        <h3>A starting point, not a final answer</h3>
-        <p>
-          Every number this toolkit produces is meant to open a conversation
-          with a client — not close one. Treat each report as an initial draft
-          built on the figures entered, not a filed return, an appraisal, or a
-          substitute for your own judgment. It's a way to get everyone looking
-          at the same rough numbers early, so planning starts from a shared
-          starting line instead of from scratch.
-        </p>
+      <div className="dash-bar">
+        <div className="seg" role="tablist" aria-label="Filter by builder">
+          {[
+            ['all', 'All tools'],
+            ['grott', OWNERS.grott.label],
+            ['blueline', OWNERS.blueline.label],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={owner === id}
+              className={`seg-btn owner-${id}${owner === id ? ' on' : ''}`}
+              onClick={() => setOwner(id)}
+            >
+              {id !== 'all' ? <i className="seg-dot" /> : null}
+              {label} <small>{countFor(id)}</small>
+            </button>
+          ))}
+        </div>
+        <label className="dev-toggle">
+          <span>Show in-development tools</span>
+          <input
+            type="checkbox"
+            checked={showDev}
+            onChange={(e) => setShowDev(e.target.checked)}
+          />
+          <i />
+        </label>
       </div>
 
-      <ToolSection
-        group={GROUPS.primary}
-        actions={
-          <Link to="/client-results" className="btn btn-primary btn-sm">
-            <Inbox size={15} /> View client results
-          </Link>
-        }
-      />
-      <div className="section-divider" />
-      <ToolSection group={GROUPS['business-owner']} />
-      <div className="section-divider" />
-      <ToolSection group={GROUPS['wealth-life']} />
+      {GROUP_ORDER.map((gid) => {
+        const tools = filtered.filter((t) => t.group === gid)
+        if (!tools.length) return null
+        return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} />
+      })}
 
-      <div className="section-divider" />
-
-      <div className="dash-about">
-        <section className="panel dash-panel">
-          <div className="section-eyebrow">The honest answer</div>
-          <h2 className="section-title">So, why did BlueLine build this?</h2>
-          <p className="dash-kicker">Since you'd ask anyway.</p>
+      <div className="dash-bottom">
+        <div className="dash-note">
+          <div className="section-eyebrow">A note to Grott Luker CPAs</div>
+          <h3>Happy to help with any question.</h3>
           <p>
-            We built this because it's genuinely useful in a client meeting,
-            full stop — that part doesn't depend on anything else. But we won't
-            pretend there's no reason behind it: we'd like to be part of the
-            conversation earlier, alongside Grott Luker &amp; Co., not just
-            brought in after the fact.
+            Email, call, or text. We want this toolkit to be as good as it can
+            be, so if a number looks off, a tool is missing something, or a
+            client situation deserves a second look — send it over.
           </p>
           <p>
-            If this toolkit earns its place at the table, our hope is that
-            Grott Luker's clients think of BlueLine when the next step needs
-            handling — a rollover, a cash balance plan design, or working
-            through the numbers in more depth than a quick calculator can. No
-            obligation tied to using this, no exclusivity, nothing owed for a
-            free tool. We'd just rather earn the referral than ask for one
-            outright.
+            Introductions are welcome too, but never required. It's simply good
+            for us to be front of mind; the right opportunities tend to find
+            their way.
           </p>
-        </section>
-
-        <section className="panel dash-panel">
-          <div className="section-eyebrow">Who's behind this</div>
-          <h2 className="section-title">About BlueLine</h2>
-          <p>
-            BlueLine Advisors, LLC is an independent, SEC-registered investment
-            adviser based in Exeter, NH, working with individuals, families, and
-            business owners across New England — from the Seacoast to Boston and
-            Portland, and virtually beyond. We take a planning-first approach:
-            investment, tax, retirement, and estate decisions are treated as one
-            connected picture rather than separate conversations. This toolkit
-            extends that same approach to the decision-support work Grott Luker
-            &amp; Co. does with its clients every day. Learn more at{' '}
-            <a href="https://www.blueline-advisors.com" target="_blank" rel="noopener noreferrer">
-              blueline-advisors.com
-            </a>
-            .
-          </p>
-          <div className="dash-contact">
-            <img src="/brand/frank-sabin.png" alt="Frank Sabin" />
-            <div>
-              <div className="dash-contact-name">Frank Sabin, CFA</div>
-              <div className="dash-contact-title">Chief Investment Officer</div>
-              <a href="mailto:fsabin@blueline-advisors.com">fsabin@blueline-advisors.com</a>
-              <a href="tel:+16036860364">603-686-0364</a>
+          <div className="contacts">
+            <div className="contact">
+              <div className="contact-who">
+                <img src="/brand/frank-sabin.png" alt="Frank Sabin" />
+                <div>
+                  <b>Frank Sabin, CFA</b>
+                  <span>Chief Investment Officer</span>
+                </div>
+              </div>
+              <a href="mailto:fsabin@blueline-advisors.com">
+                <Mail size={13} /> fsabin@blueline-advisors.com
+              </a>
+              <a href="tel:+16036860364">
+                <Phone size={13} /> 603-686-0364 · call or text
+              </a>
+            </div>
+            <div className="contact">
+              <div className="contact-who">
+                <img src="/brand/jenn-young.png" alt="Jennifer Young" />
+                <div>
+                  <b>Jennifer Young</b>
+                  <span>Operations Manager</span>
+                </div>
+              </div>
+              <a href="mailto:jyoung@blueline-advisors.com">
+                <Mail size={13} /> jyoung@blueline-advisors.com
+              </a>
+              <a href="tel:+16037707887">
+                <Phone size={13} /> 603-770-7887 · call or text
+              </a>
             </div>
           </div>
-        </section>
+        </div>
+
+        <div className="dash-about">
+          <div className="section-eyebrow">About BlueLine</div>
+          <h3>Collaborative. Analytical. Custom.</h3>
+          <p>
+            That's how these tools were built, and it's how we work with the
+            CPAs and clients who use them. Independent, SEC-registered, and
+            planning-first — based in Exeter, NH.
+          </p>
+          <div className="who-label">Who we serve</div>
+          <div className="who-chips">
+            {[
+              'Business owners',
+              'Retirement plan sponsors',
+              'Individuals & families',
+              'Divorce & major transitions',
+              'Pre-retirees & retirees',
+              'Executives & professionals',
+            ].map((w) => (
+              <span key={w} className="who-chip">
+                {w}
+              </span>
+            ))}
+          </div>
+          <a
+            className="about-link"
+            href="https://www.blueline-advisors.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            blueline-advisors.com ↗
+          </a>
+        </div>
       </div>
 
       <div className="disclosure-box">
