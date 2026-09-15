@@ -88,3 +88,23 @@ export function listSnapshots(passcode) {
 export function getSnapshot(id, passcode) {
   return request(`/snapshots/${encodeURIComponent(id)}`, { passcode })
 }
+
+// ---------------- Mileage & Expense Log ----------------
+
+// Public: a client submitting their year-end mileage/expense log.
+export function submitMileageLog({ name, email, phone, notes, taxYear, trips, expenses }) {
+  return request('/mileage-logs', {
+    method: 'POST',
+    body: { name, email, phone, notes, taxYear, trips, expenses },
+  })
+}
+
+// CPA-only: list mileage log submissions (summary rows).
+export function listMileageLogs(passcode) {
+  return request('/mileage-logs', { passcode })
+}
+
+// CPA-only: one submission including all entries.
+export function getMileageLog(id, passcode) {
+  return request(`/mileage-logs/${encodeURIComponent(id)}`, { passcode })
+}

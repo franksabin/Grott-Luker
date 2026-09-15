@@ -1981,3 +1981,25 @@ button.backlink {
   color: var(--navy); padding: 8px 14px; border-radius: 9px; border: 1.5px solid var(--border-strong); background: #fff;
 }
 .results-link:hover { text-decoration: none; border-color: var(--navy-500); }
+
+/* ------- Mileage & Expense Log ------- */
+.mlog-year { display: flex; flex-direction: column; gap: 12px; }
+.mlog-year > .input { max-width: 160px; }
+.mlog-rates { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.mlog-rate { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--bg); }
+.mlog-rate-when { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.mlog-rate-vals { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); }
+.mlog-rate-vals b { color: var(--navy); font-family: var(--font-serif); font-size: 15px; }
+.mlog-tablewrap { overflow-x: auto; margin: 0 -6px 12px; padding: 0 6px; }
+.mlog-table { min-width: 860px; }
+.mlog-table td { padding: 6px 6px; }
+.mlog-table .input { padding: 7px 9px; font-size: 13.5px; min-width: 0; }
+.mlog-table .input.num { text-align: right; width: 84px; }
+.mlog-table td:nth-child(3) .input { min-width: 200px; }
+.mlog-muted { color: var(--muted); }
+.mlog-del { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 6px; }
+.mlog-del:hover { color: var(--negative); background: var(--bg-2); }
+.report-h3 { font-size: 17px; margin: 22px 0 10px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+@media print { .mlog-tablewrap { overflow: visible; } }

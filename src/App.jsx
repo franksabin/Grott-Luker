@@ -20,10 +20,12 @@ import KnowYourNumbers from './pages/KnowYourNumbers.jsx'
 import RetirementTaxMap from './pages/RetirementTaxMap.jsx'
 import BusinessSale from './pages/BusinessSale.jsx'
 import ConcentratedWealth from './pages/ConcentratedWealth.jsx'
+import MileageLog from './pages/MileageLog.jsx'
 
 // Client-facing intake + the CPA-side viewer for what clients submit
 import ClientKnowYourNumbers from './pages/ClientKnowYourNumbers.jsx'
 import ClientResults from './pages/ClientResults.jsx'
+import ClientMileageLog from './pages/ClientMileageLog.jsx'
 
 export default function App() {
   return (
@@ -47,6 +49,7 @@ export default function App() {
         <Route path="tools/retirement-tax-map" element={<RetirementTaxMap />} />
         <Route path="tools/business-sale" element={<BusinessSale />} />
         <Route path="tools/concentrated-wealth" element={<ConcentratedWealth />} />
+        <Route path="tools/mileage-log" element={<MileageLog />} />
         {/* Submissions from clients */}
         <Route path="client-results" element={<ClientResults />} />
       </Route>
@@ -54,6 +57,7 @@ export default function App() {
       {/* Public, client-facing — no links back into the toolkit */}
       <Route path="/client" element={<Layout client />}>
         <Route path="know-your-numbers" element={<ClientKnowYourNumbers />} />
+        <Route path="mileage-log" element={<ClientMileageLog />} />
       </Route>
     </Routes>
   )

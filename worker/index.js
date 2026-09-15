@@ -5,11 +5,15 @@
 //   GET  /api/snapshots        staff   — list submissions (summary rows)
 //   GET  /api/snapshots/:id    staff   — one submission including all figures
 //   POST /api/usage            public  — anonymous tool-open ping { tool_id }
+//   POST /api/mileage-logs     public  — a client submits a mileage/expense log
+//   GET  /api/mileage-logs     staff   — list logs (summary rows)
+//   GET  /api/mileage-logs/:id staff   — one log including all entries
 //
 // Staff routes require the `x-cpa-passcode` header to match the CPA_PASSCODE
 // secret. If that secret is not configured the staff routes fail closed, so a
 // missing secret can never mean open access to client financial data.
 import { normalizeSubmission, LIMITS } from '../src/lib/submission.js'
+import { normalizeMileageSubmission, MILEAGE_LIMITS } from '../src/lib/mileage.js'
 
 const LIST_LIMIT = 200
 
@@ -119,6 +123,51 @@ async function handleDetail(env, id) {
   return json({ snapshot: { ...row, figures } })
 }
 
+/* ---------------- Mileage & Expense Log ---------------- */
+
+async function handleMileageCreate(request, env) {
+  const raw = await request.text()
+  if (raw.length > MILEAGE_LIMITS.body) return json({ error: 'Submission is too large.' }, 413)
+  let body
+  try {
+    body = JSON.parse(raw)
+  } catch {
+    return json({ error: 'Invalid JSON.' }, 400)
+  }
+  const { value, error } = normalizeMileageSubmission(body)
+  if (error) return json({ error }, 400)
+  const id = crypto.randomUUID()
+  await env.DB.prepare(
+    `INSERT INTO mileage_logs
+       (id, created_at, name, email, phone, notes, tax_year, log, total_miles, estimated_deduction)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(id, new Date().toISOString(), value.name, value.email, value.phone || null,
+      value.notes || null, value.taxYear, JSON.stringify(value.log), value.totalMiles, value.estimatedDeduction)
+    .run()
+  return json({ ok: true, id }, 201)
+}
+
+async function handleMileageList(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT id, created_at, name, email, phone, tax_year, total_miles, estimated_deduction
+       FROM mileage_logs ORDER BY created_at DESC LIMIT ?`,
+  ).bind(LIST_LIMIT).all()
+  return json({ logs: results || [] })
+}
+
+async function handleMileageDetail(env, id) {
+  const row = await env.DB.prepare(`SELECT * FROM mileage_logs WHERE id = ?`).bind(id).first()
+  if (!row) return json({ error: 'Not found.' }, 404)
+  let log = null
+  try {
+    log = JSON.parse(row.log)
+  } catch {
+    log = null
+  }
+  return json({ log: { ...row, log } })
+}
+
 // Anonymous usage ping. Accepts { tool_id } and records a timestamp. No PII.
 async function handleUsage(request, env) {
   let body
@@ -158,6 +207,21 @@ export default {
           return await handleList(env)
         }
         return json({ error: 'Method not allowed.' }, 405)
+      }
+
+      if (pathname === '/api/mileage-logs') {
+        if (request.method === 'POST') return await handleMileageCreate(request, env)
+        if (request.method === 'GET') {
+          if (!isStaff(request, env)) return json({ error: 'Unauthorized.' }, 401)
+          return await handleMileageList(env)
+        }
+        return json({ error: 'Method not allowed.' }, 405)
+      }
+      const mdetail = pathname.match(/^\/api\/mileage-logs\/([^/]+)$/)
+      if (mdetail) {
+        if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405)
+        if (!isStaff(request, env)) return json({ error: 'Unauthorized.' }, 401)
+        return await handleMileageDetail(env, decodeURIComponent(mdetail[1]))
       }
 
       if (pathname === '/api/usage') {

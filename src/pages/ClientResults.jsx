@@ -13,17 +13,23 @@ import {
 } from 'lucide-react'
 import { Panel, Field, Note } from '../components/ui.jsx'
 import KynSnapshot from '../components/KynSnapshot.jsx'
+import { MileageReport } from '../components/MileageEditor.jsx'
 import {
   listSnapshots,
   getSnapshot,
+  listMileageLogs,
+  getMileageLog,
   getPasscode,
   setPasscode as persistPasscode,
   clearPasscode,
 } from '../lib/api.js'
-import { money } from '../lib/format.js'
+import { money, number } from '../lib/format.js'
 import { compute } from '../lib/knowYourNumbers.js'
 
-const CLIENT_PATH = '/client/know-your-numbers'
+const TABS = {
+  kyn: { label: 'Know Your Numbers', clientPath: '/client/know-your-numbers' },
+  mileage: { label: 'Mileage & Expense Logs', clientPath: '/client/mileage-log' },
+}
 
 function formatWhen(iso) {
   const d = new Date(iso)
@@ -88,11 +94,14 @@ export default function ClientResults() {
   const [gateError, setGateError] = useState('')
   const [checking, setChecking] = useState(false)
 
+  const [tab, setTab] = useState('kyn')
   const [rows, setRows] = useState([])
+  const [logRows, setLogRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [listError, setListError] = useState('')
 
   const [active, setActive] = useState(null)
+  const [activeLog, setActiveLog] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -100,8 +109,9 @@ export default function ClientResults() {
     setLoading(true)
     setListError('')
     try {
-      const data = await listSnapshots(code)
+      const [data, logs] = await Promise.all([listSnapshots(code), listMileageLogs(code)])
       setRows(data?.snapshots || [])
+      setLogRows(logs?.logs || [])
       return true
     } catch (err) {
       if (err?.status === 401) {
@@ -139,6 +149,12 @@ export default function ClientResults() {
       persistPasscode(code)
       setCode(code)
       setRows(data?.snapshots || [])
+      try {
+        const logs = await listMileageLogs(code)
+        setLogRows(logs?.logs || [])
+      } catch {
+        /* mileage table may not exist yet on an un-migrated deployment */
+      }
       setUnlocked(true)
     } catch (err) {
       if (err?.status === 401) setGateError('That passcode was not accepted.')
@@ -161,6 +177,21 @@ export default function ClientResults() {
     }
   }
 
+  async function openLog(id) {
+    setDetailLoading(true)
+    try {
+      const data = await getMileageLog(id, passcode)
+      setActiveLog(data?.log || null)
+      window.scrollTo(0, 0)
+    } catch (err) {
+      setListError(err?.message || 'Could not open that log.')
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const CLIENT_PATH = TABS[tab].clientPath
+
   function copyClientLink() {
     const url = `${window.location.origin}${CLIENT_PATH}`
     navigator.clipboard?.writeText(url).then(
@@ -181,6 +212,49 @@ export default function ClientResults() {
           <ArrowLeft size={15} /> Back to toolkit
         </Link>
         <Gate onUnlock={handleUnlock} error={gateError} busy={checking} />
+      </div>
+    )
+  }
+
+  /* ---------------- Detail view: mileage log ---------------- */
+  if (activeLog) {
+    return (
+      <div>
+        <button className="backlink no-print" onClick={() => setActiveLog(null)}>
+          <ArrowLeft size={15} /> Back to all submissions
+        </button>
+
+        <div className="tool-header">
+          <h1>{activeLog.name}</h1>
+          <p className="tool-sub">
+            Mileage &amp; Expense Log · Tax year {activeLog.tax_year} · Submitted{' '}
+            {formatWhen(activeLog.created_at)} · {activeLog.email}
+            {activeLog.phone ? ` · ${activeLog.phone}` : ''}
+          </p>
+        </div>
+
+        <div className="toolbar no-print">
+          <span className="toolbar-spacer" />
+          <button className="btn btn-ghost btn-sm" onClick={() => window.print()}>
+            <FileDown size={15} /> Print / Save as PDF
+          </button>
+        </div>
+
+        {activeLog.notes ? <Note title="Client note">{activeLog.notes}</Note> : null}
+
+        {activeLog.log ? (
+          <MileageReport
+            log={activeLog.log}
+            clientName={activeLog.name}
+            dateLabel={new Date(activeLog.created_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          />
+        ) : (
+          <div className="form-error">This submission could not be read.</div>
+        )}
       </div>
     )
   }
@@ -236,9 +310,24 @@ export default function ClientResults() {
       <div className="tool-header">
         <h1>Client Results</h1>
         <p className="tool-sub">
-          Know Your Numbers snapshots submitted by clients. Send clients the
-          questionnaire link and their responses appear here.
+          What clients have sent in. Send a client the link for a tool and their
+          submission appears here.
         </p>
+      </div>
+
+      <div className="seg no-print" role="tablist" aria-label="Submission type" style={{ marginTop: 6 }}>
+        {Object.entries(TABS).map(([id, t]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={`seg-btn${tab === id ? ' on' : ''}`}
+            onClick={() => setTab(id)}
+          >
+            {t.label} <small>{id === 'kyn' ? rows.length : logRows.length}</small>
+          </button>
+        ))}
       </div>
 
       <div className="toolbar no-print">
@@ -266,6 +355,63 @@ export default function ClientResults() {
 
       {listError ? <div className="form-error no-print">{listError}</div> : null}
 
+      {tab === 'mileage' ? (
+        <Panel>
+          {loading && logRows.length === 0 ? (
+            <div className="empty-state">
+              <Loader2 size={22} className="spin" />
+              <p>Loading submissions…</p>
+            </div>
+          ) : logRows.length === 0 ? (
+            <div className="empty-state">
+              <Inbox size={26} strokeWidth={1.5} />
+              <p>
+                No mileage logs yet. Use <strong>Copy client link</strong> above to
+                send the log to a client; they submit it in January.
+              </p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Email</th>
+                    <th>Tax year</th>
+                    <th>Submitted</th>
+                    <th className="num">Miles</th>
+                    <th className="num">Est. deduction</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {logRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{row.name}</strong>
+                      </td>
+                      <td>{row.email}</td>
+                      <td>{row.tax_year}</td>
+                      <td>{formatWhen(row.created_at)}</td>
+                      <td className="num">{number(row.total_miles || 0)}</td>
+                      <td className="num">{money(row.estimated_deduction || 0, 2)}</td>
+                      <td className="num">
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => openLog(row.id)}
+                          disabled={detailLoading}
+                        >
+                          <Eye size={14} /> View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      ) : (
       <Panel>
         {loading && rows.length === 0 ? (
           <div className="empty-state">
@@ -317,6 +463,7 @@ export default function ClientResults() {
           </div>
         )}
       </Panel>
+      )}
 
       <Note title="Handling client information">
         These submissions contain personal financial details. The passcode is held

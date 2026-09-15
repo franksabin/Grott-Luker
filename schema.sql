@@ -30,3 +30,19 @@ CREATE TABLE IF NOT EXISTS usage_events (
   ts       TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_usage_events_tool_ts ON usage_events (tool_id, ts DESC);
+
+-- Mileage & Expense Log client submissions.
+CREATE TABLE IF NOT EXISTS mileage_logs (
+  id                   TEXT PRIMARY KEY,
+  created_at           TEXT NOT NULL,
+  name                 TEXT NOT NULL,
+  email                TEXT NOT NULL,
+  phone                TEXT,
+  notes                TEXT,
+  tax_year             INTEGER NOT NULL,
+  -- Full log { taxYear, trips[], expenses[] } as JSON.
+  log                  TEXT NOT NULL,
+  total_miles          REAL,
+  estimated_deduction  REAL
+);
+CREATE INDEX IF NOT EXISTS idx_mileage_logs_created_at ON mileage_logs (created_at DESC);

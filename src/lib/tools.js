@@ -20,6 +20,7 @@ import {
   Briefcase,
   Layers,
   Map,
+  Car,
 } from 'lucide-react'
 
 export const OWNERS = {
@@ -139,6 +140,20 @@ export const TOOLS = [
       'Understand the characteristics of businesses that commonly evaluate Cash Balance Plans, with illustrative contribution and deduction ranges.',
   },
   {
+    id: 'mileage-log',
+    group: 'business-owner',
+    owner: 'grott',
+    status: 'testing',
+    path: '/tools/mileage-log',
+    icon: Car,
+    shareable: true,
+    clientPath: '/client/mileage-log',
+    title: 'Mileage & Expense Log',
+    short: 'Mileage & Expense Log',
+    description:
+      'Log business, charity, and medical mileage plus meals through the year. IRS standard rates apply automatically by trip date; clients keep the log all year and send it in January.',
+  },
+  {
     id: 'business-sale',
     group: 'business-owner',
     owner: 'blueline',
@@ -196,6 +211,7 @@ export const TOOLS = [
     path: '/tools/know-your-numbers',
     icon: ClipboardList,
     shareable: true,
+    clientPath: '/client/know-your-numbers',
     title: 'Know Your Numbers',
     short: 'Know Your Numbers',
     description:
