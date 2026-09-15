@@ -5,11 +5,13 @@ import { GROUPS, GROUP_ORDER, OWNERS, TOOLS } from '../lib/tools.js'
 
 const DEV_KEY = 'gl-show-dev-tools'
 
+// In-development tools are shown by default; a CPA can hide them and the
+// choice sticks on that device.
 function readDevFlag() {
   try {
-    return localStorage.getItem(DEV_KEY) === '1'
+    return localStorage.getItem(DEV_KEY) !== '0'
   } catch {
-    return false
+    return true
   }
 }
 
