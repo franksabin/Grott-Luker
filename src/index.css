@@ -1967,3 +1967,17 @@ button.backlink {
 }
 .about-link { display: inline-block; margin-top: 18px; font-weight: 600; font-size: 13.5px; color: var(--navy-600); }
 .dash .disclosure-box { margin-top: 24px; }
+
+/* Dashboard: client-intake flag + results link */
+.tcard-flags { display: inline-flex; gap: 6px; align-items: center; }
+.share-chip {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+  color: var(--positive); background: var(--good-bg);
+}
+.dash-bar-right { display: inline-flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.results-link {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600;
+  color: var(--navy); padding: 8px 14px; border-radius: 9px; border: 1.5px solid var(--border-strong); background: #fff;
+}
+.results-link:hover { text-decoration: none; border-color: var(--navy-500); }

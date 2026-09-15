@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Mail, Phone } from 'lucide-react'
+import { ArrowRight, Mail, Phone, Inbox, Link2 } from 'lucide-react'
 import { GROUPS, GROUP_ORDER, OWNERS, TOOLS } from '../lib/tools.js'
 
 const DEV_KEY = 'gl-show-dev-tools'
@@ -27,7 +27,14 @@ function ToolCard({ tool }) {
         <span className="tcard-icon">
           <Icon size={18} strokeWidth={1.75} />
         </span>
-        {testing ? <span className="status-chip">In development</span> : null}
+        <span className="tcard-flags">
+          {tool.shareable ? (
+            <span className="share-chip" title="Has a client-facing intake form; results arrive in Client results">
+              <Link2 size={11} /> Client intake link
+            </span>
+          ) : null}
+          {testing ? <span className="status-chip">In development</span> : null}
+        </span>
       </div>
       <h3>{tool.title}</h3>
       <p>{tool.description}</p>
@@ -122,7 +129,11 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
-        <label className="dev-toggle">
+        <div className="dash-bar-right">
+          <Link to="/client-results" className="results-link">
+            <Inbox size={15} /> Client results
+          </Link>
+          <label className="dev-toggle">
           <span>Show in-development tools</span>
           <input
             type="checkbox"
@@ -130,7 +141,8 @@ export default function Dashboard() {
             onChange={(e) => setShowDev(e.target.checked)}
           />
           <i />
-        </label>
+          </label>
+        </div>
       </div>
 
       {GROUP_ORDER.map((gid) => {
