@@ -4,6 +4,31 @@
 // the Grott Luker & Co. signature so every email is consistent and professional.
 
 export const EMAIL_REQUESTS = {
+  'charitable-giving-optimizer': {
+    subject: 'Information needed to plan your charitable giving',
+    intro:
+      'We are comparing a few ways to structure your charitable giving so the same gifts produce the best tax result. Please reply with the following:',
+    questions: [
+      'Approximate charitable giving per year, and whether it varies much year to year',
+      'Your age (and your spouse’s), and whether you are taking required IRA distributions — the annual amount if so',
+      'State and local taxes paid, mortgage interest, and any other itemized deductions',
+      'Whether you hold appreciated stock or funds you would consider gifting instead of cash',
+      'Any charities you give to regularly (a donor-advised fund may be worth discussing)',
+    ],
+  },
+  'social-security-timing': {
+    subject: 'Information needed for your Social Security timing analysis',
+    intro:
+      'We are looking at when it makes the most sense to start Social Security. Please reply with the following (your statement at ssa.gov/myaccount has the first item):',
+    questions: [
+      'Your estimated monthly benefit at full retirement age from your Social Security statement (and your spouse’s)',
+      'Birth year for you and your spouse',
+      'Whether either of you plans to keep working past 62, and roughly what you would earn',
+      'Any health or family-longevity considerations you want reflected',
+      'Other retirement income sources and when they begin (pension, annuity, retirement account withdrawals)',
+    ],
+  },
+
   'withholding-checkup': {
     subject: 'Quick withholding check — one pay stub needed',
     intro:

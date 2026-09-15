@@ -91,6 +91,12 @@ export default function ToolShell({
         Estimate generated {generatedAt}
       </div>
 
+      {tool?.status === 'testing' ? (
+        <div className="baseline-banner">
+          <strong>Baseline model.</strong> This tool works but has not yet been reviewed by Grott Luker &amp; Co. Treat the numbers as a first pass for discussion, not as figures to rely on for a client decision.
+        </div>
+      ) : null}
+
       {clientLink ? (
         <div className="share-how no-print">
           <div className="share-how-title">How this Shareable tool works</div>
