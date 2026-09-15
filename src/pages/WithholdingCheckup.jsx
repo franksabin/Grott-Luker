@@ -133,6 +133,22 @@ export default function WithholdingCheckup() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: 'Pay periods', formula: `${r.periodsTotal} per year − ${r.periodsPaid} paid`, result: `${r.remaining} remaining` },
+    { label: 'Per-period pace', formula: `wages ${money(r.ytdWages, 2)} ÷ ${r.periodsPaid} · withholding ${money(r.ytdWH, 2)} ÷ ${r.periodsPaid}`, result: `${money(r.perWages, 2)} · ${money(r.perWH, 2)}` },
+    { label: 'Projected wages (primary)', formula: `${money(r.ytdWages, 2)} + ${r.remaining} × ${money(r.perWages, 2)} + bonus ${money(r.bonus, 2)}`, result: money(r.projWages, 2) },
+    ...(r.spWages > 0 ? [{ label: 'Projected wages (spouse)', formula: `${money(r.spWages, 2)} + ${r.remaining} × ${money(r.spWages / Math.max(1, r.periodsPaid), 2)}`, result: money(r.projSpouseWages, 2) }] : []),
+    { label: 'Total income', formula: `${money(r.projWages, 2)}${r.spWages > 0 ? ` + ${money(r.projSpouseWages, 2)}` : ''} + other ${money(r.other, 2)}`, result: money(r.projIncome, 2) },
+    { label: 'Taxable income', formula: `${money(r.projIncome, 2)} − deduction ${money(r.deduction, 2)}`, result: money(r.taxable, 2), note: r.usingStandardAnyway ? 'Itemized total was below the standard deduction, so the standard deduction is used.' : undefined },
+    { label: 'Federal tax by bracket', formula: `${TAX_YEAR} ${r.filing === 'single' ? 'single' : 'MFJ'} brackets applied to ${money(r.taxable, 2)} (marginal ${percent(r.marginal * 100, 0)})`, result: money(r.grossTax, 2) },
+    { label: 'Less credits', formula: `${money(r.grossTax, 2)} − ${money(r.credits, 2)}`, result: money(r.projTax, 2) },
+    { label: 'Projected withholding', formula: `${money(r.ytdWH + r.spWH, 2)} to date + ${r.remaining} × ${money(r.perWH + r.spWH / Math.max(1, r.periodsPaid), 2)}${r.estPayments > 0 ? ` + estimated payments ${money(r.estPayments, 2)}` : ''}`, result: money(r.projPaid, 2) },
+    { label: r.gap > 0 ? 'Shortfall' : 'Overpayment', formula: `${money(r.projTax, 2)} − ${money(r.projPaid, 2)}`, result: money(Math.abs(r.gap), 2) },
+    ...(r.remaining > 0 && r.gap > 0 ? [
+      { label: 'Extra per paycheck to close the gap', formula: `${money(r.gap, 2)} ÷ ${r.remaining}`, result: money(r.extraPerCheck, 2) },
+      { label: 'Minimum for the 90% test', formula: `max(0, 90% × ${money(r.projTax, 2)} − ${money(r.projPaid, 2)}) ÷ ${r.remaining}`, result: money(r.extraToSafeHarbor, 2) },
+    ] : []),
+  ], [r])
   const married = form.filing === 'married'
   const owes = r.gap > 0
 
@@ -142,6 +158,7 @@ export default function WithholdingCheckup() {
       subtitle="Will this client owe in April? Project full-year tax from a recent pay stub, compare it to withholding on the current pace, and get the W-4 adjustment that closes the gap over the remaining paychecks."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>

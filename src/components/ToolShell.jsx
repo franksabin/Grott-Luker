@@ -5,6 +5,7 @@ import { timestampNow } from '../lib/format.js'
 import { TOOLS } from '../lib/tools.js'
 import { EMAIL_REQUESTS } from '../lib/emailRequests.js'
 import RequestInfoModal from './RequestInfoModal.jsx'
+import MathTrace from './MathTrace.jsx'
 
 const STANDARD_DISCLOSURE =
   'This calculator is intended solely for educational and planning purposes. Results are estimates based on user-entered assumptions and simplified tax calculations. Actual tax consequences depend on many additional factors and should be reviewed with Grott Luker & Co. before making financial decisions.'
@@ -16,6 +17,7 @@ export default function ToolShell({
   onSample,
   children,
   disclosure = STANDARD_DISCLOSURE,
+  steps,
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -110,6 +112,8 @@ export default function ToolShell({
       ) : null}
 
       {children}
+
+      <MathTrace steps={steps} />
 
       <p className="disclosure">{disclosure}</p>
 

@@ -73,6 +73,20 @@ export default function CapitalGainsHarvesting() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: '0% bracket headroom', formula: `${money(r.breaks.zeroTo)} − ordinary taxable ${money(r.ord, 2)}`, result: money(r.zeroRoom, 2) },
+    { label: '15% bracket headroom', formula: `${money(r.breaks.fifteenTo)} − max(ordinary, ${money(r.breaks.zeroTo)})`, result: money(r.fifteenRoom, 2) },
+    { label: 'Losses available', formula: `harvested ${money(r.losses, 2)} + carryforward ${money(r.carry, 2)}`, result: money(r.losses + r.carry, 2) },
+    { label: 'Long-term gain after losses', formula: `${money(r.gains, 2)} − losses applied${r.stGains > 0 ? ' (short-term offset first)' : ''}`, result: money(r.harvest.ltNet, 2) },
+    { label: 'Long-term capital gains tax', formula: `0% on first ${money(Math.min(r.harvest.ltNet, r.zeroRoom), 2)}, 15% on next ${money(Math.max(0, Math.min(r.harvest.ltNet - r.zeroRoom, r.fifteenRoom)), 2)}, 20% above`, result: money(r.harvest.ltTax, 2) },
+    ...(r.harvest.stTax > 0 ? [{ label: 'Short-term gain tax', formula: `${money(r.harvest.stNet, 2)} at ordinary marginal rate`, result: money(r.harvest.stTax, 2) }] : []),
+    ...(r.harvest.niit > 0 ? [{ label: 'Net investment income tax', formula: `3.8% × lesser of (net investment income, MAGI − ${money(NIIT.threshold[r.filing])})`, result: money(r.harvest.niit, 2) }] : []),
+    ...(r.harvest.ordSaving > 0 ? [{ label: 'Ordinary income offset', formula: `${money(r.harvest.ordinaryOffset, 2)} of excess loss × marginal rate`, result: `−${money(r.harvest.ordSaving, 2)}` }] : []),
+    { label: 'Federal tax with harvesting', formula: 'sum of the above', result: money(Math.max(0, r.harvest.total), 2) },
+    { label: 'Federal tax without harvesting', formula: `same steps with ${money(r.gains, 2)} of gain and only the ${money(r.carry, 2)} carryforward`, result: money(Math.max(0, r.noHarvest.total), 2) },
+    { label: 'Saved by harvesting', formula: `${money(Math.max(0, r.noHarvest.total), 2)} − ${money(Math.max(0, r.harvest.total), 2)}`, result: money(r.saved, 2) },
+    { label: 'Carryforward to next year', formula: 'losses not used against gains or the $3,000 ordinary limit', result: money(r.harvest.newCarry, 2) },
+  ], [r])
 
   return (
     <ToolShell
@@ -80,6 +94,7 @@ export default function CapitalGainsHarvesting() {
       subtitle="How much gain fits in the 0% and 15% brackets this year, what a planned realization costs, and what harvesting available losses against it saves — with the $3,000 ordinary-income offset and carryforward tracked."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>

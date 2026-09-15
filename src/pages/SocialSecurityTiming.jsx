@@ -95,6 +95,24 @@ export default function SocialSecurityTiming() {
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
   const fmtAge = (a) => (a ? `${Math.floor(a)}y ${Math.round((a % 1) * 12)}m` : '—')
+  const steps = useMemo(() => {
+    const p = r.p1
+    const fraY = Math.floor(p.fra / 12), fraM = p.fra % 12
+    const early = p.fra - 62 * 12
+    const delayed = 70 * 12 - p.fra
+    return [
+      { label: 'Full retirement age', formula: `birth year ${form.birthYear || '—'} → ${fraY}${fraM ? ` + ${fraM} months` : ''}`, result: `${fraY}${fraM ? `y ${fraM}m` : ''}` },
+      { label: 'Claim at 62 — reduction', formula: `${Math.min(36, early)} months × 5/9% + ${Math.max(0, early - 36)} months × 5/12%`, result: `${Math.round(p.claims[0].factor * 100)}% of PIA` },
+      { label: 'Claim at 62 — monthly', formula: `PIA × ${p.claims[0].factor.toFixed(4)}`, result: money(p.claims[0].monthly, 2) },
+      { label: 'Claim at FRA — monthly', formula: 'PIA × 1.00', result: money(p.claims[1].monthly, 2) },
+      { label: 'Claim at 70 — delayed credits', formula: `${delayed} months × 2/3%`, result: `${Math.round(p.claims[2].factor * 100)}% of PIA` },
+      { label: 'Claim at 70 — monthly', formula: `PIA × ${p.claims[2].factor.toFixed(4)}`, result: money(p.claims[2].monthly, 2) },
+      ...p.claims.map((c) => ({ label: `Lifetime to ${r.lifeExp} — ${c.label}`, formula: `${money(c.monthly, 2)} × ${Math.max(0, r.lifeExp * 12 - c.months)} months${r.discount ? ` discounted at ${r.discount}%/yr` : ''}`, result: money(c.cumulative, 2) })),
+      { label: 'Break-even 62 vs. FRA', formula: 'first month where cumulative FRA benefits ≥ cumulative age-62 benefits', result: fmtAge(p.be62fra) },
+      { label: 'Break-even FRA vs. 70', formula: 'first month where cumulative age-70 benefits ≥ cumulative FRA benefits', result: fmtAge(p.beFra70) },
+      ...(r.married && r.p2 ? [{ label: 'Survivor benefit', formula: `higher earner (${r.higher}) monthly benefit at their claiming age carries to the survivor`, result: `${money(r.higherP.claims[0].monthly, 2)} at 62 · ${money(r.higherP.claims[2].monthly, 2)} at 70` }] : []),
+    ]
+  }, [r, form.birthYear])
 
   return (
     <ToolShell
@@ -102,6 +120,7 @@ export default function SocialSecurityTiming() {
       subtitle="Claim at 62, full retirement age, or 70 — monthly benefit, lifetime value to an assumed age, break-even points, and the survivor consideration for a couple."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>

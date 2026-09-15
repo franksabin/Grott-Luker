@@ -2044,3 +2044,28 @@ button.backlink {
 .dlog-flaglist { margin: 12px 0 0; padding: 12px 14px 12px 30px; background: var(--warn-bg); border-left: 4px solid var(--warn-border); border-radius: 6px; font-size: 13px; color: var(--ink-soft); }
 .dlog-flaglist li { margin-bottom: 4px; }
 
+
+/* Show the math — collapsed trace under each report; prints as an appendix when open */
+.math-trace { margin: 22px 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: #fff; }
+.math-trace summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-weight: 600; color: var(--navy); font-size: 14px; }
+.math-trace summary::-webkit-details-marker { display: none; }
+.math-trace summary::after { content: '+'; margin-left: auto; font-size: 18px; color: var(--muted); }
+.math-trace[open] summary::after { content: '–'; }
+.math-trace-hint { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.math-trace-body { border-top: 1px solid var(--border); padding: 6px 16px 14px; }
+.math-trace ol { margin: 0; padding: 0; list-style: none; counter-reset: mt; }
+.math-trace li { counter-increment: mt; display: grid; grid-template-columns: 28px 1.2fr 2fr auto; gap: 6px 14px; align-items: baseline; padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 13.5px; }
+.math-trace li:last-child { border-bottom: 0; }
+.math-trace li::before { content: counter(mt) '.'; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mt-label { color: var(--ink); font-weight: 600; }
+.mt-formula { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; word-break: break-word; }
+.mt-result { font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.mt-note { grid-column: 2 / -1; font-size: 12px; color: var(--muted); }
+.math-trace-title { font-family: var(--font-serif); font-size: 18px; color: var(--navy); margin: 8px 0 10px; }
+@media (max-width: 720px) { .math-trace li { grid-template-columns: 24px 1fr; } .mt-formula, .mt-result { grid-column: 2; text-align: left; } }
+@media print {
+  .math-trace:not([open]) { display: none; }
+  .math-trace[open] { break-before: page; border: 0; }
+  .math-trace[open] summary { display: none; }
+  .math-trace-body { border-top: 0; padding: 0; }
+}

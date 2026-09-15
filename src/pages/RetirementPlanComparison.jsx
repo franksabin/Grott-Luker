@@ -80,6 +80,22 @@ export default function RetirementPlanComparison() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    ...(r.entity === 'se' ? [
+      { label: 'Self-employment tax', formula: `on ${money(r.earnings, 2)} × 92.35% (12.4% SS to wage base + 2.9% Medicare)`, result: money(r.seTax, 2) },
+      { label: 'Net earnings after ½ SE tax', formula: `${money(r.earnings, 2)} − ${money(r.seTax / 2, 2)}`, result: money(r.adjNet, 2) },
+    ] : []),
+    { label: 'Compensation base', formula: `min(${money(r.adjNet, 2)}, cap ${money(LIMITS.compCap)})`, result: money(r.comp, 2) },
+    { label: 'Employer contribution ceiling', formula: `${Math.round(r.employerRate * 100)}% × ${money(r.comp, 2)}`, result: money(r.comp * r.employerRate, 2), note: r.entity === 'se' ? '25% of compensation solved for the self-employed = 20% of net earnings.' : undefined },
+    { label: 'SEP IRA', formula: `min(employer ceiling, ${money(LIMITS.total415c)})`, result: money(r.sep.total, 2) },
+    { label: 'Solo 401(k) — employee deferral', formula: `min(comp, ${money(LIMITS.deferral401k)}${r.catch401 ? ` + catch-up ${money(r.catch401)}` : ''})`, result: money(r.solo.employee, 2) },
+    { label: 'Solo 401(k) — employer', formula: `min(employer ceiling, ${money(LIMITS.total415c)} − deferral)`, result: money(r.solo.employer, 2) },
+    { label: 'Solo 401(k) — total', formula: `${money(r.solo.employee, 2)} + ${money(r.solo.employer, 2)}`, result: money(r.solo.total, 2) },
+    { label: 'SIMPLE IRA — deferral', formula: `min(comp, ${money(LIMITS.simpleDeferral)}${r.catchSimple ? ` + catch-up ${money(r.catchSimple)}` : ''})`, result: money(r.simple.employee, 2) },
+    { label: 'SIMPLE IRA — 3% match', formula: `3% × ${money(r.comp, 2)}`, result: money(r.simple.employer, 2) },
+    { label: 'SIMPLE IRA — total', formula: `${money(r.simple.employee, 2)} + ${money(r.simple.employer, 2)}`, result: money(r.simple.total, 2) },
+    { label: 'Largest', formula: 'max of the three', result: r.best.label },
+  ], [r])
   const hasEmployees = r.employees > 0
 
   return (
@@ -88,6 +104,7 @@ export default function RetirementPlanComparison() {
       subtitle="SEP IRA vs. Solo 401(k) vs. SIMPLE IRA for a self-employed owner — the maximum deductible contribution under each from net earnings and age, and what changes once there are employees."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>

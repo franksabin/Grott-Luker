@@ -108,6 +108,20 @@ export default function CharitableGiving() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: 'Other itemized deductions', formula: `SALT ${money(r.salt, 2)} (capped) + mortgage interest + other`, result: money(r.otherItemized, 2) },
+    { label: 'Baseline tax (no gifts, standard deduction)', formula: `tax(${money(r.income, 2)} − ${money(r.std, 2)})`, result: money(r.baseTax, 2) },
+    { label: 'A · Give annually — deduction', formula: `max(standard ${money(r.std, 2)}, ${money(r.otherItemized, 2)} + ${money(r.giving, 2)})`, result: money(r.dedAnnual, 2) },
+    { label: 'A · Tax saved over the window', formula: `(${money(r.baseTax, 2)} − tax(income − ${money(r.dedAnnual, 2)})) × ${r.N}`, result: money(r.savedAnnual, 2) },
+    { label: `B · Bunch ${r.N} years — year-1 deduction`, formula: `max(${money(r.std, 2)}, ${money(r.otherItemized, 2)} + ${r.N} × ${money(r.giving, 2)})`, result: money(r.dedBunchY1, 2) },
+    { label: 'B · Off-year deduction', formula: `max(${money(r.std, 2)}, ${money(r.otherItemized, 2)})`, result: money(r.dedOff, 2) },
+    { label: 'B · Tax saved over the window', formula: `${r.N} × ${money(r.baseTax, 2)} − [tax(year 1) + ${r.N - 1} × tax(off-year)]`, result: money(r.savedBunch, 2) },
+    ...(r.qcdEligible ? [
+      { label: 'C · QCD amount per year', formula: `min(giving ${money(r.giving, 2)}, RMD ${money(r.rmd, 2)}, limit ${money(QCD_LIMIT)})`, result: money(r.qcdAmt, 2) },
+      { label: 'C · Tax saved over the window', formula: `(${money(r.baseTax, 2)} − tax(${money(r.income - r.qcdAmt, 2)} − deduction)) × ${r.N}`, result: money(r.savedQcd, 2), note: 'The QCD is excluded from income before AGI; the standard deduction still applies.' },
+    ] : [{ label: 'C · QCD', formula: `age ${r.age || '—'} < 70½`, result: 'not available' }]),
+    { label: 'Best route', formula: 'largest tax saved', result: r.best.label },
+  ], [r])
 
   return (
     <ToolShell
@@ -115,6 +129,7 @@ export default function CharitableGiving() {
       subtitle="Same gifts, different tax result. Compare giving every year against bunching several years into one (often through a donor-advised fund), and — for clients 70½ or older — giving directly from an IRA as a qualified charitable distribution."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>
