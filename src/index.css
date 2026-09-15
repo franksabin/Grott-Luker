@@ -1901,9 +1901,9 @@ button.backlink {
 .ribbon-count em { font-style: normal; color: #f3c9bf; }
 
 /* Cards */
-.tcard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-@media (max-width: 1040px) { .tcard-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 760px) { .tcard-grid { grid-template-columns: repeat(2, 1fr); } }
+.tcard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 1040px) { .tcard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .tcard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .tcard-grid { grid-template-columns: 1fr; } }
 
 .tcard {
@@ -1911,6 +1911,7 @@ button.backlink {
   display: flex; flex-direction: column; gap: 8px; color: inherit; text-decoration: none;
   transition: box-shadow 0.15s, transform 0.15s;
   height: 236px;
+  min-width: 0;
 }
 .tcard:hover { text-decoration: none; box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .tcard.is-testing { outline: 2px dashed var(--status-testing); outline-offset: -2px; background: #fffaf8; }
@@ -1970,7 +1971,8 @@ button.backlink {
 .dash .disclosure-box { margin-top: 24px; }
 
 /* Dashboard: client-intake flag + results link */
-.tcard-flags { display: inline-flex; gap: 6px; align-items: center; }
+.tcard-flags { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.tcard-top { gap: 8px; align-items: flex-start; }
 .share-chip {
   display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700;
   letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; white-space: nowrap;
