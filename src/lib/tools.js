@@ -47,9 +47,15 @@ export const GROUPS = {
     eyebrow: 'For individuals & families',
     description: 'Retirement readiness, life transitions, and financial discovery.',
   },
+  'client-intake': {
+    id: 'client-intake',
+    title: 'Client Intake',
+    eyebrow: 'Send to a client',
+    description: 'Clients fill these in themselves; submissions arrive in Client results.',
+  },
 }
 
-export const GROUP_ORDER = ['cpa', 'business-owner', 'individual-family']
+export const GROUP_ORDER = ['cpa', 'business-owner', 'individual-family', 'client-intake']
 
 export const TOOLS = [
   // ---------- CPA Tools ----------
@@ -103,58 +109,6 @@ export const TOOLS = [
   },
 
   {
-    id: 'mileage-log',
-    group: 'cpa',
-    owner: 'grott',
-    status: 'testing',
-    path: '/tools/mileage-log',
-    icon: Car,
-    shareable: true,
-    clientPath: '/client/mileage-log',
-    title: 'Mileage & Expense Log',
-    short: 'Mileage & Expense Log',
-    description:
-      'Log business, charity, and medical mileage plus meals through the year. IRS standard rates apply automatically by trip date; clients keep the log all year and send it in January.',
-  },
-
-  // ---------- Business Owner Planning ----------
-  {
-    id: 'qbi-optimizer',
-    group: 'business-owner',
-    owner: 'blueline',
-    status: 'live',
-    path: '/tools/qbi-optimizer',
-    icon: Percent,
-    title: 'QBI Deduction Optimizer',
-    short: 'QBI Deduction Optimizer',
-    description:
-      'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
-  },
-  {
-    id: 'owner-comp',
-    group: 'business-owner',
-    owner: 'blueline',
-    status: 'live',
-    path: '/tools/owner-comp',
-    icon: Wallet,
-    title: 'Owner Compensation Optimizer',
-    short: 'Owner Compensation Optimizer',
-    description:
-      'Compare owner compensation strategies — reasonable salary vs. distributions for an S-corporation — including payroll and self-employment tax, QBI effects, and estimated total tax by strategy.',
-  },
-  {
-    id: 'cash-balance',
-    group: 'business-owner',
-    owner: 'blueline',
-    status: 'live',
-    path: '/tools/cash-balance',
-    icon: PiggyBank,
-    title: 'Cash Balance Plan Analyzer',
-    short: 'Cash Balance Analyzer',
-    description:
-      'Understand the characteristics of businesses that commonly evaluate Cash Balance Plans, with illustrative contribution and deduction ranges.',
-  },
-  {
     id: 'business-sale',
     group: 'business-owner',
     owner: 'blueline',
@@ -206,7 +160,7 @@ export const TOOLS = [
   },
   {
     id: 'know-your-numbers',
-    group: 'individual-family',
+    group: 'client-intake',
     owner: 'blueline',
     status: 'live',
     path: '/tools/know-your-numbers',
@@ -217,6 +171,58 @@ export const TOOLS = [
     short: 'Know Your Numbers',
     description:
       'A clean, client-shareable one-page financial snapshot: net worth, cash flow, savings rate, debt summary, and asset allocation.',
+  },
+  {
+    id: 'mileage-log',
+    group: 'client-intake',
+    owner: 'grott',
+    status: 'testing',
+    path: '/tools/mileage-log',
+    icon: Car,
+    shareable: true,
+    clientPath: '/client/mileage-log',
+    title: 'Mileage & Expense Log',
+    short: 'Mileage & Expense Log',
+    description:
+      'Log business, charity, and medical mileage plus meals through the year. IRS standard rates apply automatically by trip date; clients keep the log all year and send it in January.',
+  },
+
+  // ---------- Business Owner Planning ----------
+  {
+    id: 'qbi-optimizer',
+    group: 'business-owner',
+    owner: 'grott',
+    status: 'live',
+    path: '/tools/qbi-optimizer',
+    icon: Percent,
+    title: 'QBI Deduction Optimizer',
+    short: 'QBI Deduction Optimizer',
+    description:
+      'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
+  },
+  {
+    id: 'owner-comp',
+    group: 'business-owner',
+    owner: 'blueline',
+    status: 'live',
+    path: '/tools/owner-comp',
+    icon: Wallet,
+    title: 'Owner Compensation Optimizer',
+    short: 'Owner Compensation Optimizer',
+    description:
+      'Compare owner compensation strategies — reasonable salary vs. distributions for an S-corporation — including payroll and self-employment tax, QBI effects, and estimated total tax by strategy.',
+  },
+  {
+    id: 'cash-balance',
+    group: 'business-owner',
+    owner: 'blueline',
+    status: 'live',
+    path: '/tools/cash-balance',
+    icon: PiggyBank,
+    title: 'Cash Balance Plan Analyzer',
+    short: 'Cash Balance Analyzer',
+    description:
+      'Understand the characteristics of businesses that commonly evaluate Cash Balance Plans, with illustrative contribution and deduction ranges.',
   },
   {
     id: 'concentrated-wealth',

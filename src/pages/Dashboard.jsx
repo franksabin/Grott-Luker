@@ -61,6 +61,11 @@ function GroupSection({ group, tools }) {
             <em> · {testingCount} in development</em>
           ) : null}
         </span>
+        {group.id === 'client-intake' ? (
+          <Link to="/client-results" className="ribbon-action">
+            <Inbox size={14} /> Client results
+          </Link>
+        ) : null}
       </div>
       <div className="tcard-grid">
         {tools.map((tool) => (
@@ -130,9 +135,6 @@ export default function Dashboard() {
           ))}
         </div>
         <div className="dash-bar-right">
-          <Link to="/client-results" className="results-link">
-            <Inbox size={15} /> Client results
-          </Link>
           <label className="dev-toggle">
           <span>Show in-development tools</span>
           <input
