@@ -20,6 +20,30 @@ import { normalizeDonationSubmission, DONATION_LIMITS } from '../src/lib/donatio
 
 const LIST_LIMIT = 200
 
+// Self-migrating schema. Mirrors schema.sql; every statement is IF NOT EXISTS,
+// so this is safe to run on every cold start and makes deploys independent of
+// a separate `wrangler d1 execute` step.
+const SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS snapshots (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT, notes TEXT, figures TEXT NOT NULL, net_worth REAL, total_assets REAL, total_liabilities REAL, annual_cash_flow REAL)`,
+  `CREATE INDEX IF NOT EXISTS idx_snapshots_created_at ON snapshots (created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS usage_events (id INTEGER PRIMARY KEY AUTOINCREMENT, tool_id TEXT NOT NULL, ts TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_usage_events_tool_ts ON usage_events (tool_id, ts DESC)`,
+  `CREATE TABLE IF NOT EXISTS mileage_logs (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT, notes TEXT, tax_year INTEGER NOT NULL, log TEXT NOT NULL, total_miles REAL, estimated_deduction REAL)`,
+  `CREATE INDEX IF NOT EXISTS idx_mileage_logs_created_at ON mileage_logs (created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS donation_logs (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT, notes TEXT, tax_year INTEGER NOT NULL, log TEXT NOT NULL, total_gifts REAL, estimated_deduction REAL)`,
+  `CREATE INDEX IF NOT EXISTS idx_donation_logs_created_at ON donation_logs (created_at DESC)`,
+]
+let schemaReady = null
+function ensureSchema(env) {
+  if (!schemaReady) {
+    schemaReady = env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql))).catch((err) => {
+      schemaReady = null // allow retry on the next request
+      throw err
+    })
+  }
+  return schemaReady
+}
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -240,6 +264,8 @@ export default {
     }
 
     try {
+      await ensureSchema(env)
+
       if (pathname === '/api/snapshots') {
         if (request.method === 'POST') return await handleCreate(request, env)
         if (request.method === 'GET') {
