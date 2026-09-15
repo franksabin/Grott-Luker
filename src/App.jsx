@@ -25,6 +25,8 @@ import PlannedTool from './pages/PlannedTool.jsx'
 import WithholdingCheckup from './pages/WithholdingCheckup.jsx'
 import CharitableGiving from './pages/CharitableGiving.jsx'
 import SocialSecurityTiming from './pages/SocialSecurityTiming.jsx'
+import CapitalGainsHarvesting from './pages/CapitalGainsHarvesting.jsx'
+import RetirementPlanComparison from './pages/RetirementPlanComparison.jsx'
 
 // Client-facing intake + the CPA-side viewer for what clients submit
 import ClientKnowYourNumbers from './pages/ClientKnowYourNumbers.jsx'
@@ -56,9 +58,9 @@ export default function App() {
         <Route path="tools/mileage-log" element={<MileageLog />} />
         {/* Planned (roadmap) tools — placeholder pages */}
         <Route path="tools/withholding-checkup" element={<WithholdingCheckup />} />
-        <Route path="tools/capital-gains-harvesting" element={<PlannedTool />} />
+        <Route path="tools/capital-gains-harvesting" element={<CapitalGainsHarvesting />} />
         <Route path="tools/charitable-giving-optimizer" element={<CharitableGiving />} />
-        <Route path="tools/retirement-plan-comparison" element={<PlannedTool />} />
+        <Route path="tools/retirement-plan-comparison" element={<RetirementPlanComparison />} />
         <Route path="tools/social-security-timing" element={<SocialSecurityTiming />} />
         <Route path="tools/charitable-donation-log" element={<PlannedTool />} />
         {/* Submissions from clients */}

@@ -4,6 +4,31 @@
 // the Grott Luker & Co. signature so every email is consistent and professional.
 
 export const EMAIL_REQUESTS = {
+  'capital-gains-harvesting': {
+    subject: 'Information needed for year-end gain and loss planning',
+    intro:
+      'Before year-end we would like to see whether realizing some gains at a low rate, or harvesting losses, makes sense in your taxable accounts. Please reply with the following (a recent brokerage statement with unrealized gains/losses covers most of it):',
+    questions: [
+      'Unrealized gains and losses by position in taxable (non-retirement) accounts, noting which were held more than one year',
+      'Any sales already made this year and the gain or loss on each',
+      'Approximate other income for the year (wages, pensions, IRA distributions, interest, dividends)',
+      'Loss carryforward from last year’s return, if any (we can look this up)',
+      'Any positions you would want to keep regardless of tax result',
+    ],
+  },
+  'retirement-plan-comparison': {
+    subject: 'Information needed to compare retirement plan options for your business',
+    intro:
+      'We are comparing a SEP IRA, a Solo 401(k), and a SIMPLE IRA to see which lets you put away the most on the best terms. Please reply with the following:',
+    questions: [
+      'How the business pays you — Schedule C profit, or W-2 wages from an S-corporation — and roughly how much this year',
+      'Your age',
+      'Whether the business has any employees other than you (and your spouse), and their approximate hours',
+      'Roughly how much you would like to contribute this year',
+      'Whether Roth contributions or the ability to borrow from the plan matter to you',
+    ],
+  },
+
   'charitable-giving-optimizer': {
     subject: 'Information needed to plan your charitable giving',
     intro:
