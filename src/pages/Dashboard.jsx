@@ -208,8 +208,8 @@ export default function Dashboard() {
           <div className="who-label">Who we serve</div>
           <div className="who-chips">
             {[
+              'Retirement Plans – Cash Balance & 401(k)',
               'Business owners',
-              'Retirement plan sponsors',
               'Individuals & families',
               'Divorce & major transitions',
               'Pre-retirees & retirees',
