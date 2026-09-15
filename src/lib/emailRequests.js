@@ -4,6 +4,20 @@
 // the Grott Luker & Co. signature so every email is consistent and professional.
 
 export const EMAIL_REQUESTS = {
+  'withholding-checkup': {
+    subject: 'Quick withholding check — one pay stub needed',
+    intro:
+      'We would like to check whether your federal withholding is on track for the year so there are no surprises in April. Please reply with the following (a photo of your most recent pay stub covers most of it):',
+    questions: [
+      'Your most recent pay stub: year-to-date taxable wages and year-to-date federal withholding',
+      'How often you are paid (weekly, biweekly, semimonthly, monthly) and how many paychecks you have received so far this year',
+      'The same two year-to-date figures from your spouse’s pay stub, if filing jointly',
+      'Any bonus, commission, or stock vesting still expected this year',
+      'Other income without withholding — interest, dividends, side income, retirement distributions',
+      'Whether you expect to itemize, and any credits you usually claim (children, dependent care, education)',
+    ],
+  },
+
   'mileage-log': {
     subject: 'Your mileage and expense log for this year',
     intro:

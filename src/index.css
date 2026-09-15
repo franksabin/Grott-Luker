@@ -2020,3 +2020,7 @@ button.backlink {
   color: var(--g); background: #fff; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
 }
 .ribbon-action:hover { text-decoration: none; background: var(--g-soft); }
+
+/* Callout tone: warn (amber) — used when a shortfall needs action */
+.callout-warn { background: var(--warn-bg); border-color: var(--warn-border); }
+.callout-warn .callout-value { color: var(--negative); }

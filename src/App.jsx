@@ -22,6 +22,7 @@ import BusinessSale from './pages/BusinessSale.jsx'
 import ConcentratedWealth from './pages/ConcentratedWealth.jsx'
 import MileageLog from './pages/MileageLog.jsx'
 import PlannedTool from './pages/PlannedTool.jsx'
+import WithholdingCheckup from './pages/WithholdingCheckup.jsx'
 
 // Client-facing intake + the CPA-side viewer for what clients submit
 import ClientKnowYourNumbers from './pages/ClientKnowYourNumbers.jsx'
@@ -52,7 +53,7 @@ export default function App() {
         <Route path="tools/concentrated-wealth" element={<ConcentratedWealth />} />
         <Route path="tools/mileage-log" element={<MileageLog />} />
         {/* Planned (roadmap) tools — placeholder pages */}
-        <Route path="tools/withholding-checkup" element={<PlannedTool />} />
+        <Route path="tools/withholding-checkup" element={<WithholdingCheckup />} />
         <Route path="tools/capital-gains-harvesting" element={<PlannedTool />} />
         <Route path="tools/charitable-giving-optimizer" element={<PlannedTool />} />
         <Route path="tools/retirement-plan-comparison" element={<PlannedTool />} />

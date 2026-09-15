@@ -106,7 +106,6 @@ export const TOOLS = [
     group: 'cpa',
     owner: 'grott',
     status: 'testing',
-    planned: true,
     path: '/tools/withholding-checkup',
     icon: FileCheck,
     title: 'Withholding Checkup (W-4)',
