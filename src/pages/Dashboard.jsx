@@ -25,7 +25,7 @@ function ToolCard({ tool }) {
         <span className="tcard-icon">
           <Icon size={18} strokeWidth={1.75} />
         </span>
-        {testing ? <span className="status-chip">Not yet tested</span> : null}
+        {testing ? <span className="status-chip">In development</span> : null}
       </div>
       <h3>{tool.title}</h3>
       <p>{tool.description}</p>
@@ -49,7 +49,7 @@ function GroupSection({ group, tools }) {
         <span className="ribbon-count">
           {tools.length} {tools.length === 1 ? 'tool' : 'tools'}
           {testingCount ? (
-            <em> · {testingCount} not yet tested</em>
+            <em> · {testingCount} in development</em>
           ) : null}
         </span>
       </div>
