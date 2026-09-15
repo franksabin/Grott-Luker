@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Copy, Mail, Check } from 'lucide-react'
 import { buildEmail } from '../lib/emailRequests.js'
 
-export default function RequestInfoModal({ open, onClose, spec }) {
+export default function RequestInfoModal({ open, onClose, spec, link }) {
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [copied, setCopied] = useState(false)
@@ -10,12 +10,12 @@ export default function RequestInfoModal({ open, onClose, spec }) {
   // (Re)initialize the editable email whenever the modal is opened for a tool.
   useEffect(() => {
     if (open) {
-      const email = buildEmail(spec)
+      const email = buildEmail(spec, link)
       setSubject(email.subject)
       setBody(email.body)
       setCopied(false)
     }
-  }, [open, spec])
+  }, [open, spec, link])
 
   // Close on Escape.
   useEffect(() => {
@@ -71,9 +71,9 @@ export default function RequestInfoModal({ open, onClose, spec }) {
         </div>
 
         <p className="modal-intro">
-          This email lists exactly the information this tool needs. Personalize
-          the client name and your signature, then copy it or open it in your
-          email app. Your client can simply reply with their answers.
+          {link
+            ? 'This email sends your client to the form for this tool — they fill it in themselves and it arrives in Client results. Personalize the client name and your signature, then copy it or open it in your email app.'
+            : 'This email lists exactly the information this tool needs. Personalize the client name and your signature, then copy it or open it in your email app. Your client can simply reply with their answers.'}
         </p>
 
         <label className="field-label">Subject</label>

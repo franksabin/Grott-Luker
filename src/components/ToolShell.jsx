@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ArrowLeft, RotateCcw, Database, FileDown, Mail } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Database, FileDown, Mail, Link2, Check, Eye } from 'lucide-react'
 import { timestampNow } from '../lib/format.js'
 import { TOOLS } from '../lib/tools.js'
 import { EMAIL_REQUESTS } from '../lib/emailRequests.js'
@@ -18,9 +18,22 @@ export default function ToolShell({
   disclosure = STANDARD_DISCLOSURE,
 }) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
   const { pathname } = useLocation()
   const tool = TOOLS.find((t) => t.path === pathname)
   const emailSpec = tool ? EMAIL_REQUESTS[tool.id] : null
+  const clientLink = tool?.clientPath ? `${window.location.origin}${tool.clientPath}` : null
+
+  function copyClientLink() {
+    if (!clientLink) return
+    navigator.clipboard?.writeText(clientLink).then(
+      () => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      },
+      () => window.prompt('Copy this link and send it to your client:', clientLink),
+    )
+  }
 
   const handlePrint = () => window.print()
   const generatedAt = timestampNow()
@@ -44,8 +57,19 @@ export default function ToolShell({
       <div className="toolbar no-print">
         {emailSpec ? (
           <button className="btn btn-primary btn-sm" onClick={() => setModalOpen(true)}>
-            <Mail size={15} /> Request client information
+            <Mail size={15} /> {clientLink ? 'Email client the form' : 'Request client information'}
           </button>
+        ) : null}
+        {clientLink ? (
+          <>
+            <button className="btn btn-ghost btn-sm" onClick={copyClientLink}>
+              {copied ? <Check size={15} /> : <Link2 size={15} />}
+              {copied ? 'Link copied' : 'Copy client link'}
+            </button>
+            <a className="btn btn-ghost btn-sm" href={tool.clientPath} target="_blank" rel="noopener noreferrer">
+              <Eye size={15} /> Preview client form
+            </a>
+          </>
         ) : null}
         {onSample ? (
           <button className="btn btn-ghost btn-sm" onClick={onSample}>
@@ -67,11 +91,23 @@ export default function ToolShell({
         Estimate generated {generatedAt}
       </div>
 
+      {clientLink ? (
+        <div className="share-how no-print">
+          <div className="share-how-title">How this Shareable tool works</div>
+          <ol>
+            <li><strong>Send the link.</strong> Use “Email client the form” (a ready-made email with the link) or “Copy client link” and paste it into your own message or text.</li>
+            <li><strong>The client fills it in.</strong> The form opens in any browser — no login, no account. It saves on their device as they go.</li>
+            <li><strong>It lands in Client results.</strong> When they click Send, the submission appears under Client results (staff passcode) with their name and email, ready to print or review before the meeting.</li>
+          </ol>
+          <div className="share-how-note">The link is the same for every client; you tell submissions apart by the name and email the client enters. You can also fill this page in yourself during a meeting — that stays on this device only.</div>
+        </div>
+      ) : null}
+
       {children}
 
       <p className="disclosure">{disclosure}</p>
 
-      <RequestInfoModal open={modalOpen} onClose={() => setModalOpen(false)} spec={emailSpec} />
+      <RequestInfoModal open={modalOpen} onClose={() => setModalOpen(false)} spec={emailSpec} link={clientLink} />
     </div>
   )
 }

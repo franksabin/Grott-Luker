@@ -21,7 +21,7 @@ export const EMAIL_REQUESTS = {
   'mileage-log': {
     subject: 'Your mileage and expense log for this year',
     intro:
-      'To make sure you capture every deductible mile and business meal, please keep this log through the year and send it to us in January. It saves on your device as you go and takes one click to submit:',
+      'To make sure you capture every deductible mile and business meal, please keep this log through the year and send it to us in January. It saves on your device as you go and takes one click to submit.',
     questions: [
       'Open the link and enter your name and email once',
       'Add each trip as it happens: date, client, destination, and miles; choose Business, Charity, or Medical',
@@ -154,9 +154,9 @@ export const EMAIL_REQUESTS = {
   },
 
   'know-your-numbers': {
-    subject: 'Information needed for your financial snapshot',
+    subject: 'Your financial snapshot — a short form to fill in',
     intro:
-      'We are putting together a clean, one-page snapshot of where things stand today — net worth, cash flow, savings rate, and asset allocation. Approximate figures are fine. Please reply with the following:',
+      'We are putting together a clean, one-page snapshot of where things stand today — net worth, cash flow, savings rate, and asset allocation. Approximate figures are fine.',
     questions: [
       'Assets: cash and bank accounts, investments (non-retirement), retirement accounts, real estate, business interests, and personal property/other',
       'Liabilities: mortgage, auto loans, student loans, credit card balances, and other debt',
@@ -181,19 +181,40 @@ const SIGNATURE = [
 ].join('\n')
 
 // Assemble the full plain-text email body for a given tool spec.
-export function buildEmail(spec) {
+// `link` is the client-facing form URL for Shareable tools. When present the
+// email sends the client to the form instead of asking them to reply with
+// figures, and the numbered list becomes "what you'll be asked for".
+export function buildEmail(spec, link) {
   if (!spec) return { subject: '', body: '' }
   const numbered = spec.questions.map((q, i) => `${i + 1}. ${q}`).join('\n')
-  const body = [
-    'Dear [Client Name],',
-    '',
-    spec.intro,
-    '',
-    numbered,
-    '',
-    SENSITIVE_REMINDER,
-    '',
-    SIGNATURE,
-  ].join('\n')
+  const body = link
+    ? [
+        'Dear [Client Name],',
+        '',
+        spec.intro,
+        '',
+        'Please use this secure form — it takes a few minutes and saves as you go:',
+        link,
+        '',
+        'It will ask for:',
+        numbered,
+        '',
+        'When you click Send at the bottom, it comes straight to us. No login or account is needed.',
+        '',
+        SENSITIVE_REMINDER,
+        '',
+        SIGNATURE,
+      ].join('\n')
+    : [
+        'Dear [Client Name],',
+        '',
+        spec.intro,
+        '',
+        numbered,
+        '',
+        SENSITIVE_REMINDER,
+        '',
+        SIGNATURE,
+      ].join('\n')
   return { subject: spec.subject, body }
 }
