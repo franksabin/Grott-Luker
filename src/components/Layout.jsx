@@ -41,12 +41,12 @@ export default function Layout({ client = false }) {
         <div className="container">
           {client ? (
             <span className="brand-stack">
-              <img className="brand-full-logo" src="/brand/grottluker-wordmark.png" alt="Grott Luker & Co." />
+              <img className="brand-full-logo" src="/brand/gl-logo-white-tight.png" alt="Grott Luker & Co." />
               {showKicker ? <span className="brand-kicker">Client Decision Support Toolkit</span> : null}
             </span>
           ) : (
             <Link to="/" className="brand-stack" aria-label="Grott Luker & Co. — home">
-              <img className="brand-full-logo" src="/brand/grottluker-wordmark.png" alt="Grott Luker & Co." />
+              <img className="brand-full-logo" src="/brand/gl-logo-white-tight.png" alt="Grott Luker & Co." />
               {showKicker ? <span className="brand-kicker">Client Decision Support Toolkit</span> : null}
             </Link>
           )}

@@ -129,10 +129,10 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 92px;
+  min-height: 124px;
   gap: 24px;
-  padding-top: 16px;
-  padding-bottom: 16px;
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 .brand-stack {
   display: flex;
@@ -144,7 +144,7 @@ p {
   text-decoration: none;
 }
 .brand-full-logo {
-  height: 40px;
+  height: 88px;
   width: auto;
   display: block;
 }
@@ -195,7 +195,7 @@ p {
     padding-bottom: 12px;
   }
   .brand-full-logo {
-    height: 26px;
+    height: 60px;
   }
   .brand-kicker {
     display: none;
