@@ -29,8 +29,8 @@ function ToolCard({ tool }) {
         </span>
         <span className="tcard-flags">
           {tool.shareable ? (
-            <span className="share-chip" title="Has a client-facing intake form; results arrive in Client results">
-              <Link2 size={11} /> Client intake link
+            <span className="share-chip" title="Has a client-facing version; submissions arrive in Client results">
+              <Link2 size={11} /> Shareable
             </span>
           ) : null}
           {testing ? <span className="status-chip">In development</span> : null}

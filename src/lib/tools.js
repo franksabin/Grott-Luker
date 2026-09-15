@@ -49,7 +49,7 @@ export const GROUPS = {
   },
   'client-intake': {
     id: 'client-intake',
-    title: 'Client Intake',
+    title: 'Shareable',
     eyebrow: 'Send to a client',
     description: 'Clients fill these in themselves; submissions arrive in Client results.',
   },
