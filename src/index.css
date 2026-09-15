@@ -1883,8 +1883,8 @@ button.backlink {
 
 /* Group colors */
 .tgroup[data-group="cpa"] { --g: #14335c; --g-soft: #e3e9f2; }
-.tgroup[data-group="business-owner"] { --g: #1f6b6e; --g-soft: #e0eeee; }
-.tgroup[data-group="individual-family"] { --g: #5b2a6e; --g-soft: #ede3f2; }
+.tgroup[data-group="business-owner"] { --g: #2a5a8c; --g-soft: #e3ebf4; }
+.tgroup[data-group="individual-family"] { --g: #4a7fb5; --g-soft: #e6eef7; }
 .tgroup[data-group="client-intake"] { --g: #6b7280; --g-soft: #eceef1; }
 
 /* Ribbon group header */
@@ -2009,9 +2009,6 @@ button.backlink {
 @media print { .mlog-tablewrap { overflow: visible; } }
 
 /* Provenance: stronger owner signal (edge + filled chip); solid status badge */
-.tcard { border-left: 4px solid transparent; }
-.tcard.owner-grott { border-left-color: var(--owner-grott); }
-.tcard.owner-blueline { border-left-color: var(--owner-blueline); }
 .owner-chip { font-size: 11px; padding: 4px 9px; border-radius: 6px; letter-spacing: 0.07em; }
 .owner-grott .owner-chip { color: var(--owner-grott); background: var(--owner-grott-soft); }
 .owner-blueline .owner-chip { color: var(--owner-blueline); background: var(--owner-blueline-soft); }
