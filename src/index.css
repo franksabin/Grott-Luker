@@ -2023,4 +2023,4 @@ button.backlink {
 
 /* Callout tone: warn (amber) — used when a shortfall needs action */
 .callout-warn { background: var(--warn-bg); border-color: var(--warn-border); }
-.callout-warn .callout-value { color: var(--negative); }
+.callout-warn .callout-value { color: var(--negative); font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; }
