@@ -21,6 +21,12 @@ import {
   Layers,
   Map,
   Car,
+  FileCheck,
+  TrendingUp,
+  HeartHandshake,
+  Landmark,
+  Clock,
+  Gift,
 } from 'lucide-react'
 
 export const OWNERS = {
@@ -84,18 +90,6 @@ export const TOOLS = [
       'Project taxable income and tax across several years to visualize the impact of Roth conversions, RMDs, Social Security timing, and other events — and find low-bracket planning windows.',
   },
   {
-    id: 'roth-conversion',
-    group: 'cpa',
-    owner: 'grott',
-    status: 'live',
-    path: '/tools/roth-conversion',
-    icon: RefreshCw,
-    title: 'Roth Conversion Analyzer',
-    short: 'Roth Conversion Analyzer',
-    description:
-      'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
-  },
-  {
     id: 'retirement-tax-map',
     group: 'cpa',
     owner: 'blueline',
@@ -106,6 +100,69 @@ export const TOOLS = [
     short: 'Retirement Income Tax Map',
     description:
       'See how each retirement income source contributes to taxable income, how Social Security becomes taxable, and where IRMAA and after-tax cash flow land — with a second scenario for comparison.',
+  },
+  {
+    id: 'withholding-checkup',
+    group: 'cpa',
+    owner: 'grott',
+    status: 'testing',
+    planned: true,
+    path: '/tools/withholding-checkup',
+    icon: FileCheck,
+    title: 'Withholding Checkup (W-4)',
+    short: 'Withholding Checkup',
+    description:
+      'Will this client owe in April? Compare year-to-date withholding against projected tax and get the W-4 adjustment that closes the gap before year-end.',
+    plan:
+      'A mid-year answer to the most common client question. Projects full-year tax from YTD pay stubs, compares it to withholding to date, and translates any shortfall into an extra-per-paycheck amount for the remaining pay periods.',
+    planInputs: [
+      'Filing status and state',
+      'YTD wages and federal withholding (from a recent pay stub)',
+      'Pay frequency and remaining pay periods',
+      'Other income, deductions, and credits expected',
+    ],
+  },
+  {
+    id: 'capital-gains-harvesting',
+    group: 'cpa',
+    owner: 'grott',
+    status: 'testing',
+    planned: true,
+    path: '/tools/capital-gains-harvesting',
+    icon: TrendingUp,
+    title: 'Capital Gains & Loss Harvesting Planner',
+    short: 'Gains & Loss Harvesting',
+    description:
+      'How much gain can be realized this year inside the 0% or 15% bracket, and which losses are worth harvesting against it — with the wash-sale window flagged.',
+    plan:
+      'A Q4 planning tool: shows the headroom left in the current capital-gains bracket, the tax on realizing a given gain, and the offset from harvesting losses, including the $3,000 ordinary-income limit and carryforward.',
+    planInputs: [
+      'Filing status, ordinary taxable income, and state',
+      'Unrealized gains and losses by position (long vs. short)',
+      'Planned realizations this year',
+      'Loss carryforward from prior years',
+    ],
+  },
+  {
+    id: 'charitable-giving-optimizer',
+    group: 'cpa',
+    owner: 'grott',
+    status: 'testing',
+    planned: true,
+    path: '/tools/charitable-giving-optimizer',
+    icon: HeartHandshake,
+    title: 'Charitable Giving Optimizer',
+    short: 'Charitable Giving',
+    description:
+      'Bunching vs. the standard deduction, donor-advised fund timing, and qualified charitable distributions for clients over 70½ — which route saves the most tax.',
+    plan:
+      'Compares annual giving against bunching two or three years of gifts into one, funding a DAF, or giving from an IRA via QCD. Shows the deduction actually captured under each route.',
+    planInputs: [
+      'Filing status and taxable income',
+      'Annual charitable giving and other itemized deductions',
+      'Age and IRA balance (for QCD eligibility)',
+      'Appreciated securities available to gift',
+    ],
   },
 
   // ---------- Business Owner Planning ----------
@@ -157,8 +214,41 @@ export const TOOLS = [
     description:
       'Estimate after-tax proceeds and net liquidity from the sale of a business — what actually lands after federal, state, and transaction costs.',
   },
+  {
+    id: 'retirement-plan-comparison',
+    group: 'business-owner',
+    owner: 'blueline',
+    status: 'testing',
+    planned: true,
+    path: '/tools/retirement-plan-comparison',
+    icon: Landmark,
+    title: 'Retirement Plan Comparison',
+    short: 'SEP vs. Solo 401(k) vs. SIMPLE',
+    description:
+      'Maximum contribution, cost, and complexity for a self-employed owner under a SEP, a Solo 401(k), and a SIMPLE IRA — side by side.',
+    plan:
+      'The question every self-employed client asks. Computes the maximum deductible contribution under each plan type from net earnings and age, and notes deadlines and employee-coverage implications.',
+    planInputs: [
+      'Entity type and net self-employment earnings or W-2 wages',
+      'Owner age (catch-up eligibility)',
+      'Number of employees and whether they must be covered',
+      'Desired contribution level',
+    ],
+  },
 
   // ---------- Individual & Family Planning ----------
+  {
+    id: 'roth-conversion',
+    group: 'individual-family',
+    owner: 'grott',
+    status: 'live',
+    path: '/tools/roth-conversion',
+    icon: RefreshCw,
+    title: 'Roth Conversion Analyzer',
+    short: 'Roth Conversion Analyzer',
+    description:
+      'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
+  },
   {
     id: 'retire-track',
     group: 'individual-family',
@@ -207,8 +297,29 @@ export const TOOLS = [
     description:
       'Illustrate how much of a client’s wealth and income rests on a single source, how much is liquid, and how a simple shock would affect net worth.',
   },
+  {
+    id: 'social-security-timing',
+    group: 'individual-family',
+    owner: 'blueline',
+    status: 'testing',
+    planned: true,
+    path: '/tools/social-security-timing',
+    icon: Clock,
+    title: 'Social Security Timing',
+    short: 'Social Security Timing',
+    description:
+      'Claim at 62, full retirement age, or 70 — monthly benefit, break-even age, lifetime value, and the survivor consideration for a couple.',
+    plan:
+      'Shows the benefit at each claiming age from the client\'s PIA, cumulative lifetime benefits under each choice, and the break-even age. Includes the higher earner\'s survivor-benefit effect for married clients.',
+    planInputs: [
+      'Primary insurance amount (from the SSA statement) for each spouse',
+      'Birth dates',
+      'Planned claiming ages to compare',
+      'Life-expectancy assumption and an optional discount rate',
+    ],
+  },
 
-  // ---------- Client Intake ----------
+  // ---------- Shareable ----------
   {
     id: 'know-your-numbers',
     group: 'client-intake',
@@ -236,6 +347,29 @@ export const TOOLS = [
     short: 'Mileage & Expense Log',
     description:
       'Log business, charity, and medical mileage plus meals through the year. IRS standard rates apply automatically by trip date; clients keep the log all year and send it in January.',
+  },
+  {
+    id: 'charitable-donation-log',
+    group: 'client-intake',
+    owner: 'grott',
+    status: 'testing',
+    planned: true,
+    shareable: true,
+    clientPath: '/client/charitable-donation-log',
+    path: '/tools/charitable-donation-log',
+    icon: Gift,
+    title: 'Charitable Donation Log',
+    short: 'Donation Log',
+    description:
+      'Cash and non-cash gifts through the year, with the receipt and appraisal thresholds flagged as entries are made. Clients keep the log and send it in January.',
+    plan:
+      'A Shareable companion to the Mileage & Expense Log. Each entry checks the substantiation rule that applies: written acknowledgment at $250, Form 8283 at $500 of non-cash gifts, qualified appraisal at $5,000.',
+    planInputs: [
+      'Date, organization, and amount for cash gifts',
+      'Description and fair market value for non-cash gifts',
+      'Whether an acknowledgment letter was received',
+      'Appreciated securities gifted (cost basis, holding period)',
+    ],
   },
 ]
 

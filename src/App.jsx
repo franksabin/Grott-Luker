@@ -21,6 +21,7 @@ import RetirementTaxMap from './pages/RetirementTaxMap.jsx'
 import BusinessSale from './pages/BusinessSale.jsx'
 import ConcentratedWealth from './pages/ConcentratedWealth.jsx'
 import MileageLog from './pages/MileageLog.jsx'
+import PlannedTool from './pages/PlannedTool.jsx'
 
 // Client-facing intake + the CPA-side viewer for what clients submit
 import ClientKnowYourNumbers from './pages/ClientKnowYourNumbers.jsx'
@@ -50,6 +51,13 @@ export default function App() {
         <Route path="tools/business-sale" element={<BusinessSale />} />
         <Route path="tools/concentrated-wealth" element={<ConcentratedWealth />} />
         <Route path="tools/mileage-log" element={<MileageLog />} />
+        {/* Planned (roadmap) tools — placeholder pages */}
+        <Route path="tools/withholding-checkup" element={<PlannedTool />} />
+        <Route path="tools/capital-gains-harvesting" element={<PlannedTool />} />
+        <Route path="tools/charitable-giving-optimizer" element={<PlannedTool />} />
+        <Route path="tools/retirement-plan-comparison" element={<PlannedTool />} />
+        <Route path="tools/social-security-timing" element={<PlannedTool />} />
+        <Route path="tools/charitable-donation-log" element={<PlannedTool />} />
         {/* Submissions from clients */}
         <Route path="client-results" element={<ClientResults />} />
       </Route>
