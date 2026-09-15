@@ -1882,9 +1882,9 @@ button.backlink {
 .dev-toggle input:focus-visible + i { outline: 2px solid var(--navy-500); outline-offset: 2px; }
 
 /* Group colors */
-.tgroup[data-group="cpa"] { --g: #14335c; --g-soft: #e3e9f2; }
-.tgroup[data-group="business-owner"] { --g: #2a5a8c; --g-soft: #e3ebf4; }
-.tgroup[data-group="individual-family"] { --g: #4a7fb5; --g-soft: #e6eef7; }
+.tgroup[data-group="cpa"] { --g: #0f2440; --g-soft: #e3e9f2; }
+.tgroup[data-group="business-owner"] { --g: #2f6099; --g-soft: #e3ebf4; }
+.tgroup[data-group="individual-family"] { --g: #5a93cf; --g-soft: #e6eef7; }
 .tgroup[data-group="client-intake"] { --g: #6b7280; --g-soft: #eceef1; }
 
 /* Ribbon group header */
@@ -1908,13 +1908,13 @@ button.backlink {
 @media (max-width: 520px) { .tcard-grid { grid-template-columns: 1fr; } }
 
 .tcard {
-  background: var(--card); border-radius: 12px; padding: 18px; box-shadow: var(--shadow-sm);
+  background: var(--card); border-radius: 12px; padding: 18px; box-shadow: 0 2px 4px rgba(20, 30, 50, 0.06), 0 12px 28px rgba(20, 30, 50, 0.12);
   display: flex; flex-direction: column; gap: 8px; color: inherit; text-decoration: none;
   transition: box-shadow 0.15s, transform 0.15s;
   height: 236px;
   min-width: 0;
 }
-.tcard:hover { text-decoration: none; box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+.tcard:hover { text-decoration: none; box-shadow: 0 4px 8px rgba(20, 30, 50, 0.08), 0 20px 44px rgba(20, 30, 50, 0.18); transform: translateY(-2px); }
 .tcard.is-testing { outline: 2px dashed var(--status-testing); outline-offset: -2px; background: #fffaf8; }
 .tcard-top { display: flex; justify-content: space-between; align-items: center; }
 .tcard-icon {
@@ -2009,9 +2009,9 @@ button.backlink {
 @media print { .mlog-tablewrap { overflow: visible; } }
 
 /* Provenance: stronger owner signal (edge + filled chip); solid status badge */
-.owner-chip { font-size: 11px; padding: 4px 9px; border-radius: 6px; letter-spacing: 0.07em; }
-.owner-grott .owner-chip { color: var(--owner-grott); background: var(--owner-grott-soft); }
-.owner-blueline .owner-chip { color: var(--owner-blueline); background: var(--owner-blueline-soft); }
+.owner-chip { font-size: 11.5px; padding: 5px 10px; border-radius: 7px; letter-spacing: 0.08em; }
+.owner-grott .owner-chip { color: #fff; background: var(--owner-grott); }
+.owner-blueline .owner-chip { color: #fff; background: var(--owner-blueline); }
 .status-chip { color: #fff; background: var(--status-testing); font-size: 11px; padding: 5px 10px; border-radius: 7px; }
 .status-chip::before { background: #fff; }
 .tcard.is-testing { outline-width: 2px; }
