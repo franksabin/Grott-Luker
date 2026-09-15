@@ -91,6 +91,15 @@ export default function ConcentratedWealth() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: 'Total assets', formula: r.assetVals.filter((a) => a.value > 0).map((a) => `${a.label} ${money(a.value)}`).join(' + ') || 'no assets entered', result: money(r.totalAssets, 2) },
+    { label: 'Largest single asset', formula: `${r.largest.label} ÷ total`, result: `${percent(r.largestPct, 1)} (${money(r.largest.value)})` },
+    { label: 'Liquid assets', formula: 'employer stock + individual securities + cryptocurrency', result: `${money(r.liquid, 2)} (${percent(r.liquidPct, 1)})` },
+    { label: 'Illiquid assets', formula: 'business + real estate + deferred compensation', result: `${money(r.illiquid, 2)} (${percent(r.illiquidPct, 1)})` },
+    { label: 'Total income', formula: r.incomeVals.filter((i) => i.value > 0).map((i) => `${i.label} ${money(i.value)}`).join(' + ') || 'no income entered', result: money(r.totalIncome, 2) },
+    { label: 'Income dependence', formula: `${r.largestIncome.label} ÷ total income`, result: percent(r.incomeDependencePct, 1) },
+    { label: 'Shock test', formula: `50% × ${r.largest.label} ${money(r.largest.value)}`, result: `${money(r.shockLoss, 2)} (${percent(r.shockPctOfNetWorth, 1)} of assets)` },
+  ], [r])
 
   return (
     <ToolShell
@@ -98,6 +107,7 @@ export default function ConcentratedWealth() {
       subtitle="Illustrate concentration using straightforward arithmetic — how much of your wealth and income rests on a single source, how much is liquid, and how a simple shock would affect your net worth."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>

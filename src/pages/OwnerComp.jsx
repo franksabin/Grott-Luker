@@ -14,7 +14,7 @@ import {
 } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { ordinaryTax, selfEmploymentTax, ficaOnSalary, STANDARD_DEDUCTION } from '../lib/tax.js'
+import { ordinaryTax, selfEmploymentTax, ficaOnSalary, STANDARD_DEDUCTION, SS_WAGE_BASE, TAX_YEAR } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 
 const FILING = [
@@ -97,6 +97,20 @@ export default function OwnerComp() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: 'Sole prop · self-employment tax', formula: `${money(r.netProfit, 2)} × 92.35% × 15.3% (12.4% capped at the ${money(SS_WAGE_BASE)} wage base)`, result: money(r.se, 2) },
+    { label: 'Sole prop · QBI deduction', formula: 'lesser of 20% × (profit − ½ SE tax) and 20% × taxable income', result: money(r.soleQbi, 2) },
+    { label: 'Sole prop · federal income tax', formula: `${TAX_YEAR} brackets on profit − ½ SE tax + other income − standard deduction − QBI`, result: money(r.soleIncomeTax, 2) },
+    { label: 'Sole prop · state tax', formula: `income × ${r.stateName} rate`, result: money(r.soleState, 2) },
+    { label: 'Sole prop · total tax', formula: 'SE + federal + state', result: money(r.soleTotal, 2) },
+    { label: 'S-corp · payroll tax on salary', formula: `${money(r.salary, 2)} × 15.3% (employer + employee)`, result: money(r.fica, 2) },
+    { label: 'S-corp · distribution', formula: `${money(r.netProfit, 2)} − salary − employer half of payroll tax`, result: money(r.distribution, 2) },
+    { label: 'S-corp · QBI deduction', formula: 'lesser of 20% × distribution and 20% × taxable income', result: money(r.scorpQbi, 2) },
+    { label: 'S-corp · federal income tax', formula: `${TAX_YEAR} brackets on salary + distribution + other income − standard deduction − QBI`, result: money(r.scorpIncomeTax, 2) },
+    { label: 'S-corp · state tax', formula: `income × ${r.stateName} rate`, result: money(r.scorpState, 2) },
+    { label: 'S-corp · total tax', formula: 'payroll + federal + state', result: money(r.scorpTotal, 2) },
+    { label: 'Savings from S-corp election', formula: `${money(r.soleTotal, 2)} − ${money(r.scorpTotal, 2)}`, result: money(r.savings, 2), note: 'Before payroll-service and tax-return costs of running an S-corp.' },
+  ], [r])
 
   return (
     <ToolShell
@@ -104,6 +118,7 @@ export default function OwnerComp() {
       subtitle="Compare paying yourself as a sole proprietor / LLC versus taking a reasonable salary plus distributions through an S-corporation — including payroll and self-employment tax, the QBI deduction, and total tax by strategy."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>
@@ -234,7 +249,7 @@ export default function OwnerComp() {
 
       <Assumptions
         items={[
-          'Uses 2025 federal brackets, standard deduction, the Social Security wage base, and combined employer + employee FICA / self-employment tax rates.',
+          'Uses 2026 federal brackets, standard deduction, the Social Security wage base, and combined employer + employee FICA / self-employment tax rates.',
           'The S-corp distribution equals net profit less the salary and the employer share of payroll tax; distributions are not subject to payroll tax.',
           'QBI is estimated as 20% of qualified income, limited to 20% of taxable income. W-2 wage and property limitations and the SSTB phase-out are not modeled here (see the QBI Deduction Optimizer).',
           'The additional 0.9% Medicare surtax, state-specific rules, and retirement-plan contributions are not modeled.',

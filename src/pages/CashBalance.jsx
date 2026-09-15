@@ -14,10 +14,10 @@ import {
 } from '../components/ui.jsx'
 import { RangeBar, BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { marginalOrdinaryRate, STANDARD_DEDUCTION } from '../lib/tax.js'
+import { marginalOrdinaryRate, STANDARD_DEDUCTION, TAX_YEAR } from '../lib/tax.js'
 
 // Illustrative 401(k) + profit-sharing reference contribution for context.
-const REFERENCE_401K = 70000
+const REFERENCE_401K = 72000
 
 const ENTITY_OPTIONS = [
   { value: 'sole_prop', label: 'Sole proprietorship' },
@@ -109,6 +109,14 @@ export default function CashBalance() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: 'Illustrative contribution band for age', formula: `age ${r.age || '—'} → band up to ${r.band.max >= 200 ? '65+' : r.band.max}`, result: `${money(r.band.low)} – ${money(r.band.high)}` },
+    { label: 'Capped at compensation', formula: `min(band, income ${money(r.income, 2)})`, result: `${money(r.low)} – ${money(r.high)}` },
+    { label: 'Marginal federal rate', formula: `${TAX_YEAR} MFJ bracket at ${money(r.income, 2)} − ${money(STANDARD_DEDUCTION.married)} standard deduction`, result: percent(r.marginal * 100, 0) },
+    { label: 'Estimated federal tax deferred · low', formula: `${money(r.low)} × ${percent(r.marginal * 100, 0)}`, result: money(r.savingsLow, 2) },
+    { label: 'Estimated federal tax deferred · high', formula: `${money(r.high)} × ${percent(r.marginal * 100, 0)}`, result: money(r.savingsHigh, 2) },
+    { label: 'Reference 401(k) + profit sharing', formula: `${TAX_YEAR} §415(c) limit, for scale`, result: money(REFERENCE_401K) },
+  ], [r])
   const ready = toNumber(form.age) > 0 && toNumber(form.income) > 0
 
   return (
@@ -117,6 +125,7 @@ export default function CashBalance() {
       subtitle="An educational look at when businesses commonly evaluate Cash Balance Plans, with illustrative contribution and deduction ranges based on the characteristics you enter."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>

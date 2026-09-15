@@ -95,6 +95,25 @@ export default function RetireTrack() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => {
+    const g = toNumber(form.growthRate) / 100
+    const infl = toNumber(form.inflationRate) / 100
+    const sav = toNumber(form.savings)
+    const c = toNumber(form.annualContribution)
+    const n = r.years
+    const fvSav = sav * Math.pow(1 + g, n)
+    return [
+      { label: 'Years to retirement', formula: `${toNumber(form.retireAge)} − ${toNumber(form.age)}`, result: `${n}` },
+      { label: 'Current savings grown', formula: `${money(sav, 2)} × (1 + ${percent(g * 100, 1)})^${n}`, result: money(fvSav, 2) },
+      { label: 'Future contributions grown', formula: `${money(c, 2)} × [((1 + ${percent(g * 100, 1)})^${n} − 1) ÷ ${percent(g * 100, 1)}]`, result: money(r.projectedNestEgg - fvSav, 2) },
+      { label: 'Projected nest egg', formula: 'sum of the two', result: money(r.projectedNestEgg, 2) },
+      { label: 'Portfolio income', formula: `${money(r.projectedNestEgg, 2)} × ${percent(r.withdrawalRate * 100, 1)} withdrawal rate`, result: money(r.portfolioIncome, 2) },
+      { label: 'Total retirement income', formula: `portfolio + Social Security ${money(r.ss, 2)} + pension ${money(r.pension, 2)} + other ${money(r.other, 2)}`, result: money(r.totalIncome, 2) },
+      { label: 'Expenses at retirement', formula: `${money(toNumber(form.annualExpenses), 2)} × (1 + ${percent(infl * 100, 1)})^${n}`, result: money(r.expenses, 2) },
+      { label: 'Surplus / (gap)', formula: `${money(r.totalIncome, 2)} − ${money(r.expenses, 2)}`, result: money(r.gap, 2) },
+      { label: 'Coverage ratio', formula: 'income ÷ expenses', result: percent(r.coverage, 0) },
+    ]
+  }, [r, form])
 
   return (
     <ToolShell
@@ -102,6 +121,7 @@ export default function RetireTrack() {
       subtitle="A retirement readiness snapshot — projecting your savings to your target retirement age, estimating sustainable income from all sources, and comparing it against your expected needs."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>

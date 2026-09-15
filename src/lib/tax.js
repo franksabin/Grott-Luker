@@ -1,41 +1,45 @@
-// Shared federal tax engine (2025 parameters, simplified).
+// Shared federal tax engine (2026 parameters, simplified).
+// Sources: Rev. Proc. 2025-32 (brackets, standard deduction, LTCG breakpoints,
+// §199A thresholds), IRS Notice 2025-67 (retirement limits), SSA 2026 COLA
+// fact sheet (wage base), CMS 2026 Medicare Part B/D premium release (IRMAA).
 // Used by the Business Sale estimator and the Retirement Income Tax Map.
 // All figures are estimates. Real returns involve credits, phaseouts,
 // AMT, QBI limits, state specifics, and more — disclosed per tool.
 
-export const TAX_YEAR = 2025
+export const TAX_YEAR = 2026
 
-// Ordinary income brackets — 2025.
+// Ordinary income brackets — 2026 (Rev. Proc. 2025-32 §3.01).
 export const ORDINARY_BRACKETS = {
   single: [
-    { upTo: 11925, rate: 0.1 },
-    { upTo: 48475, rate: 0.12 },
-    { upTo: 103350, rate: 0.22 },
-    { upTo: 197300, rate: 0.24 },
-    { upTo: 250525, rate: 0.32 },
-    { upTo: 626350, rate: 0.35 },
+    { upTo: 12400, rate: 0.1 },
+    { upTo: 50400, rate: 0.12 },
+    { upTo: 105700, rate: 0.22 },
+    { upTo: 201775, rate: 0.24 },
+    { upTo: 256225, rate: 0.32 },
+    { upTo: 640600, rate: 0.35 },
     { upTo: Infinity, rate: 0.37 },
   ],
   married: [
-    { upTo: 23850, rate: 0.1 },
-    { upTo: 96950, rate: 0.12 },
-    { upTo: 206700, rate: 0.22 },
-    { upTo: 394600, rate: 0.24 },
-    { upTo: 501050, rate: 0.32 },
-    { upTo: 751600, rate: 0.35 },
+    { upTo: 24800, rate: 0.1 },
+    { upTo: 100800, rate: 0.12 },
+    { upTo: 211400, rate: 0.22 },
+    { upTo: 403550, rate: 0.24 },
+    { upTo: 512450, rate: 0.32 },
+    { upTo: 768700, rate: 0.35 },
     { upTo: Infinity, rate: 0.37 },
   ],
 }
 
-// Long-term capital gains breakpoints — 2025 (taxable-income based).
+// Long-term capital gains breakpoints — 2026 (Rev. Proc. 2025-32 §3.03, taxable-income based).
 export const LTCG_BREAKS = {
-  single: { zeroTo: 48350, fifteenTo: 533400 },
-  married: { zeroTo: 96700, fifteenTo: 600050 },
+  single: { zeroTo: 49450, fifteenTo: 545500 },
+  married: { zeroTo: 98900, fifteenTo: 613700 },
 }
 
+// Standard deduction — 2026 (Rev. Proc. 2025-32 §3.14).
 export const STANDARD_DEDUCTION = {
-  single: 15000,
-  married: 30000,
+  single: 16100,
+  married: 32200,
 }
 
 // Net Investment Income Tax thresholds (MAGI).
@@ -137,31 +141,32 @@ export function taxableSocialSecurity(ssBenefits, otherIncome, taxExemptInterest
   return Math.min(taxable, 0.85 * ss)
 }
 
-// IRMAA — Medicare Part B & D income-related surcharge (2025 schedule, based
+// IRMAA — Medicare Part B & D income-related surcharge (2026 schedule per CMS,
+// standard Part B premium $202.90; surcharge = total premium − standard; based
 // on MAGI). Returns the ESTIMATED ANNUAL surcharge PER PERSON above the base
 // premium (i.e., the extra cost attributable to income). Part B base premium
 // is excluded — only the surcharge is returned.
 const IRMAA_TIERS = {
   single: [
-    { upTo: 106000, partB: 0, partD: 0 },
-    { upTo: 133000, partB: 74.0, partD: 13.7 },
-    { upTo: 167000, partB: 185.0, partD: 35.3 },
-    { upTo: 200000, partB: 295.9, partD: 57.0 },
-    { upTo: 500000, partB: 406.9, partD: 78.6 },
-    { upTo: Infinity, partB: 443.9, partD: 85.8 },
+    { upTo: 109000, partB: 0, partD: 0 },
+    { upTo: 137000, partB: 81.2, partD: 14.5 },
+    { upTo: 171000, partB: 202.9, partD: 37.5 },
+    { upTo: 205000, partB: 324.6, partD: 60.4 },
+    { upTo: 500000, partB: 446.3, partD: 83.3 },
+    { upTo: Infinity, partB: 487.0, partD: 91.0 },
   ],
   married: [
-    { upTo: 212000, partB: 0, partD: 0 },
-    { upTo: 266000, partB: 74.0, partD: 13.7 },
-    { upTo: 334000, partB: 185.0, partD: 35.3 },
-    { upTo: 400000, partB: 295.9, partD: 57.0 },
-    { upTo: 750000, partB: 406.9, partD: 78.6 },
-    { upTo: Infinity, partB: 443.9, partD: 85.8 },
+    { upTo: 218000, partB: 0, partD: 0 },
+    { upTo: 274000, partB: 81.2, partD: 14.5 },
+    { upTo: 342000, partB: 202.9, partD: 37.5 },
+    { upTo: 410000, partB: 324.6, partD: 60.4 },
+    { upTo: 750000, partB: 446.3, partD: 83.3 },
+    { upTo: Infinity, partB: 487.0, partD: 91.0 },
   ],
 }
 
-// Social Security wage base (2025) and payroll / self-employment tax helpers.
-export const SS_WAGE_BASE = 176100
+// Social Security wage base (2026, SSA COLA fact sheet) and payroll / self-employment tax helpers.
+export const SS_WAGE_BASE = 184500
 
 // Self-employment tax on net self-employment earnings.
 export function selfEmploymentTax(netSE) {
@@ -179,10 +184,11 @@ export function ficaOnSalary(salary) {
   return ss + medicare
 }
 
-// Section 199A QBI thresholds (2025).
+// Section 199A QBI thresholds (2026, Rev. Proc. 2025-32 §3.26; OBBBA widened the
+// phase-in range to $75k single / $150k married).
 export const QBI_THRESHOLDS = {
-  single: { start: 197300, end: 247300 },
-  married: { start: 394600, end: 494600 },
+  single: { start: 201750, end: 276750 },
+  married: { start: 403500, end: 553500 },
 }
 
 // Uniform Lifetime Table divisor (approximate) for a given age, for RMDs.

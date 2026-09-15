@@ -26,7 +26,7 @@ const YEARS = [
   { value: '3', label: '3 years' },
 ]
 
-const QCD_LIMIT = 108000 // per person, 2025 (indexed)
+const QCD_LIMIT = 111000 // per person, 2026 (IRS Notice 2025-67; indexed)
 const SALT_CAP = 10000
 
 const BLANK = {

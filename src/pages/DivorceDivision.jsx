@@ -64,6 +64,18 @@ export default function DivorceDivision() {
 
   const { totals, lines, grossEqualization, afterTaxEqualization } = result
   const eqName = (side) => (side === 'a' ? nameA : nameB)
+  const steps = useMemo(() => [
+    ...lines.filter((l) => l.valuation.grossValue > 0).map((l) => ({
+      label: l.asset.label || 'Asset',
+      formula: `${money(l.valuation.grossValue)} − embedded tax ${money(l.valuation.grossValue - l.valuation.afterTax)} (${percent(l.valuation.effectiveRate * 100, 1)})`,
+      result: `${money(l.valuation.afterTax)} after tax · ${toNumber(l.asset.allocationA)}% to ${nameA}`,
+    })),
+    { label: 'Gross split', formula: `${nameA} vs. ${nameB}`, result: `${money(totals.grossA)} vs. ${money(totals.grossB)}` },
+    { label: 'After-tax split', formula: 'gross less embedded tax on each side', result: `${money(totals.afterTaxA)} vs. ${money(totals.afterTaxB)}` },
+    { label: 'Equalizing payment · gross', formula: `|${money(totals.grossA)} − ${money(totals.grossB)}| ÷ 2`, result: `${money(grossEqualization.amount)} from ${eqName(grossEqualization.from)}` },
+    { label: 'Equalizing payment · after tax', formula: `|${money(totals.afterTaxA)} − ${money(totals.afterTaxB)}| ÷ 2`, result: `${money(afterTaxEqualization.amount)} from ${eqName(afterTaxEqualization.from)}` },
+    { label: 'Rates used', formula: 'capital gains · ordinary · residence exclusion', result: `${capGains}% · ${ordinary}% · ${money(toNumber(exclusion))}` },
+  ], [lines, totals, grossEqualization, afterTaxEqualization, nameA, nameB, capGains, ordinary, exclusion])
 
   return (
     <ToolShell
@@ -71,6 +83,7 @@ export default function DivorceDivision() {
       subtitle="Illustrate the after-tax consequences of a proposed property division. Because assets carry different embedded taxes, an even split of face value is rarely an even split of what each party can actually keep."
       onReset={() => setAssets(BLANK())}
       onSample={() => setAssets(SAMPLE())}
+      steps={steps}
     >
       <Panel title="Tax Assumptions">
         <div className="field-row">

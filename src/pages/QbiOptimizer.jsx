@@ -13,7 +13,7 @@ import {
 } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { marginalOrdinaryRate, QBI_THRESHOLDS } from '../lib/tax.js'
+import { marginalOrdinaryRate, QBI_THRESHOLDS, TAX_YEAR } from '../lib/tax.js'
 
 const FILING = [
   { value: 'married', label: 'Married filing jointly' },
@@ -128,6 +128,15 @@ export default function QbiOptimizer() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: '20% of qualified business income', formula: `20% × ${money(r.qbi, 2)}`, result: money(r.twentyPct, 2) },
+    { label: 'W-2 wage / property limit', formula: `greater of 50% × W-2 wages, or 25% × W-2 wages + 2.5% × UBIA`, result: money(r.wageLimit, 2) },
+    { label: 'Taxable-income limit', formula: `20% × taxable income ${money(r.taxableIncome, 2)}`, result: money(r.incomeLimit, 2) },
+    { label: 'Threshold test', formula: `taxable income vs. ${money(r.start)} threshold and ${money(r.end)} end of phase-in (${r.isSSTB ? 'SSTB' : 'non-SSTB'})`, result: r.phase === 'below' ? 'below threshold' : r.phase === 'above' ? 'above phase-in' : `${percent(((r.taxableIncome - r.start) / (r.end - r.start)) * 100, 0)} through phase-in` },
+    { label: 'QBI deduction', formula: r.phase === 'below' ? 'lesser of 20% QBI and taxable-income limit' : r.phase === 'above' ? (r.isSSTB ? 'SSTB fully phased out' : 'lesser of 20% QBI, wage/property limit, taxable-income limit') : 'wage limit (and SSTB reduction) phased in proportionally', result: money(r.deduction, 2), note: r.limitBinds !== 'none' ? `Binding limit: ${r.limitBinds}.` : 'No limit binds.' },
+    { label: 'Marginal rate after deduction', formula: `${TAX_YEAR} bracket at taxable income − deduction`, result: percent(r.marginal * 100, 0) },
+    { label: 'Estimated tax savings', formula: `${money(r.deduction, 2)} × ${percent(r.marginal * 100, 0)}`, result: money(r.taxSavings, 2) },
+  ], [r])
 
   return (
     <ToolShell
@@ -135,6 +144,7 @@ export default function QbiOptimizer() {
       subtitle="Estimate the Section 199A qualified business income deduction — including the taxable-income thresholds, the W-2 wage and property limitations, and the specified-service (SSTB) phase-out that reduce it at higher incomes."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>
@@ -229,7 +239,7 @@ export default function QbiOptimizer() {
 
       <Assumptions
         items={[
-          'Uses 2025 Section 199A taxable-income thresholds ($197,300 single / $394,600 married, with $50k / $100k phase-in ranges).',
+          'Uses 2026 Section 199A taxable-income thresholds ($201,750 single / $403,500 married, with $75k / $150k phase-in ranges per Rev. Proc. 2025-32).',
           'Below the threshold, the deduction is 20% of QBI capped at 20% of taxable income. Above it, the greater of the two W-2 wage/property tests applies, and SSTBs lose the deduction entirely.',
           'The phase-in range applies a simplified proportional reduction; the actual computation is done per-business and can be more nuanced.',
           'Net capital gains reduce the taxable-income cap in practice; this tool uses taxable income as entered.',

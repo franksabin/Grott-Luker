@@ -14,7 +14,7 @@ import {
 } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { ordinaryTax, marginalOrdinaryRate, STANDARD_DEDUCTION, rmdDivisor } from '../lib/tax.js'
+import { ordinaryTax, marginalOrdinaryRate, STANDARD_DEDUCTION, rmdDivisor, TAX_YEAR } from '../lib/tax.js'
 
 const FILING = [
   { value: 'married', label: 'Married filing jointly' },
@@ -96,6 +96,24 @@ export default function MultiYearProjection() {
   const withoutConv = useMemo(() => project(form, false), [form])
   const convActive = toNumber(form.rothConversion) > 0 && toNumber(form.conversionYears) > 0
   const taxDelta = withConv.totalTax - withoutConv.totalTax
+  const steps = useMemo(() => {
+    const scenario = convActive ? withConv : withoutConv
+    const std = STANDARD_DEDUCTION[form.filing === 'single' ? 'single' : 'married']
+    return [
+      { label: 'Method', formula: `${HORIZON} years · ${TAX_YEAR} brackets held flat · IRA grows ${percent(GROWTH * 100, 0)} · RMDs from 73 · Social Security 85% taxable`, result: convActive ? 'with conversions' : 'no conversions' },
+      ...scenario.rows.map((row) => ({
+        label: `Age ${row.age}`,
+        formula: `wages ${money(row.yearWages)} + taxable SS ${money(row.taxableSS)} + RMD ${money(row.rmd)}${row.conversion > 0 ? ` + conversion ${money(row.conversion)}` : ''} − ${money(std)} = taxable ${money(row.taxable)} (${percent(row.marginal * 100, 0)} bracket)`,
+        result: money(row.tax, 2),
+      })),
+      { label: `Total federal tax · ${convActive ? 'with' : 'without'} conversions`, formula: 'sum of the ten years', result: money(scenario.totalTax, 2) },
+      ...(convActive ? [
+        { label: 'Total federal tax · without conversions', formula: 'same projection, no conversions', result: money(withoutConv.totalTax, 2) },
+        { label: 'Ten-year tax difference', formula: `${money(withConv.totalTax, 2)} − ${money(withoutConv.totalTax, 2)}`, result: money(taxDelta, 2) },
+        { label: 'Ending IRA balance · with vs. without', formula: 'after RMDs, conversions, and growth', result: `${money(withConv.endingIra)} vs. ${money(withoutConv.endingIra)}` },
+      ] : [{ label: 'Ending IRA balance', formula: 'after RMDs and growth', result: money(scenario.endingIra) }]),
+    ]
+  }, [withConv, withoutConv, convActive, taxDelta, form.filing])
 
   return (
     <ToolShell
@@ -103,6 +121,7 @@ export default function MultiYearProjection() {
       subtitle="Project taxable income and federal tax across the next ten years to reveal low-bracket planning windows and to see how a series of Roth conversions reshapes lifetime tax."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>
@@ -222,7 +241,7 @@ export default function MultiYearProjection() {
 
       <Assumptions
         items={[
-          'Projects ten years using 2025 federal ordinary brackets and the standard deduction held constant; brackets are not inflation-adjusted forward.',
+          'Projects ten years using 2026 federal ordinary brackets and the standard deduction held constant; brackets are not inflation-adjusted forward.',
           'Retirement account grows at an assumed 5% per year; RMDs begin at age 73 using the IRS Uniform Lifetime Table divisors.',
           'Social Security is included at 85% taxable once claimed — a simplification of the provisional-income formula.',
           'Wages stop at the age entered. Capital gains, other income, state tax, IRMAA, and future law changes are not modeled here.',

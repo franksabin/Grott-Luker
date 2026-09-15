@@ -14,7 +14,7 @@ import {
 } from '../components/ui.jsx'
 import { StackedBar, BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { ordinaryTax, irmaaSurcharge, STANDARD_DEDUCTION, rmdDivisor } from '../lib/tax.js'
+import { ordinaryTax, irmaaSurcharge, STANDARD_DEDUCTION, rmdDivisor, TAX_YEAR } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 
 const FILING = [
@@ -88,6 +88,22 @@ export default function RothConversion() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => {
+    const other = toNumber(form.otherIncome)
+    const std = STANDARD_DEDUCTION[form.filing === 'single' ? 'single' : 'married']
+    return [
+      { label: 'Taxable income before conversion', formula: `max(0, other income ${money(other, 2)} − standard deduction ${money(std, 2)})`, result: money(Math.max(0, other - std), 2) },
+      { label: 'Taxable income after conversion', formula: `max(0, ${money(other, 2)} + ${money(r.conversion, 2)} − ${money(std, 2)})`, result: money(Math.max(0, other + r.conversion - std), 2) },
+      { label: 'Federal tax on the conversion', formula: `${TAX_YEAR} bracket tax(after) − tax(before)`, result: money(r.federalTax, 2) },
+      { label: 'State tax on the conversion', formula: `${money(r.conversion, 2)} × ${r.stateName} rate`, result: money(r.stateTax, 2) },
+      { label: 'Added IRMAA (annual, household)', formula: 'surcharge at MAGI with conversion − surcharge without (two-year lookback)', result: money(r.extraIrmaa, 2) },
+      { label: 'Total cost of converting', formula: `${money(r.federalTax, 2)} + ${money(r.stateTax, 2)} + ${money(r.extraIrmaa, 2)}`, result: money(r.totalCost, 2) },
+      { label: 'Effective rate on the conversion', formula: `(federal + state) ÷ ${money(r.conversion, 2)}`, result: percent(r.marginalRate * 100, 1) },
+      { label: 'Net to Roth if tax is paid from the conversion', formula: `${money(r.conversion, 2)} − federal − state`, result: money(r.netToRoth, 2) },
+      { label: 'First-year RMD avoided (age 73)', formula: `${money(r.conversion, 2)} ÷ 26.5 (Uniform Lifetime divisor)`, result: money(r.rmdAvoidedAt73, 2) },
+      { label: 'Future tax avoided per year', formula: `${money(r.rmdAvoidedAt73, 2)} × ${percent(r.marginalRate * 100, 1)}`, result: money(r.futureTaxAvoidedAnnual, 2) },
+    ]
+  }, [r, form.otherIncome, form.filing])
 
   return (
     <ToolShell
@@ -95,6 +111,7 @@ export default function RothConversion() {
       subtitle="Model the tax cost of converting pre-tax retirement dollars to a Roth against the long-term benefit — marginal brackets, IRMAA exposure, and the future RMDs a conversion removes."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>
@@ -190,9 +207,9 @@ export default function RothConversion() {
 
       <Assumptions
         items={[
-          'Uses 2025 federal ordinary brackets and standard deduction. The conversion is taxed as ordinary income stacked on your other income.',
+          'Uses 2026 federal ordinary brackets and standard deduction. The conversion is taxed as ordinary income stacked on your other income.',
           'State tax applies a simplified rate for the selected state and does not reflect brackets, credits, or retirement-income exclusions.',
-          'IRMAA impact uses the 2025 surcharge schedule and reflects the two-year MAGI lookback; married figures assume two enrolled individuals.',
+          'IRMAA impact uses the 2026 surcharge schedule and reflects the two-year MAGI lookback; married figures assume two enrolled individuals.',
           'The RMD reduction is illustrative, using the first-year (age 73) Uniform Lifetime divisor applied to the converted amount at today’s marginal rate.',
           'Long-term benefit depends on future tax rates, growth, and time horizon, which are not projected here. Paying conversion tax from outside funds is assumed.',
         ]}

@@ -153,6 +153,15 @@ export default function Rollover401k() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: 'Annual fee today', formula: `${money(r.balance, 2)} × current plan fee`, result: money(r.annualCurrent, 2) },
+    { label: 'Annual fee in an IRA', formula: `${money(r.balance, 2)} × IRA fee`, result: money(r.annualIra, 2) },
+    { label: `Fees over ${HORIZON} years · leave in plan`, formula: `fee charged each year on a balance growing ${percent(GROWTH * 100, 0)} net of fees`, result: money(r.currentFees, 2) },
+    { label: `Fees over ${HORIZON} years · IRA`, formula: 'same method at the IRA fee', result: money(r.iraFees, 2) },
+    { label: 'Fee savings from rolling to an IRA', formula: `${money(r.currentFees, 2)} − ${money(r.iraFees, 2)}`, result: money(r.feeSavings, 2) },
+    ...r.options.map((o) => ({ label: `Ending balance · ${o.label}`, formula: o.id === 'cash-out' ? `(balance − tax and penalty ${money(r.cashOutCost, 2)}) × (1 + ${percent(GROWTH * 100, 0)})^${HORIZON}` : `balance compounding ${HORIZON} years at ${percent(GROWTH * 100, 0)} after fees`, result: money(o.ending, 2) })),
+    { label: 'Highest ending balance', formula: 'largest of the above', result: r.best.label },
+  ], [r])
   const items = considerations(r)
 
   return (
@@ -161,6 +170,7 @@ export default function Rollover401k() {
       subtitle="Weigh leaving a 401(k) in place against rolling it to an IRA — comparing the long-run cost of fees alongside the flexibility, protection, and tax considerations that matter to the decision."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>

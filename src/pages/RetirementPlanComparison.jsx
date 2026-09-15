@@ -16,15 +16,15 @@ import { BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber } from '../lib/format.js'
 import { selfEmploymentTax, TAX_YEAR } from '../lib/tax.js'
 
-// 2025 limits (indexed annually — verify each January).
+// 2026 limits per IRS Notice 2025-67 (indexed annually — verify each January).
 const LIMITS = {
-  deferral401k: 23500,
-  catchUp401k: 7500,
+  deferral401k: 24500,
+  catchUp401k: 8000,
   superCatchUp401k: 11250, // ages 60–63
-  total415c: 70000,
-  compCap: 350000,
-  simpleDeferral: 16500,
-  simpleCatchUp: 3500,
+  total415c: 72000,
+  compCap: 360000,
+  simpleDeferral: 17000,
+  simpleCatchUp: 4000,
   simpleSuperCatchUp: 5250, // ages 60–63
   simpleMatch: 0.03,
   sepRate: 0.25,

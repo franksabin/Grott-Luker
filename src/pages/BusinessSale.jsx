@@ -16,7 +16,7 @@ import {
 } from '../components/ui.jsx'
 import { StackedBar, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { capitalGainsTax, niitTax } from '../lib/tax.js'
+import { capitalGainsTax, niitTax, TAX_YEAR } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 
 const ENTITY_OPTIONS = [
@@ -146,6 +146,18 @@ export default function BusinessSale() {
   const [form, setForm] = useState(BLANK)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
+  const steps = useMemo(() => [
+    { label: 'Total gain', formula: `${money(r.salePrice, 2)} − basis ${money(r.costBasis, 2)} − selling expenses ${money(r.sellingExpenses, 2)}`, result: money(r.totalGain, 2) },
+    ...(r.isCCorpAsset ? [{ label: 'Corporate-level tax', formula: `${money(r.totalGain, 2)} × ${percent(CORP_RATE * 100, 0)} (C-corp asset sale)`, result: money(r.corpTax, 2) }] : []),
+    { label: 'Federal long-term capital gains tax', formula: `${TAX_YEAR} 0% / 15% / 20% breakpoints, gain stacked on other income`, result: money(r.fedCapGains, 2) },
+    { label: 'Net investment income tax', formula: `3.8% × gain above the MAGI threshold`, result: money(r.niit, 2) },
+    { label: 'State tax', formula: `gain × ${r.stateName} capital-gains rate`, result: money(r.stateTax, 2) },
+    { label: 'Total tax', formula: 'corporate + federal + NIIT + state', result: money(r.totalTax, 2) },
+    { label: 'Effective rate on the gain', formula: `${money(r.totalTax, 2)} ÷ ${money(r.totalGain, 2)}`, result: percent(r.effectiveTaxRate * 100, 1) },
+    { label: 'Pre-tax cash', formula: `${money(r.salePrice, 2)} − selling expenses − debt payoff ${money(r.debtPayoff, 2)}`, result: money(r.netProceeds, 2) },
+    { label: 'Net liquidity after tax', formula: `${money(r.netProceeds, 2)} − ${money(r.totalTax, 2)}`, result: money(r.liquidAfterTax, 2) },
+    ...(r.year1 ? [{ label: `Installment · year 1 of ${r.year1.years}`, formula: `gain ${money(r.year1.gainPerYear, 2)} recognized per year`, result: money(r.year1.total, 2), note: 'Federal + state on the first installment only; later years depend on income then.' }] : []),
+  ], [r])
 
   return (
     <ToolShell
@@ -153,6 +165,7 @@ export default function BusinessSale() {
       subtitle="Estimate after-tax proceeds and net liquidity from the sale of a business. This tool illustrates liquidity after taxes only — it does not address how proceeds might later be invested or drawn upon."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
+      steps={steps}
     >
       <div className="tool-grid">
         <div>
@@ -376,7 +389,7 @@ export default function BusinessSale() {
 
       <Assumptions
         items={[
-          'Gain is treated as long-term capital gain taxed at 2025 federal rates. Ordinary-income recapture (e.g., depreciation, inventory, or certain asset classes in an asset sale) is not separately modeled.',
+          'Gain is treated as long-term capital gain taxed at 2026 federal rates. Ordinary-income recapture (e.g., depreciation, inventory, or certain asset classes in an asset sale) is not separately modeled.',
           'The 3.8% Net Investment Income Tax is applied where modified income exceeds the applicable threshold.',
           'A C-corporation asset sale is illustrated with two layers of tax: a 21% corporate rate on the gain, then personal capital-gains tax on the net distribution. This is a simplification of a fact-specific area.',
           'State tax applies a single simplified capital-gains rate for the selected state and does not reflect brackets, credits, or nonresident sourcing.',

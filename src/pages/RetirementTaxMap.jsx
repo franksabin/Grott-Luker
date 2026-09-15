@@ -10,6 +10,7 @@ import {
   taxableSocialSecurity,
   irmaaSurcharge,
   STANDARD_DEDUCTION,
+  TAX_YEAR,
 } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 
@@ -182,6 +183,20 @@ export default function RetirementTaxMap() {
 
   const ra = useMemo(() => computeScenario(a, filing, stateCode), [a, filing, stateCode])
   const rb = useMemo(() => computeScenario(b, filing, stateCode), [b, filing, stateCode])
+  const steps = useMemo(() => {
+    const block = (tag, x) => [
+      { label: `${tag}Gross income`, formula: 'all seven sources', result: money(x.gross, 2) },
+      { label: `${tag}Taxable Social Security`, formula: 'provisional-income test (50% / 85% tiers)', result: `${money(x.taxableSS, 2)} (${percent(x.ssTaxablePct, 0)} of benefit)` },
+      { label: `${tag}Adjusted gross income`, formula: 'ordinary income + taxable SS + capital gains (Roth excluded)', result: money(x.agi, 2) },
+      { label: `${tag}Taxable income`, formula: `AGI − standard deduction ${money(STANDARD_DEDUCTION[filing === 'single' ? 'single' : 'married'])}`, result: money(x.taxableIncome, 2) },
+      { label: `${tag}Federal tax`, formula: `${TAX_YEAR} ordinary brackets + capital-gains breakpoints + NIIT`, result: money(x.federalTax, 2) },
+      { label: `${tag}State tax`, formula: `${x.stateName} rates on ordinary and gains`, result: money(x.stateTax, 2) },
+      { label: `${tag}Total tax · effective rate`, formula: `total ÷ gross`, result: `${money(x.totalTax, 2)} · ${percent(x.effectiveRate * 100, 1)}` },
+      { label: `${tag}IRMAA surcharge (annual, household)`, formula: `${TAX_YEAR} Part B + D schedule at AGI ${money(x.agi)} × ${x.irmaa.people}`, result: money(x.irmaa.annualHousehold, 2) },
+      { label: `${tag}After-tax cash flow`, formula: 'gross − total tax', result: money(x.afterTaxCashFlow, 2) },
+    ]
+    return [...block(compareB ? 'A · ' : '', ra), ...(compareB ? block('B · ', rb) : [])]
+  }, [ra, rb, compareB, filing])
 
   const reset = () => {
     setA(blankScenario())
@@ -200,6 +215,7 @@ export default function RetirementTaxMap() {
       subtitle="Illustrate how each retirement income source contributes to taxable income, how Social Security becomes taxable, and where IRMAA and after-tax cash flow land. Build a second scenario to compare two income mixes side by side."
       onReset={reset}
       onSample={sample}
+      steps={steps}
     >
       <Panel title="Household Settings">
         <div className="field-row">
@@ -312,11 +328,11 @@ export default function RetirementTaxMap() {
 
       <Assumptions
         items={[
-          'Uses 2025 federal brackets, standard deduction, and long-term capital-gains breakpoints.',
+          'Uses 2026 federal brackets, standard deduction, and long-term capital-gains breakpoints.',
           'Traditional IRA/401(k), pension, rental, and business income are treated as ordinary income. Roth withdrawals are treated as tax-free.',
           'Taxable-investment income is modeled as qualified dividends / long-term capital gains taxed at preferential rates.',
           'Social Security taxability uses the standard provisional-income formula (up to 85% taxable).',
-          'IRMAA exposure uses the 2025 income-related surcharge schedule and, for married filers, reflects two enrolled individuals. It shows the surcharge above the base premium.',
+          'IRMAA exposure uses the 2026 income-related surcharge schedule and, for married filers, reflects two enrolled individuals. It shows the surcharge above the base premium.',
           'State tax applies simplified rates for the selected state and does not reflect state-specific retirement-income exclusions.',
           'The standard deduction is assumed; itemized deductions, credits, and QBI are not modeled.',
         ]}
