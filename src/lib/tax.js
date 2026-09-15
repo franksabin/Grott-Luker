@@ -191,6 +191,50 @@ export const QBI_THRESHOLDS = {
   married: { start: 403500, end: 553500 },
 }
 
+// ---------------------------------------------------------------------------
+// One Big Beautiful Bill Act (P.L. 119-21) provisions in effect for 2026.
+// ---------------------------------------------------------------------------
+
+// §164(b)(6) SALT cap: $40,400 for 2026, reduced by 30% of MAGI over $505,000,
+// never below $10,000.
+export const SALT_CAP = { base: 40400, phaseStart: 505000, phaseRate: 0.3, floor: 10000 }
+export function saltCap(magi) {
+  const over = Math.max(0, Math.max(0, magi) - SALT_CAP.phaseStart)
+  return Math.max(SALT_CAP.floor, SALT_CAP.base - SALT_CAP.phaseRate * over)
+}
+
+// §170(b)(1)(I): itemized charitable deductions allowed only above 0.5% of AGI.
+export const CHARITY_AGI_FLOOR = 0.005
+
+// §170(p): non-itemizers may deduct cash gifts up to $1,000 ($2,000 MFJ).
+export const NONITEMIZER_CHARITY = { single: 1000, married: 2000 }
+
+// §68 (as amended): itemized deductions are reduced by 2/37 of the lesser of
+// (a) total itemized deductions or (b) the amount by which taxable income plus
+// itemized deductions exceeds the start of the 37% bracket — i.e. deductions are
+// worth at most 35 cents on the dollar to top-bracket filers.
+export function itemizedAfterCap(itemized, taxableAfterItemized, filing) {
+  const f = normalizeFiling(filing)
+  const b = ORDINARY_BRACKETS[f]
+  const topStart = b[b.length - 2].upTo
+  const excess = Math.max(0, Math.max(0, taxableAfterItemized) + itemized - topStart)
+  const reduction = (2 / 37) * Math.min(Math.max(0, itemized), excess)
+  return { allowed: Math.max(0, itemized - reduction), reduction }
+}
+
+// §151(d)(5) senior deduction (2025–2028): $6,000 per individual 65+, reduced by
+// 6% of MAGI over $75,000 ($150,000 MFJ). Available whether or not itemizing.
+export const SENIOR_DEDUCTION = { amount: 6000, phaseStart: { single: 75000, married: 150000 }, phaseRate: 0.06, lastYear: 2028 }
+export function seniorDeduction(magi, filing, seniors = 1) {
+  if (seniors <= 0) return 0
+  const f = normalizeFiling(filing)
+  const over = Math.max(0, Math.max(0, magi) - SENIOR_DEDUCTION.phaseStart[f])
+  return Math.max(0, SENIOR_DEDUCTION.amount * seniors - SENIOR_DEDUCTION.phaseRate * over)
+}
+
+// §199A(i) minimum deduction: $400 when active QBI is at least $1,000.
+export const QBI_MINIMUM = { deduction: 400, activeQbi: 1000 }
+
 // Uniform Lifetime Table divisor (approximate) for a given age, for RMDs.
 export function rmdDivisor(age) {
   const table = {

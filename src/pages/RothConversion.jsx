@@ -14,7 +14,7 @@ import {
 } from '../components/ui.jsx'
 import { StackedBar, BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { ordinaryTax, irmaaSurcharge, STANDARD_DEDUCTION, rmdDivisor, TAX_YEAR } from '../lib/tax.js'
+import { ordinaryTax, irmaaSurcharge, STANDARD_DEDUCTION, rmdDivisor, seniorDeduction, TAX_YEAR } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 
 const FILING = [
@@ -47,8 +47,14 @@ function compute(form) {
   const filing = form.filing
   const stdDed = STANDARD_DEDUCTION[filing === 'single' ? 'single' : 'married']
 
-  const baseTaxable = Math.max(0, otherIncome - stdDed)
-  const convTaxable = Math.max(0, otherIncome + conversion - stdDed)
+  // Senior deduction (2025–2028) for a filer 65+; it phases out 6% of MAGI over
+  // $75k / $150k, so a conversion can also erode it. One person assumed.
+  const age = toNumber(form.age)
+  const seniors = age >= 65 ? 1 : 0
+  const baseSenior = seniorDeduction(otherIncome, filing, seniors)
+  const convSenior = seniorDeduction(otherIncome + conversion, filing, seniors)
+  const baseTaxable = Math.max(0, otherIncome - stdDed - baseSenior)
+  const convTaxable = Math.max(0, otherIncome + conversion - stdDed - convSenior)
   const baseFed = ordinaryTax(baseTaxable, filing)
   const convFed = ordinaryTax(convTaxable, filing)
   const federalTax = convFed - baseFed
@@ -81,6 +87,9 @@ function compute(form) {
     futureTaxAvoidedAnnual,
     stateName: st.name,
     convIrmaaApplies: convIrmaa.tierApplies,
+    baseSenior,
+    convSenior,
+    seniorLost: baseSenior - convSenior,
   }
 }
 
@@ -92,8 +101,8 @@ export default function RothConversion() {
     const other = toNumber(form.otherIncome)
     const std = STANDARD_DEDUCTION[form.filing === 'single' ? 'single' : 'married']
     return [
-      { label: 'Taxable income before conversion', formula: `max(0, other income ${money(other, 2)} − standard deduction ${money(std, 2)})`, result: money(Math.max(0, other - std), 2) },
-      { label: 'Taxable income after conversion', formula: `max(0, ${money(other, 2)} + ${money(r.conversion, 2)} − ${money(std, 2)})`, result: money(Math.max(0, other + r.conversion - std), 2) },
+      { label: 'Taxable income before conversion', formula: `max(0, other income ${money(other, 2)} − standard deduction ${money(std, 2)}${r.baseSenior > 0 ? ` − senior deduction ${money(r.baseSenior, 2)}` : ''})`, result: money(Math.max(0, other - std - r.baseSenior), 2) },
+      { label: 'Taxable income after conversion', formula: `max(0, ${money(other, 2)} + ${money(r.conversion, 2)} − ${money(std, 2)}${r.convSenior > 0 || r.baseSenior > 0 ? ` − senior deduction ${money(r.convSenior, 2)}` : ''})`, result: money(Math.max(0, other + r.conversion - std - r.convSenior), 2), note: r.seniorLost > 0 ? `The conversion phases out ${money(r.seniorLost, 2)} of the $6,000 senior deduction (6% of MAGI over the threshold).` : undefined },
       { label: 'Federal tax on the conversion', formula: `${TAX_YEAR} bracket tax(after) − tax(before)`, result: money(r.federalTax, 2) },
       { label: 'State tax on the conversion', formula: `${money(r.conversion, 2)} × ${r.stateName} rate`, result: money(r.stateTax, 2) },
       { label: 'Added IRMAA (annual, household)', formula: 'surcharge at MAGI with conversion − surcharge without (two-year lookback)', result: money(r.extraIrmaa, 2) },
@@ -208,6 +217,7 @@ export default function RothConversion() {
       <Assumptions
         items={[
           'Uses 2026 federal ordinary brackets and standard deduction. The conversion is taxed as ordinary income stacked on your other income.',
+          'At 65+, the $6,000 senior deduction (2025–2028) is applied for one person and phased out at 6% of MAGI over $75,000 / $150,000 — a conversion that pushes MAGI through that range costs part of the deduction, which is included in the federal tax shown.',
           'State tax applies a simplified rate for the selected state and does not reflect brackets, credits, or retirement-income exclusions.',
           'IRMAA impact uses the 2026 surcharge schedule and reflects the two-year MAGI lookback; married figures assume two enrolled individuals.',
           'The RMD reduction is illustrative, using the first-year (age 73) Uniform Lifetime divisor applied to the converted amount at today’s marginal rate.',

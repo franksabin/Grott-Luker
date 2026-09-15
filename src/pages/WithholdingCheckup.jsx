@@ -290,6 +290,7 @@ export default function WithholdingCheckup() {
       <Assumptions
         items={[
           `Uses ${TAX_YEAR} federal ordinary brackets and the standard deduction. Capital gains, QBI, AMT, the additional Medicare tax, and phaseouts are not modeled.`,
+          'The 2026 senior deduction ($6,000 per person 65+, phased out above $75,000 / $150,000) and the raised $40,400 SALT cap are not applied here because age and itemized deductions are not collected; both would lower the tax shown for clients they apply to.',
           'Remaining wages and withholding are projected at the year-to-date pace per pay period; a bonus is added on top with no assumed withholding — enter any bonus withholding as part of YTD once it is paid.',
           'The 90% safe-harbor test uses this year’s projected tax; the 100%/110% prior-year alternative is in the Estimated Tax tool.',
           'State withholding is not modeled. New Hampshire has no wage tax; for MA/ME clients a separate state check applies.',

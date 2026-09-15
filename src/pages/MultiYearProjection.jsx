@@ -14,7 +14,7 @@ import {
 } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { ordinaryTax, marginalOrdinaryRate, STANDARD_DEDUCTION, rmdDivisor, TAX_YEAR } from '../lib/tax.js'
+import { ordinaryTax, marginalOrdinaryRate, STANDARD_DEDUCTION, rmdDivisor, seniorDeduction, SENIOR_DEDUCTION, TAX_YEAR } from '../lib/tax.js'
 
 const FILING = [
   { value: 'married', label: 'Married filing jointly' },
@@ -74,12 +74,16 @@ function project(form, withConversions) {
     const conversion = y < conversionYears ? Math.min(conversionAmt, iraBalance) : 0
 
     const ordinaryIncome = yearWages + taxableSS + rmd + conversion
-    const taxable = Math.max(0, ordinaryIncome - stdDed)
+    // Senior deduction applies for tax years through 2028 once the client is 65+
+    // (one person for single, two for married — spouse assumed the same age).
+    const taxYear = TAX_YEAR + y
+    const senior = age >= 65 && taxYear <= SENIOR_DEDUCTION.lastYear ? seniorDeduction(ordinaryIncome, filing, filing === 'married' ? 2 : 1) : 0
+    const taxable = Math.max(0, ordinaryIncome - stdDed - senior)
     const tax = ordinaryTax(taxable, filing)
     const marginal = marginalOrdinaryRate(taxable, filing)
     totalTax += tax
 
-    rows.push({ age, yearWages, taxableSS, rmd, conversion, ordinaryIncome, taxable, tax, marginal })
+    rows.push({ age, taxYear, yearWages, taxableSS, rmd, conversion, ordinaryIncome, senior, taxable, tax, marginal })
 
     // Update IRA: remove RMD + conversion, then grow.
     iraBalance = Math.max(0, iraBalance - rmd - conversion) * (1 + GROWTH)
@@ -102,8 +106,8 @@ export default function MultiYearProjection() {
     return [
       { label: 'Method', formula: `${HORIZON} years · ${TAX_YEAR} brackets held flat · IRA grows ${percent(GROWTH * 100, 0)} · RMDs from 73 · Social Security 85% taxable`, result: convActive ? 'with conversions' : 'no conversions' },
       ...scenario.rows.map((row) => ({
-        label: `Age ${row.age}`,
-        formula: `wages ${money(row.yearWages)} + taxable SS ${money(row.taxableSS)} + RMD ${money(row.rmd)}${row.conversion > 0 ? ` + conversion ${money(row.conversion)}` : ''} − ${money(std)} = taxable ${money(row.taxable)} (${percent(row.marginal * 100, 0)} bracket)`,
+        label: `${row.taxYear} · age ${row.age}`,
+        formula: `wages ${money(row.yearWages)} + taxable SS ${money(row.taxableSS)} + RMD ${money(row.rmd)}${row.conversion > 0 ? ` + conversion ${money(row.conversion)}` : ''} − ${money(std)}${row.senior > 0 ? ` − senior ${money(row.senior)}` : ''} = taxable ${money(row.taxable)} (${percent(row.marginal * 100, 0)} bracket)`,
         result: money(row.tax, 2),
       })),
       { label: `Total federal tax · ${convActive ? 'with' : 'without'} conversions`, formula: 'sum of the ten years', result: money(scenario.totalTax, 2) },
@@ -242,6 +246,7 @@ export default function MultiYearProjection() {
       <Assumptions
         items={[
           'Projects ten years using 2026 federal ordinary brackets and the standard deduction held constant; brackets are not inflation-adjusted forward.',
+          'The $6,000-per-person senior deduction (2025–2028) is applied from age 65 through tax year 2028, phased out 6% of income over $75,000 / $150,000; married filers are assumed to be the same age.',
           'Retirement account grows at an assumed 5% per year; RMDs begin at age 73 using the IRS Uniform Lifetime Table divisors.',
           'Social Security is included at 85% taxable once claimed — a simplification of the provisional-income formula.',
           'Wages stop at the age entered. Capital gains, other income, state tax, IRMAA, and future law changes are not modeled here.',

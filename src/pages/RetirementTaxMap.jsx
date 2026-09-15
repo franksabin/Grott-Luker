@@ -329,6 +329,7 @@ export default function RetirementTaxMap() {
       <Assumptions
         items={[
           'Uses 2026 federal brackets, standard deduction, and long-term capital-gains breakpoints.',
+          'The 2026 senior deduction ($6,000 per person 65+, phased out above $75,000 / $150,000) and the raised $40,400 SALT cap are not applied here because age and itemized deductions are not collected; both would lower the tax shown for clients they apply to.',
           'Traditional IRA/401(k), pension, rental, and business income are treated as ordinary income. Roth withdrawals are treated as tax-free.',
           'Taxable-investment income is modeled as qualified dividends / long-term capital gains taxed at preferential rates.',
           'Social Security taxability uses the standard provisional-income formula (up to 85% taxable).',

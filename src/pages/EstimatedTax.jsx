@@ -104,7 +104,7 @@ export default function EstimatedTax() {
       { label: 'Projected federal tax', formula: `${TAX_YEAR} ordinary brackets applied to taxable income`, result: money(r.projectedFed, 2) },
       { label: 'Projected state tax', formula: `${money(r.income, 2)} × ${r.stateName} wage rate`, result: money(r.projectedState, 2) },
       { label: 'Safe harbor · current year', formula: `90% × ${money(r.projectedFed, 2)}`, result: money(r.shCurrent, 2) },
-      { label: 'Safe harbor · prior year', formula: r.shPrior > 0 ? `${r.priorPct * 100}% × prior-year tax (${r.income > 150000 ? 'AGI over $150,000' : 'AGI $150,000 or less'})` : 'no prior-year tax entered', result: r.shPrior > 0 ? money(r.shPrior, 2) : '—' },
+      { label: 'Safe harbor · prior year', formula: r.shPrior > 0 ? `${Math.round(r.priorPct * 100)}% × prior-year tax (${r.income > 150000 ? 'AGI over $150,000' : 'AGI $150,000 or less'})` : 'no prior-year tax entered', result: r.shPrior > 0 ? money(r.shPrior, 2) : '—' },
       { label: 'Required annual payments', formula: r.shPrior > 0 ? 'lesser of the two safe harbors' : 'current-year safe harbor', result: money(r.requiredAnnual, 2), note: `Basis: ${r.safeHarborBasis}.` },
       { label: 'Already covered', formula: `withholding ${money(r.withholding, 2)} + estimates paid ${money(r.paymentsMade, 2)}`, result: money(r.alreadyCovered, 2) },
       { label: 'Remaining to reach safe harbor', formula: `max(0, ${money(r.requiredAnnual, 2)} − ${money(r.alreadyCovered, 2)})`, result: money(r.remainingRequired, 2) },
@@ -233,6 +233,7 @@ export default function EstimatedTax() {
       <Assumptions
         items={[
           'Uses 2026 federal ordinary brackets and the standard deduction to project federal tax; itemized deductions, credits, capital gains, and QBI are not modeled.',
+          'The 2026 senior deduction ($6,000 per person 65+, phased out above $75,000 / $150,000) and the raised $40,400 SALT cap are not applied here because age and itemized deductions are not collected; both would lower the tax shown for clients they apply to.',
           'The safe harbor is the lesser of 90% of the current-year tax or 100% of the prior-year tax (110% if prior-year AGI exceeds $150,000).',
           'Withholding is treated as paid evenly across the year. The tool divides the remaining requirement evenly across the quarters you select; timing of uneven income (annualized method) is not modeled.',
           'State tax is a simplified estimate and is shown for context only; safe-harbor figures are federal.',
