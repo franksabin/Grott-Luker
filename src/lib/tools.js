@@ -102,6 +102,21 @@ export const TOOLS = [
       'See how each retirement income source contributes to taxable income, how Social Security becomes taxable, and where IRMAA and after-tax cash flow land — with a second scenario for comparison.',
   },
 
+  {
+    id: 'mileage-log',
+    group: 'cpa',
+    owner: 'grott',
+    status: 'testing',
+    path: '/tools/mileage-log',
+    icon: Car,
+    shareable: true,
+    clientPath: '/client/mileage-log',
+    title: 'Mileage & Expense Log',
+    short: 'Mileage & Expense Log',
+    description:
+      'Log business, charity, and medical mileage plus meals through the year. IRS standard rates apply automatically by trip date; clients keep the log all year and send it in January.',
+  },
+
   // ---------- Business Owner Planning ----------
   {
     id: 'qbi-optimizer',
@@ -138,20 +153,6 @@ export const TOOLS = [
     short: 'Cash Balance Analyzer',
     description:
       'Understand the characteristics of businesses that commonly evaluate Cash Balance Plans, with illustrative contribution and deduction ranges.',
-  },
-  {
-    id: 'mileage-log',
-    group: 'business-owner',
-    owner: 'grott',
-    status: 'testing',
-    path: '/tools/mileage-log',
-    icon: Car,
-    shareable: true,
-    clientPath: '/client/mileage-log',
-    title: 'Mileage & Expense Log',
-    short: 'Mileage & Expense Log',
-    description:
-      'Log business, charity, and medical mileage plus meals through the year. IRS standard rates apply automatically by trip date; clients keep the log all year and send it in January.',
   },
   {
     id: 'business-sale',
