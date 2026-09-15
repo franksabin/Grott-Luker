@@ -124,7 +124,7 @@ export default function ClientResults() {
       if (err?.status === 401) {
         clearPasscode()
         setUnlocked(false)
-        setGateError('That passcode was not accepted.')
+        if (code) setGateError('That passcode was not accepted.')
         return false
       }
       setListError(err?.message || 'Could not load submissions.')
@@ -134,9 +134,10 @@ export default function ClientResults() {
     }
   }, [])
 
-  // Try a stored passcode from this tab's session on first render.
+  // On first render, try to load straight away. If the deployment has no
+  // passcode configured (beta mode) this succeeds with no code and the gate is
+  // never shown; otherwise a 401 shows the gate.
   useEffect(() => {
-    if (!passcode) return
     let cancelled = false
     ;(async () => {
       const ok = await load(passcode)
@@ -537,9 +538,9 @@ export default function ClientResults() {
       )}
 
       <Note title="Handling client information">
-        These submissions contain personal financial details. The passcode is held
-        only for this browser tab and clears when you close it. Avoid leaving this
-        page open on a shared screen.
+        These submissions contain personal financial details. During the beta this
+        page is open to anyone with its address, so do not forward the link outside
+        the firm, and avoid leaving it open on a shared screen.
       </Note>
     </div>
   )

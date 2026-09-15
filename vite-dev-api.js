@@ -60,14 +60,15 @@ export default function devApi() {
         return
       }
 
-      const passcode = process.env.CPA_PASSCODE || 'dev'
+      // Mirrors the Worker: no CPA_PASSCODE means staff routes are open.
+      const passcode = process.env.CPA_PASSCODE || ''
       if (!process.env.CPA_PASSCODE) {
         server.config.logger.warn(
-          '[dev-api] CPA_PASSCODE not set — using "dev" for the local staff passcode.',
+          '[dev-api] CPA_PASSCODE not set — staff routes are open (beta mode), matching the Worker.',
         )
       }
 
-      const isStaff = (req) => (req.headers['x-cpa-passcode'] || '') === passcode
+      const isStaff = (req) => !passcode || (req.headers['x-cpa-passcode'] || '') === passcode
 
       // Mounted at /api, so req.url here is relative (e.g. "/snapshots").
       server.middlewares.use('/api', async (req, res, next) => {

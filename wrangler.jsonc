@@ -5,7 +5,8 @@
   //   1. npx wrangler d1 create grott-luker-snapshots
   //      → paste the returned database_id below.
   //   2. npx wrangler d1 execute grott-luker-snapshots --remote --file=./schema.sql
-  //   3. npx wrangler secret put CPA_PASSCODE
+  //   3. (optional) npx wrangler secret put CPA_PASSCODE — gates /client-results.
+  //      Left unset for the CPA beta, so client results are open to anyone with the URL.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "grott-luker",
   "main": "worker/index.js",

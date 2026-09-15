@@ -71,8 +71,11 @@ function safeEqual(a, b) {
 
 function isStaff(request, env) {
   const expected = env.CPA_PASSCODE
-  // Fail closed: no configured passcode means no staff access at all.
-  if (!expected) return false
+  // Beta mode: with no CPA_PASSCODE secret configured, staff routes are open to
+  // anyone with the URL (decision for the closed CPA beta, Sept 2026). Setting
+  // the secret (`wrangler secret put CPA_PASSCODE`) turns the gate back on with
+  // no code change.
+  if (!expected) return true
   return safeEqual(request.headers.get('x-cpa-passcode') || '', expected)
 }
 

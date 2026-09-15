@@ -46,7 +46,8 @@ Know Your Numbers exists in two forms sharing one set of fields and one report:
   then the figures, then submits. Clients see their own snapshot and can print it.
   This route renders without any links back into the internal toolkit.
 - **CPA results viewer** — `/client-results`, reachable from the
-  **View client results** button on the dashboard. Behind a staff passcode. Lists
+  **View client results** button on the dashboard. Open during the CPA beta (no
+  passcode configured); see Security below. Lists
   every submission and renders the full snapshot for each. Includes
   **Copy client link** for sending the form to a client.
 
@@ -64,7 +65,10 @@ src/components/KynSnapshot.jsx # the snapshot report + charts
 Submissions contain personal financial information. The current controls:
 
 - Staff routes require the `x-cpa-passcode` header to match the `CPA_PASSCODE`
-  secret, and **fail closed** if that secret is not set.
+  secret **when that secret is set**. During the closed CPA beta (decision Sept
+  2026) the secret is intentionally unset, so `/client-results` is open to anyone
+  with the URL. To turn the gate on: `npx wrangler secret put CPA_PASSCODE`; the
+  results page shows the passcode prompt on the next load with no code change.
 - The passcode is held in `sessionStorage` only — it clears when the tab closes.
 - Only known figure keys are stored; unknown fields are discarded. Values are
   capped and coerced to numbers.
@@ -104,8 +108,9 @@ npm run build && npx wrangler deploy
 `wrangler dev` depends on workerd, which has no win32-arm64 build, so it will not
 run on this machine. Instead `vite-dev-api.js` serves the same routes during
 `npm run dev` using `node:sqlite`, backed by `.dev-data/snapshots.db`
-(gitignored). Set a local passcode with `$env:CPA_PASSCODE = "…"` before starting
-the dev server; it defaults to `dev`. Delete `.dev-data` to reset test data.
+(gitignored). Set `$env:CPA_PASSCODE = "…"` before starting the dev server to
+test the passcode gate; unset, staff routes are open like production. Delete
+`.dev-data` to reset test data.
 
 ## Architecture
 
