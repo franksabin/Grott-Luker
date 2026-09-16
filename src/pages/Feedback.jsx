@@ -60,37 +60,6 @@ function CpaToolReview({ tool, index, notes, asIs, onNotes, onAsIs }) {
   )
 }
 
-// Click tools in order of interest; the badge shows the rank. Click again to remove.
-function RankPanel({ order, onChange }) {
-  const pick = (id) => onChange((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
-  return (
-    <Panel>
-      <div className="poll-q">
-        <div className="poll-q-text">
-          <h3>Which tools would you most like to work on?</h3>
-          <p>Everyone has offered to help, so this decides who pairs with what. Click the tools in order of interest: first click is 1, next is 2, and so on. Rank as many or as few as you like.</p>
-        </div>
-      </div>
-      <div className="rank-list">
-        {CPA_TOOLS.map((t) => {
-          const k = order.indexOf(t.id)
-          return (
-            <button type="button" key={t.id} className={`rank-item${k >= 0 ? ' on' : ''}`} onClick={() => pick(t.id)} aria-pressed={k >= 0}>
-              <span className="rank-badge">{k >= 0 ? k + 1 : ''}</span>
-              <span className="rank-title">{t.label}</span>
-              {t.planned ? <span className="rank-hint">planned</span> : null}
-            </button>
-          )
-        })}
-      </div>
-      <div className="rank-actions">
-        <span>{order.length ? `${order.length} of ${CPA_COUNT} ranked` : 'Nothing ranked yet'}</span>
-        {order.length ? <button type="button" onClick={() => onChange([])}>Start over</button> : null}
-      </div>
-    </Panel>
-  )
-}
-
 export default function Feedback() {
   const [a, setA] = useState(blankAnswers)
   const [busy, setBusy] = useState(false)
@@ -147,10 +116,11 @@ export default function Feedback() {
         <div className="eyebrow-e">CPA review</div>
         <h1>Start with the CPA tools.</h1>
         <p className="tool-sub">
-          These {CPA_COUNT} tools are yours, so they get the close look. Each one below is a
-          sentence and a picture of its report with sample data loaded. Give us a quick
-          assessment, then rank the ones you would most like to work on. After that, one
-          question for each of the other sections. Ten minutes, give or take.
+          Before your working session, spend ten minutes here on the tools you have been
+          paired with, and any others you have a view on. Each of the {CPA_COUNT} CPA tools
+          below is a sentence and a picture of its report with sample data loaded. Give us a
+          quick assessment, or check “works as is.” Then one question for each of the other
+          sections.
         </p>
       </div>
 
@@ -175,8 +145,6 @@ export default function Feedback() {
           />
         ))}
         <div className="poll-counter">{answeredTools} of {CPA_COUNT} CPA tools assessed</div>
-
-        <RankPanel order={a.toolRank} onChange={set('toolRank')} />
 
         <div className="poll-stage">
           <span className="poll-stage-num">Stage 2</span>
@@ -230,9 +198,9 @@ export default function Feedback() {
         </Panel>
 
         <Panel title="Who's answering">
-          <p className="poll-who-note">Your name lets us pair you with the tools you ranked highest. Email is only for follow-up.</p>
+          <p className="poll-who-note">Your name ties your notes to your session. Email is only for follow-up.</p>
           <div className="field-row">
-            <Field label="Name" hint="Needed for pairing.">
+            <Field label="Name">
               <input className="input" type="text" maxLength={FEEDBACK_LIMITS.name} value={a.name} onChange={(e) => set('name')(e.target.value)} />
             </Field>
             <Field label="Email" hint="Only if you'd like a reply.">
@@ -256,8 +224,8 @@ export default function Feedback() {
         <Note title="Why we're asking this way">
           The CPA tools are the ones you will use in front of clients, so they come first.
           Every one of them was rebuilt this week and none has been reviewed yet, which is
-          why each carries the baseline-model mark. Your assessments decide what gets added
-          to each tool; your ranking decides who works on which.
+          why each carries the baseline-model mark. Your notes here are what we work from in
+          the sessions, so the time is spent fixing, not explaining.
         </Note>
       </div>
     </div>

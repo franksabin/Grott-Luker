@@ -1,9 +1,10 @@
 // CPA roadmap poll — shared between the form, the Worker, the dev API, and the
 // tally in Client results, so the questions can never drift apart.
 //
-// Version 2 (2026-09-16). Stage one is the CPA tools in depth: each tool is
-// described (model, inputs, outputs) and the CPA says what to add, change, or
-// include. Stage two is one open question per BlueLine section. No grading.
+// Version 2 (2026-09-16). Stage one is the CPA tools: each tool is a sentence and
+// a screenshot of its report; the CPA gives a quick assessment or checks "works as
+// is". Stage two is one open question per BlueLine section. No grading, no
+// ranking: tool assignments are made by email, not by the poll.
 import { TOOLS, GROUPS, GROUP_ORDER } from './tools.js'
 import { isValidEmail } from './knowYourNumbers.js'
 
@@ -128,7 +129,6 @@ export function blankAnswers() {
     version: 2,
     toolNotes: {}, // { toolId: text } — what to add, change, or include
     toolAsIs: [], // toolIds marked "works as is"
-    toolRank: [], // toolIds in order of interest, most interested first
     sectionNotes: {}, // { groupId: text } — add, remove, thoughts
     anythingElse: '',
     name: '',
@@ -151,7 +151,6 @@ export function normalizeFeedback(body) {
   }
   const idList = (v) => (Array.isArray(v) ? [...new Set(v.filter((x) => cpaIds.has(x)))] : [])
   out.toolAsIs = idList(body.toolAsIs)
-  out.toolRank = idList(body.toolRank) // order preserved, duplicates dropped
 
   const sec = body.sectionNotes && typeof body.sectionNotes === 'object' && !Array.isArray(body.sectionNotes) ? body.sectionNotes : {}
   for (const id of sectionIds) {
@@ -166,7 +165,7 @@ export function normalizeFeedback(body) {
   if (out.email && !isValidEmail(out.email)) return { error: 'That email address does not look right.' }
 
   const answered =
-    Object.keys(out.toolNotes).length || out.toolAsIs.length || out.toolRank.length ||
+    Object.keys(out.toolNotes).length || out.toolAsIs.length ||
     Object.keys(out.sectionNotes).length || out.anythingElse
   if (!answered) return { error: 'Answer at least one question before sending.' }
   return { value: out }
@@ -180,23 +179,11 @@ export function tally(rows) {
   const legacy = rows.filter((r) => !isV2(r) && r.toolInterest && Object.keys(r.toolInterest).length)
   const who = (r) => ({ id: r.id, created_at: r.created_at, name: r.name || '', firm: r.firm || '' })
 
-  // Interest: each CPA's ranking, 1 = most interested. Score = average of
-  // (N − rank + 1) / N over those who ranked the tool, as a percentage.
-  const N = CPA_TOOLS.length
-  const cpaTools = CPA_TOOLS.map((t) => {
-    const ranks = v2.map((r) => (r.toolRank || []).indexOf(t.id) + 1).filter((k) => k > 0)
-    const avgRank = ranks.length ? ranks.reduce((a, b) => a + b, 0) / ranks.length : null
-    return {
-      ...t,
-      asIs: v2.filter((r) => (r.toolAsIs || []).includes(t.id)).length,
-      notes: v2.filter((r) => r.toolNotes?.[t.id]).map((r) => ({ ...who(r), text: r.toolNotes[t.id] })),
-      ranked: ranks.length,
-      firstPicks: v2.filter((r) => (r.toolRank || [])[0] === t.id).map(who),
-      avgRank,
-      score: avgRank === null ? null : Math.round(((N - avgRank + 1) / N) * 100),
-    }
-  })
-  const ranking = [...cpaTools].sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.firstPicks.length - a.firstPicks.length)
+  const cpaTools = CPA_TOOLS.map((t) => ({
+    ...t,
+    asIs: v2.filter((r) => (r.toolAsIs || []).includes(t.id)).length,
+    notes: v2.filter((r) => r.toolNotes?.[t.id]).map((r) => ({ ...who(r), text: r.toolNotes[t.id] })),
+  }))
   const sections = SECTIONS.map((s) => ({
     ...s,
     notes: v2.filter((r) => r.sectionNotes?.[s.id]).map((r) => ({ ...who(r), text: r.sectionNotes[s.id] })),
@@ -212,47 +199,5 @@ export function tally(rows) {
       return { ...t, n: votes.length, score: avg === null ? null : Math.round((avg / RATING_MAX) * 100) }
     }).filter((t) => t.n > 0).sort((a, b) => b.score - a.score)
   }
-  return { n: rows.length, n2: v2.length, nLegacy: legacy.length, cpaTools, ranking, sections, anythingElse, legacyTools }
-}
-
-// ---------------------------------------------------------------------------
-// Pairing: each named CPA takes the CPA tools they ranked highest, spread
-// evenly with a cap per CPA. Greedy by rank: every (CPA, tool, rank) sorted by
-// rank; a tool goes to the first CPA in that order who still has room, ties to
-// whoever has fewer tools. Tools nobody ranked are dealt to whoever has room.
-// Only the latest response per name counts.
-// ---------------------------------------------------------------------------
-export function pairing(rows, perCpa) {
-  const byName = new Map()
-  for (const r of [...rows].filter(isV2).sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) {
-    const key = (r.name || '').trim().toLowerCase()
-    if (!key) continue
-    byName.set(key, r)
-  }
-  const cpas = [...byName.values()].map((r) => ({ id: r.id, name: r.name.trim(), firm: r.firm || '', ranks: r.toolRank || [], tools: [] }))
-  const anonymous = rows.filter(isV2).length - rows.filter((r) => isV2(r) && (r.name || '').trim()).length
-  if (cpas.length === 0) return { cpas, anonymous, cap: 0, unassigned: CPA_TOOLS.map((t) => t.id) }
-
-  const cap = Math.max(1, perCpa || Math.ceil(CPA_TOOLS.length / cpas.length))
-  const prefs = []
-  for (const c of cpas) c.ranks.forEach((id, i) => { if (CPA_TOOLS.some((t) => t.id === id)) prefs.push({ cpa: c, id, rank: i + 1 }) })
-  prefs.sort((a, b) => a.rank - b.rank)
-  const taken = new Set()
-  for (const p of prefs) {
-    if (taken.has(p.id)) continue
-    const same = prefs.filter((q) => q.id === p.id && q.rank === p.rank && q.cpa.tools.length < cap)
-    if (!same.length) continue
-    const pick = same.reduce((a, b) => (b.cpa.tools.length < a.cpa.tools.length ? b : a))
-    pick.cpa.tools.push({ id: p.id, label: CPA_TOOLS.find((t) => t.id === p.id).label, rank: p.rank, reason: 'ranked' })
-    taken.add(p.id)
-  }
-  const unassigned = []
-  for (const t of CPA_TOOLS) {
-    if (taken.has(t.id)) continue
-    const open = cpas.filter((c) => c.tools.length < cap)
-    if (!open.length) { unassigned.push(t.id); continue }
-    const c = open.reduce((a, b) => (b.tools.length < a.tools.length ? b : a))
-    c.tools.push({ id: t.id, label: t.label, rank: null, reason: 'assigned' })
-  }
-  return { cpas, anonymous, cap, unassigned }
+  return { n: rows.length, n2: v2.length, nLegacy: legacy.length, cpaTools, sections, anythingElse, legacyTools }
 }
