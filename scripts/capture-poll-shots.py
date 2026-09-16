@@ -12,6 +12,7 @@ EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 BASE = "http://localhost:5174"
 TOOLS = [
     "estimated-tax",
+    "exchange-1031",
     "multi-year-projection",
     "roth-conversion",
     "retirement-tax-map",
@@ -40,7 +41,8 @@ def main():
     profile = os.path.join(tempfile.gettempdir(), "gl-poll-shots-profile")
     for tid in TOOLS:
         raw = os.path.join(tempfile.gettempdir(), f"gl-shot-{tid}.png")
-        url = f"{BASE}/tools/{tid}?sample=1"
+        path = "1031-exchange" if tid == "exchange-1031" else tid
+        url = f"{BASE}/tools/{path}?sample=1"
         subprocess.run([
             EDGE, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run",
             f"--user-data-dir={profile}", f"--window-size={W},{H}", "--virtual-time-budget=9000",

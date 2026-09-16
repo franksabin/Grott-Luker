@@ -44,9 +44,9 @@ export const CPA_TOOL_SPECS = {
     outputs: ['Federal and state tax on the conversion', 'Added IRMAA surcharge', 'Total cost and effective rate on the conversion', 'Net amount into the Roth', 'First-year RMD avoided at 73 and future tax avoided per year'],
   },
   'exchange-1031': {
-    quick: "Planned: a full or partial like-kind exchange — gain deferred, gain recognized on boot, and the new basis.",
+    quick: "A full or partial like-kind exchange: the gain deferred, the boot taxed now against an outright sale, the new basis, and the deadlines.",
     model:
-      'Planned. A full or partial like-kind exchange: realized gain on the relinquished property, cash and mortgage boot, gain recognized, §1250 recapture at 25% with the balance at capital-gains rates plus NIIT, deferred gain, and carryover basis in the replacement property. Full exchange, partial exchange, and outright sale side by side, with the 45- and 180-day deadlines.',
+      'A full or partial like-kind exchange: realized gain on the relinquished property, cash and mortgage boot, gain recognized, §1250 recapture at 25% with the balance at capital-gains rates plus NIIT, deferred gain, and carryover basis in the replacement property. Full exchange, partial exchange, and outright sale side by side, with the 45- and 180-day deadlines.',
     inputs: ['Relinquished property: sale price, selling costs, cost, improvements, depreciation, mortgage payoff', 'Replacement property: price, closing costs, new mortgage, cash added or taken', 'Filing status, other income, state', 'Sale closing date'],
     outputs: ['Realized gain and boot', 'Gain recognized, recapture, and tax due', 'Gain deferred and replacement-property basis', 'Full vs. partial vs. taxable sale', 'Identification and closing deadlines'],
   },
@@ -88,9 +88,9 @@ export const CPA_TOOLS = TOOLS.filter((t) => t.group === CPA_GROUP).map((t) => {
     label: t.title,
     status: t.status,
     path: t.path,
-    planned: t.id === 'exchange-1031' || (!CPA_TOOL_SPECS[t.id] && !!t.plan),
+    planned: !CPA_TOOL_SPECS[t.id] && !!t.plan,
     quick: spec.quick || t.description,
-    shot: t.id === 'exchange-1031' || !CPA_TOOL_SPECS[t.id] ? null : `/poll/${t.id}.jpg`,
+    shot: CPA_TOOL_SPECS[t.id] ? `/poll/${t.id}.jpg` : null,
     model: spec.model || t.plan || t.description,
     inputs: spec.inputs || t.planInputs || [],
     outputs: spec.outputs || [],

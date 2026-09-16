@@ -38,6 +38,7 @@ import ArmVsFixed from './pages/ArmVsFixed.jsx'
 import SolarPanels from './pages/SolarPanels.jsx'
 // Roadmap tools with a plan page but no calculator yet
 import PlannedTool from './pages/PlannedTool.jsx'
+import Exchange1031 from './pages/Exchange1031.jsx'
 
 export default function App() {
   return (
@@ -71,7 +72,7 @@ export default function App() {
         <Route path="tools/arm-vs-fixed" element={<ArmVsFixed />} />
         <Route path="tools/solar-panels" element={<SolarPanels />} />
         {/* Planned (registry entry only) */}
-        <Route path="tools/1031-exchange" element={<PlannedTool />} />
+        <Route path="tools/1031-exchange" element={<Exchange1031 />} />
         <Route path="tools/paying-your-kids" element={<PlannedTool />} />
         {/* Submissions from clients */}
         <Route path="client-results" element={<ClientResults />} />

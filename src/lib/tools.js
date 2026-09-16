@@ -109,14 +109,6 @@ export const TOOLS = [
     short: '1031 Exchange',
     description:
       'Full or partial like-kind exchange of investment real estate — realized gain, gain recognized on boot, depreciation recapture, carryover basis in the replacement property, and the tax deferred versus an outright sale.',
-    plan:
-      'Starts from the relinquished property (sale price, adjusted basis, depreciation taken, debt paid off) and the replacement property (price, new debt). Computes realized gain, cash and mortgage boot, gain recognized, §1250 recapture at 25% and the balance at capital-gains rates plus NIIT, the deferred gain, and the replacement property’s carryover basis. Shows a full exchange, a partial exchange (trading down or taking cash), and a taxable sale side by side, with the 45-day identification and 180-day closing deadlines from the sale date.',
-    planInputs: [
-      'Relinquished property: sale price, selling costs, original cost, improvements, depreciation taken, mortgage payoff',
-      'Replacement property: purchase price, closing costs, new mortgage, cash added or taken',
-      'Filing status, other taxable income, and state (for the recapture and capital-gains rate)',
-      'Sale closing date (for the 45- and 180-day deadlines)',
-    ],
   },
   {
     id: 'retirement-tax-map',
