@@ -84,6 +84,17 @@ export const TOOLS = [
       'Project taxable income and tax across several years to visualize the impact of Roth conversions, RMDs, Social Security timing, and other events — and find low-bracket planning windows.',
   },
   {
+    id: 'qbi-optimizer',
+    group: 'cpa',
+    status: 'live',
+    path: '/tools/qbi-optimizer',
+    icon: Percent,
+    title: 'QBI Deduction Optimizer',
+    short: 'QBI Deduction Optimizer',
+    description:
+      'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
+  },
+  {
     id: 'retirement-tax-map',
     group: 'cpa',
     status: 'testing',
@@ -153,17 +164,6 @@ export const TOOLS = [
   },
 
   // ---------- Business Owner Planning ----------
-  {
-    id: 'qbi-optimizer',
-    group: 'cpa',
-    status: 'live',
-    path: '/tools/qbi-optimizer',
-    icon: Percent,
-    title: 'QBI Deduction Optimizer',
-    short: 'QBI Deduction Optimizer',
-    description:
-      'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
-  },
   {
     id: 'owner-comp',
     group: 'business-owner',
