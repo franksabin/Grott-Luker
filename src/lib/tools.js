@@ -253,15 +253,6 @@ export const TOOLS = [
     short: 'Paying Your Kids',
     description:
       'Put a child on the payroll and the wages move from the owner’s bracket to the child’s — often tax-free up to the standard deduction — and open the door to a Roth IRA and, where the plan allows, the company 401(k). What it saves, and what it costs in payroll tax and paperwork.',
-    plan:
-      'Models reasonable wages for one or more children against the owner’s marginal rate. Shows the family tax saved, the payroll-tax cost by entity type (wages to a child under 18 from a parent’s sole proprietorship or spousal partnership are exempt from FICA and, under 21, FUTA; an S- or C-corporation pays FICA on them), the Roth IRA contribution the earned income unlocks, and whether the child can enter the company 401(k) under its age and service rules. Flags the documentation that holds this up on audit: real work, a timesheet, a W-2, and pay at a rate you would pay a stranger.',
-    planInputs: [
-      'Entity type (sole proprietorship, partnership, S-corp, C-corp) and the owner’s marginal rate',
-      'Each child’s age, planned hours, and hourly rate',
-      'Whether the child has other income',
-      'Company 401(k) eligibility rules (minimum age and service), if a plan exists',
-      'State (for state income tax on the child’s wages)',
-    ],
   },
 
   // ---------- Individual & Family Planning ----------
