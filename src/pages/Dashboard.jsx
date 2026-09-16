@@ -96,30 +96,48 @@ export default function Dashboard() {
           <div className="hero-e-text">
             <div className="eyebrow-e">Client Decision Support Toolkit</div>
             <h1>
-              Planning tools.
+              Run the numbers.
               <br />
-              One <em>defensible</em>
+              Show the <em>math</em>.
               <br />
-              number, every time.
+              Start the conversation.
             </h1>
             <p>
-              Built for Grott Luker CPAs and their clients by Grott Luker &amp; Co.
-              and BlueLine Advisors. Every tool keeps the assumptions on one side
-              and produces a clean, client-ready report on the other — with the
-              math shown underneath.
+              Built for Grott Luker CPAs and their clients. Enter the assumptions
+              on one side and hand over a clean, client-ready report on the other —
+              with every calculation shown underneath, so you can stand behind the
+              number and explain it in plain English.
             </p>
           </div>
           <div className="hero-e-visual" aria-hidden="true">
-            <svg width="300" height="340" viewBox="0 0 300 340" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="20" y="10" width="260" height="320" rx="10" fill="#FFFFFF" stroke="#DDD7C8" strokeWidth="1.5" />
-              <rect x="20" y="10" width="260" height="34" rx="10" fill="#0f2440" />
-              <rect x="20" y="34" width="260" height="10" fill="#0f2440" />
-              <circle cx="40" cy="27" r="4" fill="#C4A054" />
-              {[80, 106, 132, 158, 184, 210, 236, 262, 288].map((y, i) => (
-                <line key={y} x1="44" y1={y} x2={[150, 220, 130, 240, 170, 210, 140, 230, 160][i]} y2={y} stroke="#E4DFD1" strokeWidth="2" />
-              ))}
-              <line x1="34" y1="66" x2="252" y2="304" stroke="#3868A5" strokeWidth="4" strokeLinecap="round" />
-              <circle cx="220" cy="106" r="7" fill="#C4A054" stroke="#FFFFFF" strokeWidth="2" />
+            <svg width="360" height="330" viewBox="0 0 360 330" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* back card */}
+              <rect x="56" y="14" width="272" height="262" rx="12" fill="#FFFFFF" stroke="#DDD7C8" strokeWidth="1.5" opacity="0.9" />
+              <rect x="56" y="14" width="272" height="30" rx="12" fill="#5a93cf" />
+              <rect x="56" y="34" width="272" height="10" fill="#5a93cf" />
+              {/* front card */}
+              <rect x="20" y="52" width="272" height="262" rx="12" fill="#FFFFFF" stroke="#DDD7C8" strokeWidth="1.5" />
+              <rect x="20" y="52" width="272" height="34" rx="12" fill="#0f2440" />
+              <rect x="20" y="74" width="272" height="12" fill="#0f2440" />
+              <text x="40" y="75" fontFamily="Georgia, serif" fontSize="12" fill="#FFFFFF" letterSpacing="1">G|L</text>
+              <circle cx="272" cy="69" r="4" fill="#C4A054" />
+              {/* feature figure */}
+              <text x="40" y="116" fontFamily="'IBM Plex Mono', monospace" fontSize="9" letterSpacing="1.5" fill="#726d63">PROJECTED FEDERAL TAX</text>
+              <text x="40" y="150" fontFamily="Georgia, serif" fontSize="30" fontWeight="600" fill="#0f2440">$44,668</text>
+              <rect x="40" y="160" width="60" height="3" rx="1.5" fill="#C4A054" />
+              {/* bars */}
+              <rect x="40" y="186" width="160" height="10" rx="3" fill="#0f2440" />
+              <rect x="40" y="202" width="118" height="10" rx="3" fill="#3868A5" />
+              <rect x="40" y="218" width="76" height="10" rx="3" fill="#C4A054" />
+              <text x="208" y="195" fontFamily="'IBM Plex Mono', monospace" fontSize="9" fill="#454650">40,201</text>
+              <text x="166" y="211" fontFamily="'IBM Plex Mono', monospace" fontSize="9" fill="#454650">32,000</text>
+              <text x="124" y="227" fontFamily="'IBM Plex Mono', monospace" fontSize="9" fill="#454650">8,201</text>
+              {/* show the math rows */}
+              <line x1="40" y1="244" x2="272" y2="244" stroke="#E4DFD1" strokeWidth="1" />
+              <text x="40" y="262" fontFamily="'IBM Plex Mono', monospace" fontSize="9" letterSpacing="1.2" fill="#35608f">▸ SHOW THE MATH</text>
+              <line x1="40" y1="276" x2="200" y2="276" stroke="#E4DFD1" strokeWidth="2" />
+              <line x1="40" y1="290" x2="236" y2="290" stroke="#E4DFD1" strokeWidth="2" />
+              <line x1="40" y1="304" x2="170" y2="304" stroke="#E4DFD1" strokeWidth="2" />
             </svg>
           </div>
         </div>
@@ -131,21 +149,18 @@ export default function Dashboard() {
           <div>
             <h3>A starting point, not a final answer</h3>
             <p>
-              Every number this toolkit produces is meant to open a conversation
-              with a client — not close one. Treat each report as a first draft
-              built on the assumptions entered, not a recommendation or a
-              substitute for the CPA&apos;s judgment. It gets everyone looking at the
-              same rough numbers early, so the real planning starts from a shared
-              starting line.
+              Every figure here is meant to open a planning conversation with a
+              client — not close one. Treat each report as a first draft built on
+              the assumptions entered: not tax advice, not a filing position, and
+              not a substitute for your professional judgment. It gets you and the
+              client looking at the same rough numbers early, so the real planning
+              starts from a shared starting line.
             </p>
           </div>
         </div>
       </section>
 
       <div className="dash-bar">
-        <div className="dash-bar-note">
-          {filtered.length} tools · GrottLuker CPA Tools are Grott Luker &amp; Co.&apos;s; the other sections are BlueLine Advisors&apos;.
-        </div>
         <div className="dash-bar-right">
           <label className="dev-toggle">
           <span>Show in-development tools</span>
@@ -165,6 +180,9 @@ export default function Dashboard() {
         return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} />
       })}
 
+      <div className="section-divider" aria-hidden="true">
+        <span className="section-divider-mark">✳</span>
+      </div>
       <div className="dash-bottom">
         <div className="dash-note">
           <div className="section-eyebrow">A note to Grott Luker CPAs</div>

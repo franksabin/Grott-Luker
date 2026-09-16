@@ -35,25 +35,25 @@ export const GROUPS = {
     id: 'cpa',
     title: 'GrottLuker CPA Tools',
     eyebrow: 'Grott Luker & Co.',
-    description: 'Projections, safe harbors, conversions, and year-end planning.',
+    description: 'Grott Luker & Co. · projections, safe harbors, conversions, and year-end planning.',
   },
   'business-owner': {
     id: 'business-owner',
     title: 'Business Owner Planning',
     eyebrow: 'BlueLine Advisors · for business-owner clients',
-    description: 'Entity, compensation, and retirement plan design.',
+    description: 'BlueLine Advisors · entity, compensation, and retirement plan design.',
   },
   'individual-family': {
     id: 'individual-family',
     title: 'Individual & Family Planning',
     eyebrow: 'BlueLine Advisors · for individuals & families',
-    description: 'Retirement readiness, life transitions, and financial discovery.',
+    description: 'BlueLine Advisors · retirement readiness, life transitions, and financial discovery.',
   },
   'client-intake': {
     id: 'client-intake',
     title: 'Shareable',
     eyebrow: 'BlueLine Advisors · send to a client',
-    description: 'Clients fill these in themselves; submissions arrive in Client results.',
+    description: 'BlueLine Advisors · clients fill these in themselves; submissions arrive in Client results.',
   },
 }
 
