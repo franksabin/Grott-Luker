@@ -13,13 +13,15 @@ export const FEEDBACK_LIMITS = {
   otherIdea: 200,
 }
 
-// Interest scale for every tool. Stored as 0–3; "haven't looked" is simply unrated.
+// Interest scale for every tool. Stored as 0–4; "haven't looked" is simply unrated.
 export const RATINGS = [
   { id: 0, label: 'Not useful', short: 'No' },
-  { id: 1, label: 'Maybe', short: 'Maybe' },
+  { id: 1, label: 'Marginal', short: 'Low' },
   { id: 2, label: 'Useful', short: 'Useful' },
-  { id: 3, label: 'Must have', short: 'Must' },
+  { id: 3, label: 'Very useful', short: 'Very' },
+  { id: 4, label: 'Must have', short: 'Must' },
 ]
+export const RATING_MAX = RATINGS.length - 1
 
 // All tools, in dashboard order, with the section they live in.
 export const RATED_TOOLS = GROUP_ORDER.flatMap((gid) =>
@@ -127,7 +129,7 @@ export function normalizeFeedback(body) {
       const clean = {}
       for (const o of q.options) {
         const v = Number(src[o.id])
-        if (Number.isInteger(v) && v >= 0 && v <= 3) clean[o.id] = v
+        if (Number.isInteger(v) && v >= 0 && v <= RATING_MAX) clean[o.id] = v
       }
       out[q.id] = clean
     } else if (q.type === 'multi' || q.type === 'pick3') {
@@ -156,13 +158,13 @@ export function normalizeFeedback(body) {
 export function tally(rows) {
   const n = rows.length
   const counts = {}
-  // Per-tool interest: average of 0–3 ratings among those who rated it, plus the spread.
+  // Per-tool interest: average of 0–RATING_MAX ratings among those who rated it, plus the spread.
   const tools = RATED_TOOLS.map((t) => {
     const votes = rows.map((r) => r.toolInterest?.[t.id]).filter((v) => Number.isInteger(v))
     const dist = RATINGS.map((r) => votes.filter((v) => v === r.id).length)
     const avg = votes.length ? votes.reduce((x, y) => x + y, 0) / votes.length : null
-    const mustHave = dist[3]
-    return { ...t, n: votes.length, avg, dist, mustHave, score: avg === null ? null : Math.round((avg / 3) * 100) }
+    const mustHave = dist[RATING_MAX]
+    return { ...t, n: votes.length, avg, dist, mustHave, score: avg === null ? null : Math.round((avg / RATING_MAX) * 100) }
   })
   tools.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.n - a.n || b.mustHave - a.mustHave)
   for (const q of QUESTIONS) {

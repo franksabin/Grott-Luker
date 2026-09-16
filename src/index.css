@@ -2236,30 +2236,31 @@ button.backlink {
 
 /* ------- Poll: per-tool rating grid ------- */
 .rating { display: flex; flex-direction: column; gap: 6px; }
-.rating-legend { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0 0 6px; }
+.rating-legend { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(5, minmax(0, 1fr)); gap: 6px; padding: 0 0 6px; }
 .rating-legend span { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-align: center; }
 .rating-legend span:first-child { text-align: left; }
 .rating-group { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #35608f; padding: 14px 0 4px; border-bottom: 1px solid #e6e0d2; margin-bottom: 4px; }
-.rating-row { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 6px 0; }
+.rating-row { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(5, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 6px 0; }
 .rating-row .rating-opts { display: contents; }
 .rating-tool { display: flex; flex-direction: column; min-width: 0; padding-right: 8px; }
 .rating-title { font-size: 14px; font-weight: 600; color: var(--ink); }
 .rating-dev { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #a5533c; }
 .rating-btn {
-  border: 1px solid #ddd7c8; background: #fff; border-radius: 8px; padding: 8px 4px; font-size: 12.5px; font-weight: 600;
+  border: 1px solid #ddd7c8; background: #fff; border-radius: 8px; padding: 8px 2px; font-size: 12px; font-weight: 600;
   color: var(--ink-soft); cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s; min-width: 0;
 }
 .rating-btn:hover { border-color: var(--navy-500); }
 .rating-btn.on { color: #fff; border-color: transparent; }
 .rating-btn.r0.on { background: #8a8f99; }
-.rating-btn.r1.on { background: #5a93cf; }
-.rating-btn.r2.on { background: #2f6099; }
-.rating-btn.r3.on { background: #0f2440; }
+.rating-btn.r1.on { background: #86b0dc; }
+.rating-btn.r2.on { background: #5a93cf; }
+.rating-btn.r3.on { background: #2f6099; }
+.rating-btn.r4.on { background: #0f2440; }
 .rating-btn-short { display: none; }
 @media (max-width: 640px) {
   .rating-legend { display: none; }
   .rating-row { grid-template-columns: 1fr; gap: 6px; }
-  .rating-row .rating-opts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .rating-row .rating-opts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
   .rating-btn-long { display: none; }
   .rating-btn-short { display: inline; }
 }
@@ -2267,7 +2268,7 @@ button.backlink {
 /* ------- Results: ranked tool interest ------- */
 .tally-intro { margin: 0 0 14px; font-size: 13.5px; color: var(--muted); line-height: 1.55; }
 .rank { display: flex; flex-direction: column; }
-.rank-head, .rank-row { display: grid; grid-template-columns: 32px minmax(0, 2fr) minmax(0, 1.6fr) 56px 76px 132px; gap: 12px; align-items: center; }
+.rank-head, .rank-row { display: grid; grid-template-columns: 32px minmax(0, 2fr) minmax(0, 1.5fr) 56px 76px 164px; gap: 12px; align-items: center; }
 .rank-head { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0 0 8px; border-bottom: 1px solid var(--border); }
 .rank-row { padding: 9px 0; border-bottom: 1px solid #efeae0; font-size: 14px; }
 .rank-row.zero { color: var(--muted); }
@@ -2280,7 +2281,7 @@ button.backlink {
 .rank-score b { min-width: 40px; text-align: right; color: var(--navy); font-variant-numeric: tabular-nums; }
 .rank-dist { display: inline-flex; gap: 4px; }
 .dist { min-width: 26px; text-align: center; font-size: 11px; font-weight: 700; padding: 2px 4px; border-radius: 6px; color: #fff; font-variant-numeric: tabular-nums; }
-.dist.r0 { background: #8a8f99; } .dist.r1 { background: #5a93cf; } .dist.r2 { background: #2f6099; } .dist.r3 { background: #0f2440; }
+.dist.r0 { background: #8a8f99; } .dist.r1 { background: #86b0dc; } .dist.r2 { background: #5a93cf; } .dist.r3 { background: #2f6099; } .dist.r4 { background: #0f2440; }
 .rank-row.zero .dist { opacity: 0.35; }
 @media (max-width: 760px) {
   .rank-head { display: none; }

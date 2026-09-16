@@ -64,7 +64,7 @@ function PollResults({ rows, loading }) {
       <div className="poll-results-head">{t.n} {t.n === 1 ? 'response' : 'responses'} · latest {formatWhen(rows[0].created_at)}</div>
       <Panel title="Tool interest — ranked">
         <p className="tally-intro">
-          Score is the average rating on a 0–3 scale (Not useful → Must have), shown as a percentage of the maximum,
+          Score is the average rating on a five-point scale (Not useful → Must have), shown as a percentage of the maximum,
           among CPAs who rated the tool. Skips do not count against a tool. The dots show the spread.
         </p>
         <div className="rank">
