@@ -95,13 +95,7 @@ function PollResults({ rows, loading }) {
         ))}
       </Panel>
 
-      {t.sections.map((s) => (
-        <Panel key={s.id} title={`${s.title} — add, remove, thoughts`}>
-          <NoteList notes={s.notes} empty="No notes on this section yet." />
-        </Panel>
-      ))}
-
-      <Panel title="Anything else">
+      <Panel title="Anything else about the CPA tools">
         <NoteList notes={t.anythingElse} empty="Nothing further yet." />
       </Panel>
 

@@ -3,8 +3,9 @@
 //
 // Version 2 (2026-09-16). Stage one is the CPA tools: each tool is a sentence and
 // a screenshot of its report; the CPA gives a quick assessment or checks "works as
-// is". Stage two is one open question per BlueLine section. No grading, no
-// ranking: tool assignments are made by email, not by the poll.
+// is", plus one open box. No grading, no ranking: tool assignments are made by
+// email. The other sections are reviewed later, one a month; sectionNotes stays
+// in the schema for that.
 import { TOOLS, GROUPS, GROUP_ORDER } from './tools.js'
 import { isValidEmail } from './knowYourNumbers.js'
 

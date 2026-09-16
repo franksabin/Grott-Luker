@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Check, Loader2, Send, ExternalLink } from 'lucide-react'
 import { Panel, Field, Note } from '../components/ui.jsx'
-import { CPA_TOOLS, SECTIONS, CPA_COUNT, blankAnswers, FEEDBACK_LIMITS } from '../lib/feedback.js'
+import { CPA_TOOLS, CPA_COUNT, blankAnswers, FEEDBACK_LIMITS } from '../lib/feedback.js'
 import { submitFeedback } from '../lib/api.js'
 
 function Choice({ checked, onChange, children }) {
@@ -114,22 +114,20 @@ export default function Feedback() {
 
       <div className="tool-header">
         <div className="eyebrow-e">CPA review</div>
-        <h1>Start with the CPA tools.</h1>
+        <h1>The CPA tools, everyone’s eyes.</h1>
         <p className="tool-sub">
-          Before your working session, spend ten minutes here on the tools you have been
-          paired with, and any others you have a view on. Each of the {CPA_COUNT} CPA tools
-          below is a sentence and a picture of its report with sample data loaded. Give us a
-          quick assessment, or check “works as is.” Then one question for each of the other
-          sections.
+          One of you is responsible for each tool and will sit down with Frank on it, but every
+          tool benefits from everyone’s look. Each of the {CPA_COUNT} tools below is a sentence
+          and a picture of its report with sample data loaded. Give a quick assessment, or check
+          “works as is.” The other sections of the toolkit come later, one a month.
         </p>
       </div>
 
       <div className="poll">
         <div className="poll-stage">
-          <span className="poll-stage-num">Stage 1</span>
           <div>
-            <h2>The CPA tools</h2>
-            <p>Click any picture to open the tool with the same sample loaded. Skip anything you have not looked at.</p>
+            <h2>The eight CPA tools</h2>
+            <p>Click any picture to open the tool with the same sample loaded. A line per tool is plenty. Skip anything you have not opened.</p>
           </div>
         </div>
 
@@ -146,45 +144,11 @@ export default function Feedback() {
         ))}
         <div className="poll-counter">{answeredTools} of {CPA_COUNT} CPA tools assessed</div>
 
-        <div className="poll-stage">
-          <span className="poll-stage-num">Stage 2</span>
-          <div>
-            <h2>The other sections, quickly</h2>
-            <p>These are BlueLine’s tools for your clients. No need to rate them. Just tell us what to add or drop.</p>
-          </div>
-        </div>
-
-        {SECTIONS.map((s) => (
-          <Panel key={s.id}>
-            <div className="poll-q">
-              <div className="poll-q-text">
-                <h3>{s.title}</h3>
-                <p>{s.description.replace(/^BlueLine Advisors · /, '')}</p>
-              </div>
-            </div>
-            <div className="tool-chips">
-              {s.tools.map((t) => (
-                <span key={t.id} className="tool-chip">{t.label}</span>
-              ))}
-            </div>
-            <label className="field-label" htmlFor={`sec-${s.id}`}>Anything to add or remove? Other thoughts?</label>
-            <textarea
-              id={`sec-${s.id}`}
-              className="input poll-textarea"
-              rows={2}
-              maxLength={FEEDBACK_LIMITS.text}
-              value={a.sectionNotes[s.id] || ''}
-              onChange={(e) => setNote('sectionNotes', s.id)(e.target.value)}
-              placeholder="A tool your clients ask for, one that does not belong here, a question you keep getting…"
-            />
-          </Panel>
-        ))}
-
         <Panel>
           <div className="poll-q">
             <div className="poll-q-text">
-              <h3>Anything else?</h3>
-              <p>Something we have not asked about. A tool, a situation, a way you would use this with a client.</p>
+              <h3>Anything else about the CPA tools?</h3>
+              <p>A tool that is missing, a situation none of them handles, a way you would use one with a client.</p>
             </div>
           </div>
           <textarea
@@ -222,10 +186,9 @@ export default function Feedback() {
         </div>
 
         <Note title="Why we're asking this way">
-          The CPA tools are the ones you will use in front of clients, so they come first.
-          Every one of them was rebuilt this week and none has been reviewed yet, which is
-          why each carries the baseline-model mark. Your notes here are what we work from in
-          the sessions, so the time is spent fixing, not explaining.
+          Every one of these tools was rebuilt this week and none has been reviewed yet, which
+          is why each carries the baseline-model mark. Your notes here are what the responsible
+          CPA and Frank work from in the session, so the time is spent fixing, not explaining.
         </Note>
       </div>
     </div>

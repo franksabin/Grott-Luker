@@ -2444,3 +2444,4 @@ button.backlink {
 .ind-add:hover { border-color: var(--navy-500); background: var(--bg-2); }
 .ind-add svg { color: var(--navy-600); flex: 0 0 auto; }
 @media print { .ind-add { border: 0; padding: 0; } }
+.poll-stage > div:only-child { margin-left: 0; }
