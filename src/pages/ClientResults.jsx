@@ -145,7 +145,11 @@ export default function ClientResults() {
   const [gateError, setGateError] = useState('')
   const [checking, setChecking] = useState(false)
 
-  const [tab, setTab] = useState('kyn')
+  // Deep-linkable tabs: /client-results?tab=poll opens the CPA Poll directly.
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return t && TABS[t] ? t : 'kyn'
+  })
   const [rows, setRows] = useState([])
   const [logRows, setLogRows] = useState([])
   const [donRows, setDonRows] = useState([])
