@@ -29,7 +29,7 @@ import {
 } from '../lib/api.js'
 import { money, number } from '../lib/format.js'
 import { compute } from '../lib/knowYourNumbers.js'
-import { QUESTIONS, RATINGS, RATED_TOOLS, tally, pairing } from '../lib/feedback.js'
+import { CPA_TOOLS, tally, pairing } from '../lib/feedback.js'
 
 const TABS = {
   kyn: { label: 'Know Your Numbers', clientPath: '/client/know-your-numbers' },
@@ -55,22 +55,22 @@ function PairingPlan({ rows }) {
   const [perCpa, setPerCpa] = useState('')
   const [copied, setCopied] = useState(false)
   const named = new Set(rows.map((r) => (r.name || '').trim().toLowerCase()).filter(Boolean)).size
-  const defaultCap = named ? Math.ceil(RATED_TOOLS.length / named) : 0
+  const defaultCap = named ? Math.ceil(CPA_TOOLS.length / named) : 0
   const plan = pairing(rows, Number(perCpa) || defaultCap)
 
   const copyPlan = async () => {
     const text = plan.cpas
-      .map((c) => `${c.name}${c.firm ? ` (${c.firm})` : ''}\n${c.tools.map((t) => `  - ${t.label}${t.rating !== null ? ` — rated ${RATINGS[t.rating].label}` : ' — not rated; assigned to balance'}`).join('\n')}`)
+      .map((c) => `${c.name}${c.firm ? ` (${c.firm})` : ''}\n${c.tools.map((t) => `  - ${t.label}${t.reason === 'volunteered' ? ' — volunteered' : ' — assigned to balance'}`).join('\n')}`)
       .join('\n\n')
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch { /* ignore */ }
   }
 
   return (
-    <Panel title="Suggested pairing — who refines what">
+    <Panel title="Suggested pairing — who refines which CPA tool">
       <p className="tally-intro">
-        Each named CPA is matched to the tools they rated highest, spread evenly so everyone gets about the same number.
-        Ties go to whoever has fewer tools; tools nobody rated are dealt out to balance the load. Only the latest response
-        per name counts.{plan.anonymous ? ` ${plan.anonymous} anonymous ${plan.anonymous === 1 ? 'response is' : 'responses are'} left out — ask those CPAs to resubmit with a name.` : ''}
+        Each named CPA takes the CPA tools they offered to refine, spread evenly so everyone gets about the same number.
+        Tools nobody volunteered for are dealt out to balance the load. Only the latest response per name counts.
+        {plan.anonymous ? ` ${plan.anonymous} anonymous ${plan.anonymous === 1 ? 'response is' : 'responses are'} left out — ask those CPAs to resubmit with a name.` : ''}
       </p>
       {plan.cpas.length === 0 ? (
         <p className="tally-empty">No named responses yet. Pairing needs a name on the poll.</p>
@@ -79,9 +79,9 @@ function PairingPlan({ rows }) {
           <div className="pair-controls">
             <label className="pair-cap">
               Tools per CPA
-              <input className="input" type="number" min="1" max={RATED_TOOLS.length} value={perCpa} placeholder={String(defaultCap)} onChange={(e) => setPerCpa(e.target.value)} />
+              <input className="input" type="number" min="1" max={CPA_TOOLS.length} value={perCpa} placeholder={String(defaultCap)} onChange={(e) => setPerCpa(e.target.value)} />
             </label>
-            <span className="pair-note">{plan.cpas.length} CPAs · {RATED_TOOLS.length} tools · cap {plan.cap} each{plan.unassigned.length ? ` · ${plan.unassigned.length} left over` : ''}</span>
+            <span className="pair-note">{plan.cpas.length} CPAs · {CPA_TOOLS.length} CPA tools · cap {plan.cap} each{plan.unassigned.length ? ` · ${plan.unassigned.length} left over` : ''}</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={copyPlan}>{copied ? <Check size={14} /> : <Link2 size={14} />} {copied ? 'Copied' : 'Copy plan'}</button>
           </div>
           <div className="pair-grid">
@@ -93,20 +93,34 @@ function PairingPlan({ rows }) {
                   <div className="pair-count">{c.tools.length} {c.tools.length === 1 ? 'tool' : 'tools'}</div>
                 </div>
                 {c.tools.map((t) => (
-                  <div key={t.id} className={`pair-tool${t.reason === 'unrated' ? ' unrated' : ''}`}>
+                  <div key={t.id} className={`pair-tool${t.reason === 'assigned' ? ' unrated' : ''}`}>
                     <span className="pair-tool-title">{t.label}</span>
-                    <span className={`dist r${t.rating ?? 0}${t.rating === null ? ' none' : ''}`}>{t.rating === null ? '—' : RATINGS[t.rating].short}</span>
+                    <span className={`dist ${t.reason === 'volunteered' ? 'r4' : 'r0 none'}`}>{t.reason === 'volunteered' ? 'Yes' : '—'}</span>
                   </div>
                 ))}
               </div>
             ))}
           </div>
           {plan.unassigned.length ? (
-            <p className="tally-empty" style={{ marginTop: 12 }}>Not assigned (raise the cap to include): {plan.unassigned.map((id) => RATED_TOOLS.find((t) => t.id === id)?.label).join(' · ')}</p>
+            <p className="tally-empty" style={{ marginTop: 12 }}>Not assigned (raise the cap to include): {plan.unassigned.map((id) => CPA_TOOLS.find((t) => t.id === id)?.label).join(' · ')}</p>
           ) : null}
         </>
       )}
     </Panel>
+  )
+}
+
+function NoteList({ notes, empty }) {
+  if (!notes.length) return <p className="tally-empty">{empty}</p>
+  return (
+    <div className="quotes">
+      {notes.map((r) => (
+        <div key={`${r.id}-${r.text.slice(0, 12)}`} className="quote">
+          <p>{r.text}</p>
+          <div className="quote-meta">{r.name || 'Anonymous'}{r.firm ? ` · ${r.firm}` : ''} · {formatWhen(r.created_at)}</div>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -120,64 +134,53 @@ function PollResults({ rows, loading }) {
   const t = tally(rows)
   return (
     <div className="poll-results">
-      <div className="poll-results-head">{t.n} {t.n === 1 ? 'response' : 'responses'} · latest {formatWhen(rows[0].created_at)}</div>
+      <div className="poll-results-head">
+        {t.n} {t.n === 1 ? 'response' : 'responses'} · latest {formatWhen(rows[0].created_at)}
+        {t.nLegacy ? ` · ${t.nLegacy} from the earlier rating poll` : ''}
+      </div>
       <PairingPlan rows={rows} />
-      <Panel title="Tool interest — ranked">
-        <p className="tally-intro">
-          Score is the average rating on a five-point scale (Not useful → Must have), shown as a percentage of the maximum,
-          among CPAs who rated the tool. Skips do not count against a tool. The dots show the spread.
-        </p>
-        <div className="rank">
-          <div className="rank-head"><span>#</span><span>Tool</span><span>Score</span><span className="num">Rated</span><span className="num">Must have</span><span>Spread</span></div>
-          {t.tools.map((tool, i) => (
-            <div key={tool.id} className={`rank-row${tool.n === 0 ? ' zero' : ''}`}>
-              <span className="rank-n">{tool.n ? i + 1 : '—'}</span>
-              <span className="rank-tool">
-                <span className="rank-title">{tool.label}</span>
-                <span className="rank-meta">{tool.groupTitle}{tool.status === 'testing' ? ' · In development' : ''}</span>
-              </span>
-              <span className="rank-score">
-                <span className="tally-bar"><i style={{ width: `${tool.score ?? 0}%` }} /></span>
-                <b>{tool.score === null ? '—' : `${tool.score}%`}</b>
-              </span>
-              <span className="num">{tool.n}</span>
-              <span className="num">{tool.mustHave}</span>
-              <span className="rank-dist" title={RATINGS.map((r, k) => `${r.label}: ${tool.dist[k]}`).join(' · ')}>
-                {tool.dist.map((c, k) => (
-                  <span key={k} className={`dist r${k}`}>{c}</span>
-                ))}
+
+      <Panel title="CPA tools — what to add, change, or include">
+        <p className="tally-intro">One block per tool: how many said it works as is, who offered to refine it, and every note in the CPA’s own words.</p>
+        {t.cpaTools.map((tool) => (
+          <div key={tool.id} className="review-tool">
+            <div className="review-tool-head">
+              <h4>{tool.label}</h4>
+              <span className="review-meta">
+                {tool.planned ? <span>Planned</span> : <span><b>{tool.asIs}</b> works as is</span>}
+                <span><b>{tool.notes.length}</b> {tool.notes.length === 1 ? 'note' : 'notes'}</span>
+                <span><b>{tool.refine.length}</b> to refine{tool.refine.length ? `: ${tool.refine.map((r) => r.name || 'Anonymous').join(', ')}` : ''}</span>
               </span>
             </div>
-          ))}
-        </div>
+            {tool.notes.length ? <div className="review-notes"><NoteList notes={tool.notes} empty="" /></div> : null}
+          </div>
+        ))}
       </Panel>
-      {QUESTIONS.filter((q) => q.options && q.type !== 'rating').map((q) => (
-        <Panel key={q.id} title={q.title}>
+
+      {t.sections.map((s) => (
+        <Panel key={s.id} title={`${s.title} — add, remove, thoughts`}>
+          <NoteList notes={s.notes} empty="No notes on this section yet." />
+        </Panel>
+      ))}
+
+      <Panel title="Anything else">
+        <NoteList notes={t.anythingElse} empty="Nothing further yet." />
+      </Panel>
+
+      {t.legacyTools ? (
+        <Panel title="Earlier rating poll (archived)">
+          <p className="tally-intro">{t.nLegacy} {t.nLegacy === 1 ? 'response' : 'responses'} came in before the poll changed to the review format. Score is the average on the old five-point scale as a percentage of the maximum.</p>
           <div className="tally">
-            {t.counts[q.id].map((o) => (
-              <div key={o.id} className={`tally-row${o.count === 0 ? ' zero' : ''}`}>
-                <span className="tally-label">{o.label}</span>
-                <span className="tally-bar"><i style={{ width: `${t.n ? (o.count / t.n) * 100 : 0}%` }} /></span>
-                <span className="tally-n">{o.count}</span>
+            {t.legacyTools.map((tool) => (
+              <div key={tool.id} className="tally-row">
+                <span className="tally-label">{tool.label}</span>
+                <span className="tally-bar"><i style={{ width: `${tool.score}%` }} /></span>
+                <span className="tally-n">{tool.score}% · {tool.n}</span>
               </div>
             ))}
           </div>
         </Panel>
-      ))}
-      <Panel title="Ideas in their words">
-        {t.text.length === 0 ? (
-          <p className="tally-empty">No written ideas yet.</p>
-        ) : (
-          <div className="quotes">
-            {t.text.map((r) => (
-              <div key={r.id} className="quote">
-                <p>{r.otherIdea}</p>
-                <div className="quote-meta">{r.name || 'Anonymous'}{r.firm ? ` · ${r.firm}` : ''} · {formatWhen(r.created_at)}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+      ) : null}
     </div>
   )
 }

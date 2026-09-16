@@ -1,19 +1,104 @@
-// CPA roadmap poll — shared between the client page, the Worker, and the dev API.
-// Questions are defined once here so the form, validation, and the tally in
-// Client results can never drift apart.
+// CPA roadmap poll — shared between the form, the Worker, the dev API, and the
+// tally in Client results, so the questions can never drift apart.
+//
+// Version 2 (2026-09-16). Stage one is the CPA tools in depth: each tool is
+// described (model, inputs, outputs) and the CPA says what to add, change, or
+// include. Stage two is one open question per BlueLine section. No grading.
 import { TOOLS, GROUPS, GROUP_ORDER } from './tools.js'
 import { isValidEmail } from './knowYourNumbers.js'
 
 export const FEEDBACK_LIMITS = {
-  body: 16 * 1024,
+  body: 32 * 1024,
   name: 80,
   email: 120,
   firm: 80,
-  text: 1200,
+  text: 1500,
   otherIdea: 200,
 }
 
-// Interest scale for every tool. Stored as 0–4; "haven't looked" is simply unrated.
+export const CPA_GROUP = 'cpa'
+export const OTHER_GROUPS = GROUP_ORDER.filter((g) => g !== CPA_GROUP)
+
+// What each CPA tool does, what it takes, and what it gives back. Written from
+// the tool code; keep in step when a tool changes.
+export const CPA_TOOL_SPECS = {
+  'estimated-tax': {
+    model:
+      'Projects the year’s federal tax (and a simplified state tax) from expected income, tests both safe-harbor bases (90% of this year’s tax, or 100%/110% of last year’s), nets the withholding and estimated payments already in, and spreads what remains over the quarters left.',
+    inputs: ['Expected total income this year', 'Withholding expected this year', 'Estimated payments already made', 'Filing status', 'Quarters remaining', 'Prior-year total tax (for the safe harbor)', 'State'],
+    outputs: ['Projected federal and state tax', 'Safe-harbor amount under each basis', 'Already covered vs. remaining required', 'Suggested payment per remaining quarter', 'Projected balance due at filing', 'Every step of the math'],
+  },
+  'multi-year-projection': {
+    model:
+      'A ten-year projection of taxable income and federal tax. Wages stop at the retirement age, Social Security starts at the claim age, the IRA grows and pays RMDs, and an optional Roth conversion of a set amount runs for a set number of years. Shows the path with conversions against the path without.',
+    inputs: ['Current age and filing status', 'Wages or other income', 'Social Security (annual)', 'Traditional IRA / 401(k) balance', 'Annual Roth conversion and for how many years', 'Age to stop working', 'Age to claim Social Security'],
+    outputs: ['Total federal tax over ten years, with and without conversions', 'Ten-year tax difference', 'Ending IRA balance both ways', 'Taxable income by year, charted, with the bracket each year', 'Year-by-year table'],
+  },
+  'roth-conversion': {
+    model:
+      'The cost of converting a given amount this year: federal tax on the conversion stacked on top of other income, state tax, the IRMAA surcharge it triggers two years out, and the RMD and future tax it avoids.',
+    inputs: ['Traditional IRA / 401(k) balance', 'Amount to convert this year', 'Other taxable income this year', 'Filing status and age', 'State of residence'],
+    outputs: ['Federal and state tax on the conversion', 'Added IRMAA surcharge', 'Total cost and effective rate on the conversion', 'Net amount into the Roth', 'First-year RMD avoided at 73 and future tax avoided per year'],
+  },
+  'exchange-1031': {
+    model:
+      'Planned. A full or partial like-kind exchange: realized gain on the relinquished property, cash and mortgage boot, gain recognized, §1250 recapture at 25% with the balance at capital-gains rates plus NIIT, deferred gain, and carryover basis in the replacement property. Full exchange, partial exchange, and outright sale side by side, with the 45- and 180-day deadlines.',
+    inputs: ['Relinquished property: sale price, selling costs, cost, improvements, depreciation, mortgage payoff', 'Replacement property: price, closing costs, new mortgage, cash added or taken', 'Filing status, other income, state', 'Sale closing date'],
+    outputs: ['Realized gain and boot', 'Gain recognized, recapture, and tax due', 'Gain deferred and replacement-property basis', 'Full vs. partial vs. taxable sale', 'Identification and closing deadlines'],
+  },
+  'retirement-tax-map': {
+    model:
+      'Maps each retirement income source into the return: gross income, how much Social Security becomes taxable, AGI, taxable income, federal and state tax, effective rate, IRMAA exposure, and after-tax cash flow. A second scenario can be run alongside for comparison.',
+    inputs: ['Filing status and state', 'Income by source: wages, Social Security, pension, IRA withdrawals, Roth withdrawals, capital gains, interest and dividends, other', 'The same for a second scenario, optionally'],
+    outputs: ['Gross income, taxable Social Security, AGI, taxable income', 'Federal, state, and total tax; effective rate', 'IRMAA tier and annual surcharge', 'After-tax cash flow', 'Scenario A vs. B side by side'],
+  },
+  'withholding-checkup': {
+    model:
+      'Annualizes year-to-date pay stubs by pay frequency, projects the full-year tax with deductions, credits, other income, and any bonus still coming, compares it with withholding on its current pace plus estimated payments, and turns the gap into a W-4 Step 4(c) amount per remaining paycheck. Also shows the minimum to clear the 90% safe harbor.',
+    inputs: ['Filing status and pay frequency', 'Pay periods paid so far', 'YTD wages and federal withholding, for each spouse', 'Bonus or other wages still expected', 'Other income, deductions (standard or itemized), credits, estimated payments'],
+    outputs: ['Projected full-year tax and marginal rate', 'Projected withholding at the current pace', 'Balance due or refund at filing', 'Extra withholding per paycheck to close the gap, or how much to reduce it', 'Minimum per paycheck to avoid a penalty'],
+  },
+  'capital-gains-harvesting': {
+    model:
+      'How much long-term gain fits in the 0% and 15% brackets given ordinary income, the tax on planned long- and short-term realizations, and the offset from harvesting losses, including the $3,000 ordinary-income offset, the carryforward, and the 3.8% net investment income tax.',
+    inputs: ['Filing status', 'Ordinary taxable income before gains', 'Long-term and short-term gains planned', 'Unrealized losses available', 'Loss carryforward from prior years', 'Other investment income'],
+    outputs: ['Headroom left in the 0% and 15% brackets', 'Gains after losses, long and short', 'Long-term tax, short-term tax, NIIT, ordinary-income offset', 'Federal tax with vs. without harvesting, and the amount saved', 'Carryforward to next year'],
+  },
+  'charitable-giving-optimizer': {
+    model:
+      'Same gifts, three routes: give every year, bunch two or three years into one (usually a donor-advised fund), or give from an IRA as a qualified charitable distribution at 70½ or older. Applies the 2026 rules: SALT cap and phase-down, the 0.5%-of-AGI floor on itemized gifts, the §68 cap for top-bracket filers, the non-itemizer deduction, and the senior deduction.',
+    inputs: ['Filing status and AGI', 'Charitable giving per year', 'Age and annual IRA required distribution', 'State and local taxes paid, mortgage interest, other itemized deductions', 'Bunching window (2 or 3 years)'],
+    outputs: ['Tax saved under each route over the window', 'Deduction actually captured each year', 'Best route for this client', 'Donor-advised fund vs. QCD comparison table'],
+  },
+}
+
+// CPA tools in dashboard order, each with its spec (planned tools fall back to their plan).
+export const CPA_TOOLS = TOOLS.filter((t) => t.group === CPA_GROUP).map((t) => {
+  const spec = CPA_TOOL_SPECS[t.id] || {}
+  return {
+    id: t.id,
+    label: t.title,
+    status: t.status,
+    path: t.path,
+    planned: !CPA_TOOL_SPECS[t.id] && !!t.plan,
+    model: spec.model || t.plan || t.description,
+    inputs: spec.inputs || t.planInputs || [],
+    outputs: spec.outputs || [],
+  }
+})
+
+// The BlueLine sections, each with the titles of the tools it holds.
+export const SECTIONS = OTHER_GROUPS.map((gid) => ({
+  id: gid,
+  title: GROUPS[gid].title,
+  description: GROUPS[gid].description,
+  tools: TOOLS.filter((t) => t.group === gid).map((t) => ({ id: t.id, label: t.title, status: t.status })),
+}))
+
+export const TOOL_COUNT = TOOLS.length
+export const CPA_COUNT = CPA_TOOLS.length
+
+// Legacy (poll v1) scale, kept so older answers still read in Client results.
 export const RATINGS = [
   { id: 0, label: 'Not useful', short: 'No' },
   { id: 1, label: 'Marginal', short: 'Low' },
@@ -22,91 +107,20 @@ export const RATINGS = [
   { id: 4, label: 'Must have', short: 'Must' },
 ]
 export const RATING_MAX = RATINGS.length - 1
-
-// All tools, in dashboard order, with the section they live in.
 export const RATED_TOOLS = GROUP_ORDER.flatMap((gid) =>
-  TOOLS.filter((t) => t.group === gid).map((t) => ({
-    id: t.id,
-    label: t.title,
-    group: gid,
-    groupTitle: GROUPS[gid].title,
-    status: t.status,
-    description: t.description,
-  })),
+  TOOLS.filter((t) => t.group === gid).map((t) => ({ id: t.id, label: t.title, group: gid, groupTitle: GROUPS[gid].title, status: t.status })),
 )
 
-export const NEW_TOOL_IDEAS = [
-  { id: 'entity-choice', label: 'Entity choice — LLC vs. S-corp vs. C-corp' },
-  { id: 'estate-gift', label: 'Estate & gift tax exposure' },
-  { id: 'backdoor-roth', label: 'Backdoor & mega-backdoor Roth' },
-  { id: 'rmd-planner', label: 'RMD planner (multiple accounts, QCD offsets)' },
-  { id: 'equity-comp', label: 'Equity compensation — RSU / ISO / AMT' },
-  { id: 'rental-real-estate', label: 'Rental real estate & cost segregation' },
-  { id: 'residency-change', label: 'State residency / domicile change' },
-  { id: 'niit-planning', label: 'NIIT & additional Medicare tax planning' },
-  { id: 'education-529', label: '529 & education funding' },
-  { id: 'hsa-strategy', label: 'HSA strategy' },
-  { id: 'tax-doc-checklist', label: 'Client Shareable tax-document checklist' },
-  { id: 'onboarding-intake', label: 'Client Shareable new-client intake form' },
-]
-
-export const FREQUENCY = [
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'monthly', label: 'A few times a month' },
-  { id: 'seasonal', label: 'Mainly in planning season' },
-  { id: 'rarely', label: 'Rarely — not yet part of my process' },
-]
-
-export const SHARING = [
-  { id: 'print', label: 'Print or save the PDF for the client' },
-  { id: 'screen', label: 'Walk through it live in a meeting' },
-  { id: 'link', label: 'Email the client a link to fill in themselves' },
-  { id: 'internal', label: 'Internal use only for now' },
-]
-
-// The poll, in display order. `type`: rating | multi | pick3 | single.
-export const TOOL_COUNT = RATED_TOOLS.length
-export const DEV_COUNT = RATED_TOOLS.filter((t) => t.status === 'testing').length
-export const QUESTIONS = [
-  {
-    id: 'toolInterest',
-    type: 'rating',
-    title: 'How useful would each tool be in your practice?',
-    hint: 'Rate every tool you have an opinion on. Skip any you have not looked at — a skip is not a zero.',
-    options: RATED_TOOLS,
-  },
-  {
-    id: 'newIdeas',
-    type: 'multi',
-    title: 'What is missing? Which of these would you actually use?',
-    hint: 'Pick any — and add your own below.',
-    options: NEW_TOOL_IDEAS,
-    other: { id: 'otherIdea', placeholder: 'Something else we should build…' },
-  },
-  {
-    id: 'frequency',
-    type: 'single',
-    title: 'Realistically, how often would you use the toolkit?',
-    options: FREQUENCY,
-  },
-  {
-    id: 'sharing',
-    type: 'single',
-    title: 'How would you most likely bring a client into it?',
-    options: SHARING,
-  },
-]
-
-const optionIds = (q) => new Set(q.options.map((o) => o.id))
 const trimmed = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
 export function blankAnswers() {
   return {
-    toolInterest: {},
-    newIdeas: [],
-    otherIdea: '',
-    frequency: '',
-    sharing: '',
+    version: 2,
+    toolNotes: {}, // { toolId: text } — what to add, change, or include
+    toolAsIs: [], // toolIds marked "works as is"
+    toolRefine: [], // toolIds the CPA volunteers to refine one on one
+    sectionNotes: {}, // { groupId: text } — add, remove, thoughts
+    anythingElse: '',
     name: '',
     email: '',
     firm: '',
@@ -117,115 +131,103 @@ export function blankAnswers() {
 export function normalizeFeedback(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Invalid request body.' }
   const out = blankAnswers()
-  for (const q of QUESTIONS) {
-    const ids = q.options ? optionIds(q) : null
-    if (q.type === 'rating') {
-      const src = body[q.id] && typeof body[q.id] === 'object' && !Array.isArray(body[q.id]) ? body[q.id] : {}
-      const clean = {}
-      for (const o of q.options) {
-        const v = Number(src[o.id])
-        if (Number.isInteger(v) && v >= 0 && v <= RATING_MAX) clean[o.id] = v
-      }
-      out[q.id] = clean
-    } else if (q.type === 'multi' || q.type === 'pick3') {
-      const arr = Array.isArray(body[q.id]) ? body[q.id].filter((v) => ids.has(v)) : []
-      out[q.id] = [...new Set(arr)].slice(0, q.type === 'pick3' ? q.max : q.options.length)
-      if (q.other) out[q.other.id] = trimmed(body[q.other.id], FEEDBACK_LIMITS.otherIdea)
-    } else if (q.type === 'single') {
-      out[q.id] = ids.has(body[q.id]) ? body[q.id] : ''
-    } else if (q.type === 'text') {
-      out[q.id] = trimmed(body[q.id], FEEDBACK_LIMITS.text)
-    }
+  const cpaIds = new Set(CPA_TOOLS.map((t) => t.id))
+  const sectionIds = new Set(SECTIONS.map((s) => s.id))
+
+  const notes = body.toolNotes && typeof body.toolNotes === 'object' && !Array.isArray(body.toolNotes) ? body.toolNotes : {}
+  for (const id of cpaIds) {
+    const v = trimmed(notes[id], FEEDBACK_LIMITS.text)
+    if (v) out.toolNotes[id] = v
   }
+  const idList = (v) => (Array.isArray(v) ? [...new Set(v.filter((x) => cpaIds.has(x)))] : [])
+  out.toolAsIs = idList(body.toolAsIs)
+  out.toolRefine = idList(body.toolRefine)
+
+  const sec = body.sectionNotes && typeof body.sectionNotes === 'object' && !Array.isArray(body.sectionNotes) ? body.sectionNotes : {}
+  for (const id of sectionIds) {
+    const v = trimmed(sec[id], FEEDBACK_LIMITS.text)
+    if (v) out.sectionNotes[id] = v
+  }
+  out.anythingElse = trimmed(body.anythingElse, FEEDBACK_LIMITS.text)
+
   out.name = trimmed(body.name, FEEDBACK_LIMITS.name)
   out.email = trimmed(body.email, FEEDBACK_LIMITS.email)
   out.firm = trimmed(body.firm, FEEDBACK_LIMITS.firm)
   if (out.email && !isValidEmail(out.email)) return { error: 'That email address does not look right.' }
 
   const answered =
-    Object.keys(out.toolInterest).length || out.newIdeas.length || out.otherIdea ||
-    out.frequency || out.sharing
+    Object.keys(out.toolNotes).length || out.toolAsIs.length || out.toolRefine.length ||
+    Object.keys(out.sectionNotes).length || out.anythingElse
   if (!answered) return { error: 'Answer at least one question before sending.' }
   return { value: out }
 }
 
-// Tally a list of submissions into per-question counts for the results view.
+const isV2 = (r) => r && (r.version === 2 || r.toolNotes || r.sectionNotes)
+
+// Tally submissions for the results view.
 export function tally(rows) {
-  const n = rows.length
-  const counts = {}
-  // Per-tool interest: average of 0–RATING_MAX ratings among those who rated it, plus the spread.
-  const tools = RATED_TOOLS.map((t) => {
-    const votes = rows.map((r) => r.toolInterest?.[t.id]).filter((v) => Number.isInteger(v))
-    const dist = RATINGS.map((r) => votes.filter((v) => v === r.id).length)
-    const avg = votes.length ? votes.reduce((x, y) => x + y, 0) / votes.length : null
-    const mustHave = dist[RATING_MAX]
-    return { ...t, n: votes.length, avg, dist, mustHave, score: avg === null ? null : Math.round((avg / RATING_MAX) * 100) }
-  })
-  tools.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.n - a.n || b.mustHave - a.mustHave)
-  for (const q of QUESTIONS) {
-    if (!q.options || q.type === 'rating') continue
-    counts[q.id] = q.options.map((o) => ({
-      id: o.id,
-      label: o.label,
-      count: rows.filter((r) => (Array.isArray(r[q.id]) ? r[q.id].includes(o.id) : r[q.id] === o.id)).length,
-    }))
-    counts[q.id].sort((a, b) => b.count - a.count)
+  const v2 = rows.filter(isV2)
+  const legacy = rows.filter((r) => !isV2(r) && r.toolInterest && Object.keys(r.toolInterest).length)
+  const who = (r) => ({ id: r.id, created_at: r.created_at, name: r.name || '', firm: r.firm || '' })
+
+  const cpaTools = CPA_TOOLS.map((t) => ({
+    ...t,
+    asIs: v2.filter((r) => (r.toolAsIs || []).includes(t.id)).length,
+    refine: v2.filter((r) => (r.toolRefine || []).includes(t.id)).map(who),
+    notes: v2.filter((r) => r.toolNotes?.[t.id]).map((r) => ({ ...who(r), text: r.toolNotes[t.id] })),
+  }))
+  const sections = SECTIONS.map((s) => ({
+    ...s,
+    notes: v2.filter((r) => r.sectionNotes?.[s.id]).map((r) => ({ ...who(r), text: r.sectionNotes[s.id] })),
+  }))
+  const anythingElse = v2.filter((r) => r.anythingElse).map((r) => ({ ...who(r), text: r.anythingElse }))
+
+  // Legacy ratings, only if any v1 answers exist.
+  let legacyTools = null
+  if (legacy.length) {
+    legacyTools = RATED_TOOLS.map((t) => {
+      const votes = legacy.map((r) => r.toolInterest?.[t.id]).filter((v) => Number.isInteger(v))
+      const avg = votes.length ? votes.reduce((x, y) => x + y, 0) / votes.length : null
+      return { ...t, n: votes.length, score: avg === null ? null : Math.round((avg / RATING_MAX) * 100) }
+    }).filter((t) => t.n > 0).sort((a, b) => b.score - a.score)
   }
-  const text = rows
-    .filter((r) => r.otherIdea)
-    .map((r) => ({ id: r.id, created_at: r.created_at, name: r.name, firm: r.firm, otherIdea: r.otherIdea }))
-  return { n, counts, tools, text }
+  return { n: rows.length, n2: v2.length, nLegacy: legacy.length, cpaTools, sections, anythingElse, legacyTools }
 }
 
 // ---------------------------------------------------------------------------
-// Pairing: give each named CPA a set of tools to refine 1:1, favouring the
-// tools they rated highest, with a cap per CPA so the work is spread evenly.
-//
-// Greedy by strength of preference: every (CPA, tool, rating) is sorted by
-// rating, then a tool goes to the first CPA in that order who still has room.
-// Ties go to the CPA with fewer tools so far. Tools nobody rated are dealt to
-// whoever has the most room. Only the latest response per name is used;
-// anonymous responses cannot be paired.
+// Pairing: each named CPA takes the CPA tools they volunteered to refine,
+// spread evenly with a cap per CPA. Tools nobody volunteered for are dealt to
+// whoever has the most room. Only the latest response per name counts.
 // ---------------------------------------------------------------------------
 export function pairing(rows, perCpa) {
   const byName = new Map()
-  for (const r of [...rows].sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) {
+  for (const r of [...rows].filter(isV2).sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) {
     const key = (r.name || '').trim().toLowerCase()
     if (!key) continue
-    byName.set(key, r) // later rows overwrite earlier ones → latest wins
+    byName.set(key, r)
   }
-  const cpas = [...byName.values()].map((r) => ({ id: r.id, name: r.name.trim(), firm: r.firm || '', ratings: r.toolInterest || {}, tools: [] }))
-  const anonymous = rows.length - rows.filter((r) => (r.name || '').trim()).length
-  if (cpas.length === 0) return { cpas, anonymous, cap: 0, unassigned: RATED_TOOLS.map((t) => t.id) }
+  const cpas = [...byName.values()].map((r) => ({ id: r.id, name: r.name.trim(), firm: r.firm || '', wants: new Set(r.toolRefine || []), tools: [] }))
+  const anonymous = rows.filter(isV2).length - rows.filter((r) => isV2(r) && (r.name || '').trim()).length
+  if (cpas.length === 0) return { cpas, anonymous, cap: 0, unassigned: CPA_TOOLS.map((t) => t.id) }
 
-  const cap = Math.max(1, perCpa || Math.ceil(RATED_TOOLS.length / cpas.length))
-  const prefs = []
-  for (const c of cpas) {
-    for (const t of RATED_TOOLS) {
-      const v = c.ratings[t.id]
-      if (Number.isInteger(v)) prefs.push({ cpa: c, tool: t, rating: v })
-    }
-  }
-  prefs.sort((a, b) => b.rating - a.rating)
-
+  const cap = Math.max(1, perCpa || Math.ceil(CPA_TOOLS.length / cpas.length))
   const taken = new Set()
-  for (const p of prefs) {
-    if (taken.has(p.tool.id)) continue
-    // Among CPAs who gave this tool the same top rating, prefer the one with fewer tools.
-    const same = prefs.filter((q) => q.tool.id === p.tool.id && q.rating === p.rating && q.cpa.tools.length < cap)
-    if (!same.length) continue
-    const pick = same.reduce((a, b) => (b.cpa.tools.length < a.cpa.tools.length ? b : a))
-    pick.cpa.tools.push({ ...p.tool, rating: p.rating, reason: 'rated' })
-    taken.add(p.tool.id)
+  // First pass: volunteers, fewest-tools-first so the load spreads.
+  for (const t of CPA_TOOLS) {
+    const open = cpas.filter((c) => c.wants.has(t.id) && c.tools.length < cap)
+    if (!open.length) continue
+    const c = open.reduce((a, b) => (b.tools.length < a.tools.length ? b : a))
+    c.tools.push({ id: t.id, label: t.label, reason: 'volunteered' })
+    taken.add(t.id)
   }
-  // Deal the leftovers to whoever has the most room.
-  const leftovers = RATED_TOOLS.filter((t) => !taken.has(t.id))
+  // Second pass: deal the rest to whoever has room.
   const unassigned = []
-  for (const t of leftovers) {
+  for (const t of CPA_TOOLS) {
+    if (taken.has(t.id)) continue
     const open = cpas.filter((c) => c.tools.length < cap)
     if (!open.length) { unassigned.push(t.id); continue }
     const c = open.reduce((a, b) => (b.tools.length < a.tools.length ? b : a))
-    c.tools.push({ ...t, rating: null, reason: 'unrated' })
+    c.tools.push({ id: t.id, label: t.label, reason: 'assigned' })
   }
   return { cpas, anonymous, cap, unassigned }
 }

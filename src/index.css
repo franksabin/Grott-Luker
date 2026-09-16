@@ -2367,3 +2367,30 @@ button.backlink {
 /* Lining figures wherever serif numbers appear (Iowan Old Style and Palatino default to old-style). */
 .feature-block .fb-value, .stat .stat-value, .result-row .result-value, .callout-value, .chart-donut-value, .kpi-value { font-variant-numeric: lining-nums tabular-nums; }
 .chart-line-zero { stroke: var(--muted-2); stroke-width: 2; stroke-dasharray: 6 6; }
+
+/* ---- CPA review poll (v2): staged, spec per tool ---- */
+.poll-stage { display: flex; gap: 16px; align-items: flex-start; margin: 8px 0 18px; }
+.poll-stage-num { flex: 0 0 auto; font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; color: #fff; background: var(--navy); border-radius: 999px; padding: 6px 12px; margin-top: 4px; }
+.poll-stage h2 { font-size: 22px; margin: 0 0 4px; }
+.poll-stage p { margin: 0; color: var(--muted); font-size: 14px; }
+.poll + .poll-stage, .poll-counter + .poll-stage { margin-top: 36px; }
+.spec-live { display: inline-block; margin-left: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--positive); vertical-align: middle; }
+.spec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 14px 0 18px; padding: 14px 16px; background: var(--bg-2); border-radius: var(--radius-sm); }
+@media (max-width: 640px) { .spec-grid { grid-template-columns: 1fr; } }
+.spec-head { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.spec-list { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-soft); }
+.spec-list li { margin: 2px 0; }
+.spec-ask .field-label { display: block; margin-bottom: 8px; }
+.spec-checks { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 10px; }
+.spec-checks .choice { margin: 0; }
+.spec-open { margin-left: auto; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; color: var(--navy-600); }
+.tool-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+.tool-chip { font-size: 12.5px; padding: 5px 11px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--border); color: var(--ink-soft); }
+.tool-chip.dev { border-style: dashed; color: var(--muted); }
+.review-tool { border-bottom: 1px solid var(--border); padding: 14px 0; }
+.review-tool:last-child { border-bottom: none; }
+.review-tool-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.review-tool-head h4 { margin: 0; font-size: 16px; }
+.review-meta { font-size: 12.5px; color: var(--muted); display: inline-flex; gap: 12px; flex-wrap: wrap; }
+.review-meta b { color: var(--ink); }
+.review-notes { margin: 8px 0 0; display: grid; gap: 8px; }
