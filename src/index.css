@@ -2074,3 +2074,72 @@ button.backlink {
   font-size: 13px;
   color: var(--ink-soft, #5b6472);
 }
+
+/* ------- Version E cards: bordered paper cards with a blue-to-gold stripe ------- */
+.tcard {
+  position: relative; overflow: hidden;
+  background: #fff; border: 1px solid #ddd7c8; border-radius: 14px;
+  padding: 26px 22px 22px; height: 292px; gap: 0;
+  box-shadow: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.tcard::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px;
+  background: linear-gradient(90deg, var(--g) 0%, #c4a054 100%);
+}
+.tcard:hover { transform: translateY(-4px); box-shadow: 0 24px 48px -20px rgba(19, 31, 56, 0.28); border-color: var(--g); }
+.tcard-icon { width: 42px; height: 42px; border-radius: 10px; background: var(--g-soft); color: var(--g); }
+.tcard h3 { font-size: 18px; line-height: 1.25; margin: 18px 0 0; min-height: 2.5em; }
+.tcard p { font-size: 13.5px; line-height: 1.55; margin: 10px 0 auto; height: 83.7px; -webkit-line-clamp: 4; }
+.tcard-foot { margin-top: 14px; }
+.tcard-open { font-size: 13px; font-weight: 600; color: var(--g); }
+.tcard:hover .tcard-open { gap: 8px; }
+
+.live-chip, .status-chip, .share-chip {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase;
+  padding: 5px 11px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.live-chip { color: #3e8158; background: #e7f1ea; }
+.share-chip { color: #2f6099; background: #e3ebf4; }
+.status-chip { color: #a5533c; background: #f7e9e3; }
+.status-chip::before { width: 6px; height: 6px; background: #a5533c; }
+
+.tcard.is-testing { outline: none; border: 1px dashed #c8998a; background: #fffcfa; }
+.tcard.is-testing::before { background: linear-gradient(90deg, #d8b8ae 0%, #e6d3b0 100%); }
+.tcard.is-testing:hover { border-color: #a5533c; }
+
+/* ------- Version E hero + starting-point band (full-bleed) ------- */
+.bleed { width: 100vw; margin-left: calc(50% - 50vw); }
+.dash > .bleed:first-child { margin-top: -44px; }
+.hero-e {
+  background-color: #f4f0e6;
+  background-image: radial-gradient(#d9d2c2 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.hero-e-inner { display: flex; align-items: center; justify-content: space-between; gap: 48px; padding-top: 72px; padding-bottom: 72px; }
+.hero-e-text { max-width: 620px; }
+.eyebrow-e {
+  display: inline-flex; align-items: center; gap: 12px;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #35608f; margin-bottom: 22px;
+}
+.eyebrow-e::before { content: ""; width: 26px; height: 2px; background: #c4a054; }
+.hero-e h1 { font-size: 58px; line-height: 1.04; letter-spacing: -0.01em; color: var(--navy-900); margin: 0 0 26px; font-weight: 600; }
+.hero-e h1 em { font-style: italic; color: #3868a5; font-weight: 500; }
+.hero-e p { font-size: 18px; line-height: 1.6; color: var(--ink-soft); margin: 0; max-width: 560px; }
+.hero-e-visual { flex-shrink: 0; filter: drop-shadow(0 30px 40px rgba(19, 31, 56, 0.16)); }
+.band-navy-e { background: var(--navy-900); color: #fff; }
+.sp-inner-e { display: flex; gap: 26px; align-items: flex-start; padding-top: 54px; padding-bottom: 58px; max-width: calc(var(--maxw) - 120px); }
+.sp-mark-e {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid #c4a054; color: #c4a054;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 14px; margin-top: 4px;
+}
+.sp-inner-e h3 { font-size: 22px; margin: 0 0 12px; color: #fff; }
+.sp-inner-e p { margin: 0; font-size: 16px; line-height: 1.7; color: rgba(255, 255, 255, 0.86); max-width: 720px; }
+.dash .dash-bar { margin-top: 56px; }
+@media (max-width: 900px) {
+  .hero-e-inner { flex-direction: column; align-items: flex-start; padding-top: 48px; padding-bottom: 48px; }
+  .hero-e h1 { font-size: 40px; }
+  .hero-e-visual { display: none; }
+}

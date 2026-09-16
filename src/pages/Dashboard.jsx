@@ -33,7 +33,7 @@ function ToolCard({ tool }) {
               <Link2 size={11} /> Shareable
             </span>
           ) : null}
-          {testing ? <span className="status-chip">In development</span> : null}
+          {testing ? <span className="status-chip">In development</span> : <span className="live-chip">Live</span>}
         </span>
       </div>
       <h3>{tool.title}</h3>
@@ -91,17 +91,55 @@ export default function Dashboard() {
 
   return (
     <div className="dash">
-      <section className="hero">
-        <h1>Client Decision Support Toolkit</h1>
-        <p className="subhead">
-          Planning tools for Grott Luker CPAs and their clients — built by
-          Grott Luker &amp; Co. and BlueLine Advisors. Assumptions on one side,
-          a clean client-ready report on the other.
-        </p>
-        <p className="hero-note">
-          A starting point, not a final answer — every report here is meant to
-          open a conversation with a client, not close one.
-        </p>
+      <section className="bleed hero-e">
+        <div className="container hero-e-inner">
+          <div className="hero-e-text">
+            <div className="eyebrow-e">Client Decision Support Toolkit</div>
+            <h1>
+              Planning tools.
+              <br />
+              One <em>defensible</em>
+              <br />
+              number, every time.
+            </h1>
+            <p>
+              Built for Grott Luker CPAs and their clients by Grott Luker &amp; Co.
+              and BlueLine Advisors. Every tool keeps the assumptions on one side
+              and produces a clean, client-ready report on the other — with the
+              math shown underneath.
+            </p>
+          </div>
+          <div className="hero-e-visual" aria-hidden="true">
+            <svg width="300" height="340" viewBox="0 0 300 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="10" width="260" height="320" rx="10" fill="#FFFFFF" stroke="#DDD7C8" strokeWidth="1.5" />
+              <rect x="20" y="10" width="260" height="34" rx="10" fill="#0f2440" />
+              <rect x="20" y="34" width="260" height="10" fill="#0f2440" />
+              <circle cx="40" cy="27" r="4" fill="#C4A054" />
+              {[80, 106, 132, 158, 184, 210, 236, 262, 288].map((y, i) => (
+                <line key={y} x1="44" y1={y} x2={[150, 220, 130, 240, 170, 210, 140, 230, 160][i]} y2={y} stroke="#E4DFD1" strokeWidth="2" />
+              ))}
+              <line x1="34" y1="66" x2="252" y2="304" stroke="#3868A5" strokeWidth="4" strokeLinecap="round" />
+              <circle cx="220" cy="106" r="7" fill="#C4A054" stroke="#FFFFFF" strokeWidth="2" />
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <section className="bleed band-navy-e">
+        <div className="container sp-inner-e">
+          <div className="sp-mark-e">✳</div>
+          <div>
+            <h3>A starting point, not a final answer</h3>
+            <p>
+              Every number this toolkit produces is meant to open a conversation
+              with a client — not close one. Treat each report as a first draft
+              built on the assumptions entered, not a recommendation or a
+              substitute for the CPA&apos;s judgment. It gets everyone looking at the
+              same rough numbers early, so the real planning starts from a shared
+              starting line.
+            </p>
+          </div>
+        </div>
       </section>
 
       <div className="dash-bar">
