@@ -4,9 +4,10 @@
 //   group  — which dashboard section it lives in. The CPA group is Grott Luker's;
 //            every other group is BlueLine's. The section heading says which, so
 //            there is no per-tool owner label.
-//   status — 'live' | 'testing'                    (testing tools are hidden
-//            unless a CPA turns on "Show in-development tools"; never shown
-//            on client routes)
+//   status — 'live' | 'testing'. As of 2026-09-16 every tool is 'testing':
+//            the whole toolkit was rebuilt on the result-stack pattern that day
+//            and no tool has been re-reviewed by Grott Luker & Co. yet. Flip a
+//            tool back to 'live' only after a CPA has signed off on it.
 import {
   RefreshCw,
   CalendarClock,
@@ -68,7 +69,7 @@ export const TOOLS = [
   {
     id: 'estimated-tax',
     group: 'cpa',
-    status: 'live',
+    status: 'testing',
     path: '/tools/estimated-tax',
     icon: CalendarClock,
     title: 'Estimated Tax & Safe Harbor Planner',
@@ -79,7 +80,7 @@ export const TOOLS = [
   {
     id: 'multi-year-projection',
     group: 'cpa',
-    status: 'live',
+    status: 'testing',
     path: '/tools/multi-year-projection',
     icon: LineChart,
     title: 'Multi-Year Tax Projection Planner',
@@ -90,7 +91,7 @@ export const TOOLS = [
   {
     id: 'roth-conversion',
     group: 'cpa',
-    status: 'live',
+    status: 'testing',
     path: '/tools/roth-conversion',
     icon: RefreshCw,
     title: 'Roth Conversion Analyzer',
@@ -190,7 +191,7 @@ export const TOOLS = [
   {
     id: 'qbi-optimizer',
     group: 'business-owner',
-    status: 'live',
+    status: 'testing',
     path: '/tools/qbi-optimizer',
     icon: Percent,
     title: 'QBI Deduction Optimizer',
@@ -201,7 +202,7 @@ export const TOOLS = [
   {
     id: 'owner-comp',
     group: 'business-owner',
-    status: 'live',
+    status: 'testing',
     path: '/tools/owner-comp',
     icon: Wallet,
     title: 'Owner Compensation Optimizer',
@@ -212,7 +213,7 @@ export const TOOLS = [
   {
     id: 'cash-balance',
     group: 'business-owner',
-    status: 'live',
+    status: 'testing',
     path: '/tools/cash-balance',
     icon: PiggyBank,
     title: 'Cash Balance Plan Analyzer',
@@ -275,7 +276,7 @@ export const TOOLS = [
   {
     id: 'retire-track',
     group: 'individual-family',
-    status: 'live',
+    status: 'testing',
     path: '/tools/retire-track',
     icon: Target,
     title: 'Am I on Track to Retire?',
@@ -286,7 +287,7 @@ export const TOOLS = [
   {
     id: 'rollover-401k',
     group: 'individual-family',
-    status: 'live',
+    status: 'testing',
     path: '/tools/rollover-401k',
     icon: ArrowLeftRight,
     title: 'Should I Roll Over My 401(k)?',
@@ -297,7 +298,7 @@ export const TOOLS = [
   {
     id: 'divorce-division',
     group: 'individual-family',
-    status: 'live',
+    status: 'testing',
     path: '/tools/divorce-division',
     icon: Scale,
     title: 'How Will Divorce Affect My Finances?',
@@ -363,7 +364,7 @@ export const TOOLS = [
   {
     id: 'know-your-numbers',
     group: 'client-intake',
-    status: 'live',
+    status: 'testing',
     path: '/tools/know-your-numbers',
     icon: ClipboardList,
     shareable: true,

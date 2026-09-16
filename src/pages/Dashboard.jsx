@@ -1,19 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Mail, Phone, Inbox, Link2 } from 'lucide-react'
 import { GROUPS, GROUP_ORDER, TOOLS } from '../lib/tools.js'
 
-const DEV_KEY = 'gl-show-dev-tools'
-
-// In-development tools are shown by default; a CPA can hide them and the
-// choice sticks on that device.
-function readDevFlag() {
-  try {
-    return localStorage.getItem(DEV_KEY) !== '0'
-  } catch {
-    return true
-  }
-}
+// Every tool is "In development" as of 2026-09-16 (full rebuild, not yet
+// re-reviewed), so the old show/hide toggle for in-development tools is gone:
+// hiding them would hide the whole toolkit.
 
 function ToolCard({ tool }) {
   const Icon = tool.icon
@@ -73,21 +64,7 @@ function GroupSection({ group, tools }) {
 }
 
 export default function Dashboard() {
-  const [showDev, setShowDev] = useState(readDevFlag)
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(DEV_KEY, showDev ? '1' : '0')
-    } catch {
-      /* private mode etc. — toggle still works for the session */
-    }
-  }, [showDev])
-
-  const visible = useMemo(
-    () => TOOLS.filter((t) => showDev || t.status === 'live'),
-    [showDev],
-  )
-  const filtered = visible
+  const filtered = TOOLS
 
   return (
     <div className="dash">
@@ -167,15 +144,10 @@ export default function Dashboard() {
           <ArrowRight size={14} />
         </Link>
         <div className="dash-bar-right">
-          <label className="dev-toggle">
-          <span>Show in-development tools</span>
-          <input
-            type="checkbox"
-            checked={showDev}
-            onChange={(e) => setShowDev(e.target.checked)}
-          />
-          <i />
-          </label>
+          <span className="dev-note">
+            <span className="status-chip">In development</span>
+            Every tool was rebuilt on September 16 and none has been re-reviewed yet. Treat all figures as first drafts.
+          </span>
         </div>
       </div>
 
