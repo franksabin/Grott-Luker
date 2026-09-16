@@ -161,6 +161,31 @@ export const EMAIL_REQUESTS = {
   },
 
   // ---------- BlueLine Specialty Planning Tools ----------
+  'arm-vs-fixed': {
+    subject: 'Information needed to compare an ARM with a fixed-rate mortgage',
+    intro:
+      'We are comparing an adjustable-rate mortgage against a fixed-rate loan over the years you expect to keep it. Please reply with:',
+    questions: [
+      'Loan amount and term (15 or 30 years)',
+      'The fixed rate you have been quoted',
+      'The ARM quote: initial rate, fixed period (5, 7, or 10 years), periodic and lifetime caps',
+      'How many years you realistically expect to keep this loan before selling or refinancing',
+    ],
+  },
+
+  'solar-panels': {
+    subject: 'Information needed for your solar panel review',
+    intro:
+      'We are reviewing whether a solar installation makes financial sense over the time you expect to stay in your home. Please send:',
+    questions: [
+      'The installer quote: gross system cost and any state or utility rebates',
+      'The installer\u2019s estimated first-year electricity savings (or annual production and your utility rate)',
+      'Whether you would pay cash or finance, and the loan rate and term if financing',
+      'How many years you expect to stay in the home',
+      'Any maintenance or inverter-replacement costs quoted',
+    ],
+  },
+
   'retire-track': {
     subject: 'Information needed for your retirement readiness review',
     intro:

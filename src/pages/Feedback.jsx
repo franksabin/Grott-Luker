@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Check, Loader2, Send } from 'lucide-react'
 import { Panel, Field, Note } from '../components/ui.jsx'
-import { QUESTIONS, RATINGS, blankAnswers, FEEDBACK_LIMITS } from '../lib/feedback.js'
+import { QUESTIONS, RATINGS, TOOL_COUNT, DEV_COUNT, blankAnswers, FEEDBACK_LIMITS } from '../lib/feedback.js'
 import { submitFeedback } from '../lib/api.js'
 
 function Choice({ type, checked, disabled, onChange, children }) {
@@ -126,8 +126,8 @@ export default function Feedback() {
         <div className="eyebrow-e">CPA roadmap poll</div>
         <h1>What should we focus on next?</h1>
         <p className="tool-sub">
-          This is a brand-new experiment, and we want to know which of these
-          twenty tools would actually earn a place in your practice. Rate the ones
+          This is a brand-new experiment, and we want to know which of these{' '}
+          {TOOL_COUNT} tools would actually earn a place in your practice. Rate the ones
           you have an opinion on, skip the rest, and tell us what's missing.
           Nothing is required; name and email are optional.
         </p>
@@ -217,7 +217,7 @@ export default function Feedback() {
         </div>
 
         <Note title="Why we're asking">
-          There are twenty tools here and eleven are still baseline models. Your
+          There are {TOOL_COUNT} tools here and {DEV_COUNT} are still baseline models. Your
           ratings decide which get finished and reviewed first, which get
           reworked, and which get retired — and your ideas set what gets built
           next.

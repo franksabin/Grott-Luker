@@ -104,15 +104,14 @@ function PollResults({ rows, loading }) {
           </div>
         </Panel>
       ))}
-      <Panel title="In their words">
+      <Panel title="Ideas in their words">
         {t.text.length === 0 ? (
-          <p className="tally-empty">No written comments yet.</p>
+          <p className="tally-empty">No written ideas yet.</p>
         ) : (
           <div className="quotes">
             {t.text.map((r) => (
               <div key={r.id} className="quote">
-                {r.otherIdea ? <p><strong>Idea:</strong> {r.otherIdea}</p> : null}
-                {r.blockers ? <p>{r.blockers}</p> : null}
+                <p>{r.otherIdea}</p>
                 <div className="quote-meta">{r.name || 'Anonymous'}{r.firm ? ` · ${r.firm}` : ''} · {formatWhen(r.created_at)}</div>
               </div>
             ))}

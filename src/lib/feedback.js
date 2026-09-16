@@ -64,7 +64,9 @@ export const SHARING = [
   { id: 'internal', label: 'Internal use only for now' },
 ]
 
-// The poll, in display order. `type`: multi | pick3 | single | text.
+// The poll, in display order. `type`: rating | multi | pick3 | single.
+export const TOOL_COUNT = RATED_TOOLS.length
+export const DEV_COUNT = RATED_TOOLS.filter((t) => t.status === 'testing').length
 export const QUESTIONS = [
   {
     id: 'toolInterest',
@@ -93,12 +95,6 @@ export const QUESTIONS = [
     title: 'How would you most likely bring a client into it?',
     options: SHARING,
   },
-  {
-    id: 'blockers',
-    type: 'text',
-    title: 'Anything wrong, confusing, or missing that would stop you using it?',
-    hint: 'A number that looked off, a tool that needs another input, a report a client would not understand — anything.',
-  },
 ]
 
 const optionIds = (q) => new Set(q.options.map((o) => o.id))
@@ -111,7 +107,6 @@ export function blankAnswers() {
     otherIdea: '',
     frequency: '',
     sharing: '',
-    blockers: '',
     name: '',
     email: '',
     firm: '',
@@ -149,7 +144,7 @@ export function normalizeFeedback(body) {
 
   const answered =
     Object.keys(out.toolInterest).length || out.newIdeas.length || out.otherIdea ||
-    out.frequency || out.sharing || out.blockers
+    out.frequency || out.sharing
   if (!answered) return { error: 'Answer at least one question before sending.' }
   return { value: out }
 }
@@ -177,7 +172,7 @@ export function tally(rows) {
     counts[q.id].sort((a, b) => b.count - a.count)
   }
   const text = rows
-    .filter((r) => r.blockers || r.otherIdea)
-    .map((r) => ({ id: r.id, created_at: r.created_at, name: r.name, firm: r.firm, blockers: r.blockers, otherIdea: r.otherIdea }))
+    .filter((r) => r.otherIdea)
+    .map((r) => ({ id: r.id, created_at: r.created_at, name: r.name, firm: r.firm, otherIdea: r.otherIdea }))
   return { n, counts, tools, text }
 }

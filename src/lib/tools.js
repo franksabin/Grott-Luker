@@ -28,6 +28,8 @@ import {
   Landmark,
   Clock,
   Gift,
+  Home,
+  Sun,
 } from 'lucide-react'
 
 export const GROUPS = {
@@ -294,6 +296,28 @@ export const TOOLS = [
   },
 
   // ---------- Shareable ----------
+  {
+    id: 'arm-vs-fixed',
+    group: 'individual-family',
+    status: 'testing',
+    path: '/tools/arm-vs-fixed',
+    icon: Home,
+    title: 'ARM or Fixed-Rate Mortgage?',
+    short: 'ARM vs. Fixed',
+    description:
+      'Adjustable vs. fixed over the years the client will actually hold the loan — payments, interest, balance at exit, and the reset rate at which the ARM stops winning.',
+  },
+  {
+    id: 'solar-panels',
+    group: 'individual-family',
+    status: 'testing',
+    path: '/tools/solar-panels',
+    icon: Sun,
+    title: 'Should I Invest in Solar Panels?',
+    short: 'Solar Panels',
+    description:
+      'Net cost after incentives, savings that grow with utility rates and fade with panel age, payback year, and net present value over the years the client will stay in the home.',
+  },
   {
     id: 'know-your-numbers',
     group: 'client-intake',

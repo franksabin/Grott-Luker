@@ -34,6 +34,8 @@ import ClientResults from './pages/ClientResults.jsx'
 import ClientMileageLog from './pages/ClientMileageLog.jsx'
 import ClientDonationLog from './pages/ClientDonationLog.jsx'
 import Feedback from './pages/Feedback.jsx'
+import ArmVsFixed from './pages/ArmVsFixed.jsx'
+import SolarPanels from './pages/SolarPanels.jsx'
 
 export default function App() {
   return (
@@ -64,6 +66,8 @@ export default function App() {
         <Route path="tools/retirement-plan-comparison" element={<RetirementPlanComparison />} />
         <Route path="tools/social-security-timing" element={<SocialSecurityTiming />} />
         <Route path="tools/charitable-donation-log" element={<DonationLog />} />
+        <Route path="tools/arm-vs-fixed" element={<ArmVsFixed />} />
+        <Route path="tools/solar-panels" element={<SolarPanels />} />
         {/* Submissions from clients */}
         <Route path="client-results" element={<ClientResults />} />
         <Route path="feedback" element={<Feedback />} />
