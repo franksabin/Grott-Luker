@@ -30,6 +30,8 @@ import {
   Gift,
   Home,
   Sun,
+  Building2,
+  Users,
 } from 'lucide-react'
 
 export const GROUPS = {
@@ -53,7 +55,7 @@ export const GROUPS = {
   },
   'client-intake': {
     id: 'client-intake',
-    title: 'Shareable',
+    title: 'Client Shareables',
     eyebrow: 'BlueLine Advisors · send to a client',
     description: 'BlueLine Advisors · clients fill these in themselves; submissions arrive in Client results.',
   },
@@ -86,15 +88,34 @@ export const TOOLS = [
       'Project taxable income and tax across several years to visualize the impact of Roth conversions, RMDs, Social Security timing, and other events — and find low-bracket planning windows.',
   },
   {
-    id: 'qbi-optimizer',
+    id: 'roth-conversion',
     group: 'cpa',
     status: 'live',
-    path: '/tools/qbi-optimizer',
-    icon: Percent,
-    title: 'QBI Deduction Optimizer',
-    short: 'QBI Deduction Optimizer',
+    path: '/tools/roth-conversion',
+    icon: RefreshCw,
+    title: 'Roth Conversion Analyzer',
+    short: 'Roth Conversion Analyzer',
     description:
-      'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
+      'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
+  },
+  {
+    id: 'exchange-1031',
+    group: 'cpa',
+    status: 'testing',
+    path: '/tools/1031-exchange',
+    icon: Building2,
+    title: '1031 Exchange Analyzer',
+    short: '1031 Exchange',
+    description:
+      'Full or partial like-kind exchange of investment real estate — realized gain, gain recognized on boot, depreciation recapture, carryover basis in the replacement property, and the tax deferred versus an outright sale.',
+    plan:
+      'Starts from the relinquished property (sale price, adjusted basis, depreciation taken, debt paid off) and the replacement property (price, new debt). Computes realized gain, cash and mortgage boot, gain recognized, §1250 recapture at 25% and the balance at capital-gains rates plus NIIT, the deferred gain, and the replacement property’s carryover basis. Shows a full exchange, a partial exchange (trading down or taking cash), and a taxable sale side by side, with the 45-day identification and 180-day closing deadlines from the sale date.',
+    planInputs: [
+      'Relinquished property: sale price, selling costs, original cost, improvements, depreciation taken, mortgage payoff',
+      'Replacement property: purchase price, closing costs, new mortgage, cash added or taken',
+      'Filing status, other taxable income, and state (for the recapture and capital-gains rate)',
+      'Sale closing date (for the 45- and 180-day deadlines)',
+    ],
   },
   {
     id: 'retirement-tax-map',
@@ -154,7 +175,7 @@ export const TOOLS = [
     title: 'Charitable Giving Optimizer',
     short: 'Charitable Giving',
     description:
-      'Bunching vs. the standard deduction, donor-advised fund timing, and qualified charitable distributions for clients over 70½ — which route saves the most tax.',
+      'Bunching vs. the standard deduction, donor-advised fund timing, and qualified charitable distributions from an IRA for clients over 70½ — including a DAF vs. QCD side-by-side and how a QCD counts against the RMD.',
     plan:
       'Compares annual giving against bunching two or three years of gifts into one, funding a DAF, or giving from an IRA via QCD. Shows the deduction actually captured under each route.',
     planInputs: [
@@ -166,6 +187,17 @@ export const TOOLS = [
   },
 
   // ---------- Business Owner Planning ----------
+  {
+    id: 'qbi-optimizer',
+    group: 'business-owner',
+    status: 'live',
+    path: '/tools/qbi-optimizer',
+    icon: Percent,
+    title: 'QBI Deduction Optimizer',
+    short: 'QBI Deduction Optimizer',
+    description:
+      'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
+  },
   {
     id: 'owner-comp',
     group: 'business-owner',
@@ -186,7 +218,7 @@ export const TOOLS = [
     title: 'Cash Balance Plan Analyzer',
     short: 'Cash Balance Analyzer',
     description:
-      'Understand the characteristics of businesses that commonly evaluate Cash Balance Plans, with illustrative contribution and deduction ranges.',
+      'The owner’s maximum cash balance contribution by age and pay from the 2026 actuarial grid, paired with a 401(k), against a 401(k) alone and no plan — tax saved, net cost, and the balance at retirement.',
   },
   {
     id: 'business-sale',
@@ -218,19 +250,28 @@ export const TOOLS = [
       'Desired contribution level',
     ],
   },
+  {
+    id: 'paying-your-kids',
+    group: 'business-owner',
+    status: 'testing',
+    path: '/tools/paying-your-kids',
+    icon: Users,
+    title: 'What If I Pay My Kids Through the Business?',
+    short: 'Paying Your Kids',
+    description:
+      'Put a child on the payroll and the wages move from the owner’s bracket to the child’s — often tax-free up to the standard deduction — and open the door to a Roth IRA and, where the plan allows, the company 401(k). What it saves, and what it costs in payroll tax and paperwork.',
+    plan:
+      'Models reasonable wages for one or more children against the owner’s marginal rate. Shows the family tax saved, the payroll-tax cost by entity type (wages to a child under 18 from a parent’s sole proprietorship or spousal partnership are exempt from FICA and, under 21, FUTA; an S- or C-corporation pays FICA on them), the Roth IRA contribution the earned income unlocks, and whether the child can enter the company 401(k) under its age and service rules. Flags the documentation that holds this up on audit: real work, a timesheet, a W-2, and pay at a rate you would pay a stranger.',
+    planInputs: [
+      'Entity type (sole proprietorship, partnership, S-corp, C-corp) and the owner’s marginal rate',
+      'Each child’s age, planned hours, and hourly rate',
+      'Whether the child has other income',
+      'Company 401(k) eligibility rules (minimum age and service), if a plan exists',
+      'State (for state income tax on the child’s wages)',
+    ],
+  },
 
   // ---------- Individual & Family Planning ----------
-  {
-    id: 'roth-conversion',
-    group: 'individual-family',
-    status: 'live',
-    path: '/tools/roth-conversion',
-    icon: RefreshCw,
-    title: 'Roth Conversion Analyzer',
-    short: 'Roth Conversion Analyzer',
-    description:
-      'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
-  },
   {
     id: 'retire-track',
     group: 'individual-family',
@@ -295,7 +336,6 @@ export const TOOLS = [
     ],
   },
 
-  // ---------- Shareable ----------
   {
     id: 'arm-vs-fixed',
     group: 'individual-family',
@@ -318,6 +358,8 @@ export const TOOLS = [
     description:
       'Net cost after incentives, savings that grow with utility rates and fade with panel age, payback year, and net present value over the years the client will stay in the home.',
   },
+
+  // ---------- Client Shareables ----------
   {
     id: 'know-your-numbers',
     group: 'client-intake',
@@ -357,7 +399,7 @@ export const TOOLS = [
     description:
       'Cash and non-cash gifts through the year, with the receipt and appraisal thresholds flagged as entries are made. Clients keep the log and send it in January.',
     plan:
-      'A Shareable companion to the Mileage & Expense Log. Each entry checks the substantiation rule that applies: written acknowledgment at $250, Form 8283 at $500 of non-cash gifts, qualified appraisal at $5,000.',
+      'A Client Shareable companion to the Mileage & Expense Log. Each entry checks the substantiation rule that applies: written acknowledgment at $250, Form 8283 at $500 of non-cash gifts, qualified appraisal at $5,000.',
     planInputs: [
       'Date, organization, and amount for cash gifts',
       'Description and fair market value for non-cash gifts',

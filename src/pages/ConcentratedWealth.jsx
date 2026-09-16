@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import ToolShell from '../components/ToolShell.jsx'
-import { Panel, MoneyField, ResultRow, Stat, Assumptions, Note, ReportHeader, FeatureBlock, Narrative } from '../components/ui.jsx'
+import { Panel, MoneyField, ResultRow, StatTiles, Assumptions, Note, ReportHeader, FeatureBlock, Narrative } from '../components/ui.jsx'
 import { DonutChart, StackedBar, PALETTE, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 
@@ -131,10 +131,22 @@ export default function ConcentratedWealth() {
               metaRight={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             />
             <FeatureBlock
-              label="1 · Largest asset as a share of net worth"
+              label="Largest asset as a share of net worth"
               value={percent(r.largestPct)}
               note={r.largest.value > 0 ? `${r.largest.label} · ${money(r.largest.value)}` : 'Enter assets to begin'}
             />
+            <StatTiles
+              items={[
+                { label: 'Income dependence', value: percent(r.incomeDependencePct), note: `${r.largestIncome.label} · ${money(r.largestIncome.value)}` },
+                { label: 'Illiquid share', value: percent(r.illiquidPct), note: money(r.illiquid) },
+                { label: 'Loss in a 50% shock', value: money(r.shockLoss), tone: 'bad', note: `${percent(r.shockPctOfNetWorth)} of net worth` },
+              ]}
+            />
+            <div className="result-list">
+              <ResultRow label="Liquid net worth" value={r.liquid} raw={`${money(r.liquid)} · ${percent(r.liquidPct)}`} />
+              <ResultRow label="Illiquid net worth" value={r.illiquid} raw={`${money(r.illiquid)} · ${percent(r.illiquidPct)}`} />
+              <ResultRow label="Total net worth" value={r.totalAssets} total />
+            </div>
 
             <Narrative>
               The largest single holding{r.largest.value > 0 ? ` (${r.largest.label})` : ''}{' '}
@@ -144,35 +156,29 @@ export default function ConcentratedWealth() {
               hypothetical 50% decline in the largest asset would reduce net worth
               by approximately {percent(r.shockPctOfNetWorth)} ({money(r.shockLoss)}).
             </Narrative>
-            <div className="stat-grid" style={{ marginBottom: 4 }}>
-              <Stat
-                label="2 · Income dependence"
-                value={percent(r.incomeDependencePct)}
-                note={`${r.largestIncome.label} · ${money(r.largestIncome.value)}`}
+
+            <div className="chart-block">
+              <StackedBar
+                data={[
+                  { label: 'Liquid', value: r.liquid, color: TONE.net },
+                  { label: 'Illiquid', value: r.illiquid, color: TONE.cost },
+                ]}
               />
             </div>
-
-            <h3 style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginTop: 16, fontFamily: 'var(--font-sans)' }}>
-              3 · Liquid vs. illiquid net worth
-            </h3>
-            <div className="result-list" style={{ marginBottom: 16 }}>
-              <ResultRow label="Liquid net worth" value={r.liquid} raw={`${money(r.liquid)} · ${percent(r.liquidPct)}`} />
-              <ResultRow label="Illiquid net worth" value={r.illiquid} raw={`${money(r.illiquid)} · ${percent(r.illiquidPct)}`} />
-              <ResultRow label="Total net worth" value={r.totalAssets} total />
+            <div className="chart-block" style={{ marginTop: 20 }}>
+              <DonutChart
+                centerValue={percent(r.largestPct)}
+                centerLabel="Largest holding"
+                data={r.assetVals
+                  .filter((a) => a.value > 0)
+                  .sort((a, b) => b.value - a.value)
+                  .map((a, i) => ({ label: a.label, value: a.value, color: PALETTE[i % PALETTE.length] }))}
+              />
             </div>
-            <StackedBar
-              data={[
-                { label: 'Liquid', value: r.liquid, color: TONE.net },
-                { label: 'Illiquid', value: r.illiquid, color: TONE.cost },
-              ]}
-            />
+            <div className="report-footer">Prepared for discussion with Grott Luker &amp; Co.</div>
           </section>
 
-          <Panel title="4 · Shock Scenario">
-            <div className="stat-grid">
-              <Stat label="Loss from shock" value={money(r.shockLoss)} note={`50% of ${r.largest.label}`} />
-              <Stat label="Reduction in net worth" value={percent(r.shockPctOfNetWorth)} />
-            </div>
+          <Panel title="Shock Scenario">
             <Note>
               A 50% decline in your largest asset
               {r.largest.value > 0 ? ` (${r.largest.label})` : ''} would reduce
@@ -180,17 +186,6 @@ export default function ConcentratedWealth() {
               <strong>{percent(r.shockPctOfNetWorth)}</strong>
               {r.shockLoss > 0 ? ` (${money(r.shockLoss)})` : ''}.
             </Note>
-          </Panel>
-
-          <Panel title="Asset Composition">
-            <DonutChart
-              centerValue={percent(r.largestPct)}
-              centerLabel="Largest holding"
-              data={r.assetVals
-                .filter((a) => a.value > 0)
-                .sort((a, b) => b.value - a.value)
-                .map((a, i) => ({ label: a.label, value: a.value, color: PALETTE[i % PALETTE.length] }))}
-            />
           </Panel>
         </div>
       </div>

@@ -5,14 +5,15 @@ import {
   MoneyField,
   NumberField,
   SegmentedField,
-  SelectField,
+  RefinePanel,
+  StatTiles,
+  ScenarioCards,
   Assumptions,
-  Note,
   ReportHeader,
   FeatureBlock,
   Narrative,
 } from '../components/ui.jsx'
-import { BarCompare, TONE } from '../components/charts.jsx'
+import { LineChart, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 import { ordinaryTax, marginalOrdinaryRate, STANDARD_DEDUCTION, rmdDivisor, seniorDeduction, SENIOR_DEDUCTION, TAX_YEAR } from '../lib/tax.js'
 
@@ -24,12 +25,14 @@ const FILING = [
 const HORIZON = 10
 const GROWTH = 0.05
 
+// Refine-panel ages default to the same values project() falls back to when blank,
+// so the tool computes identically without the panel being opened.
 const BLANK = {
   age: '',
   filing: 'married',
   wages: '',
-  retireAge: '',
-  ssStartAge: '',
+  retireAge: '65',
+  ssStartAge: '67',
   ssAnnual: '',
   iraBalance: '',
   rothConversion: '',
@@ -100,6 +103,8 @@ export default function MultiYearProjection() {
   const withoutConv = useMemo(() => project(form, false), [form])
   const convActive = toNumber(form.rothConversion) > 0 && toNumber(form.conversionYears) > 0
   const taxDelta = withConv.totalTax - withoutConv.totalTax
+  const firstRow = withConv.rows[0]
+  const lastRow = withConv.rows[withConv.rows.length - 1]
   const steps = useMemo(() => {
     const scenario = convActive ? withConv : withoutConv
     const std = STANDARD_DEDUCTION[form.filing === 'single' ? 'single' : 'married']
@@ -136,11 +141,7 @@ export default function MultiYearProjection() {
             </div>
             <div className="field-row">
               <MoneyField label="Current wages / income" value={form.wages} onChange={set('wages')} />
-              <NumberField label="Stop working at age" value={form.retireAge} onChange={set('retireAge')} suffix="yrs" />
-            </div>
-            <div className="field-row">
               <MoneyField label="Social Security (annual)" value={form.ssAnnual} onChange={set('ssAnnual')} />
-              <NumberField label="Claim Social Security at" value={form.ssStartAge} onChange={set('ssStartAge')} suffix="yrs" />
             </div>
           </Panel>
 
@@ -161,6 +162,13 @@ export default function MultiYearProjection() {
               <NumberField label="For how many years" value={form.conversionYears} onChange={set('conversionYears')} suffix="yrs" />
             </div>
           </Panel>
+
+          <RefinePanel summary="retirement age, Social Security claim age">
+            <div className="field-row">
+              <NumberField label="Stop working at age" value={form.retireAge} onChange={set('retireAge')} suffix="yrs" />
+              <NumberField label="Claim Social Security at" value={form.ssStartAge} onChange={set('ssStartAge')} suffix="yrs" />
+            </div>
+          </RefinePanel>
         </div>
 
         <div>
@@ -179,6 +187,26 @@ export default function MultiYearProjection() {
                   : 'Baseline — add a conversion plan to compare'
               }
             />
+            <StatTiles
+              items={
+                convActive
+                  ? [
+                      { label: 'Without conversions', value: money(withoutConv.totalTax), note: '10-year federal tax' },
+                      {
+                        label: 'Conversion effect',
+                        value: `${taxDelta >= 0 ? '+' : '−'}${money(Math.abs(taxDelta))}`,
+                        note: 'on 10-year tax',
+                        tone: taxDelta < 0 ? 'good' : undefined,
+                      },
+                      { label: 'Ending IRA balance', value: money(withConv.endingIra), note: `vs. ${money(withoutConv.endingIra)} without` },
+                    ]
+                  : [
+                      { label: 'Federal tax, year one', value: money(firstRow.tax), note: `${firstRow.taxYear} · ${percent(firstRow.marginal * 100, 0)} bracket` },
+                      { label: 'Federal tax, year ten', value: money(lastRow.tax), note: `${lastRow.taxYear} · ${percent(lastRow.marginal * 100, 0)} bracket` },
+                      { label: 'Ending IRA balance', value: money(withConv.endingIra), note: 'after RMDs and growth' },
+                    ]
+              }
+            />
             <Narrative>
               Over the next ten years, we project {money(withConv.totalTax)} of
               total federal tax
@@ -187,19 +215,29 @@ export default function MultiYearProjection() {
                 : '. Filling lower-bracket years before RMDs and Social Security begin is often where the opportunity lies — add a Roth conversion plan on the left to test it.'}
             </Narrative>
 
+            {convActive ? (
+              <ScenarioCards
+                sub="10-year federal tax"
+                scenarios={[
+                  { label: 'No conversions', value: money(withoutConv.totalTax), rows: [{ label: 'Ending IRA balance', value: money(withoutConv.endingIra) }] },
+                  { label: 'With conversions', value: money(withConv.totalTax), best: taxDelta < 0, rows: [{ label: 'Ending IRA balance', value: money(withConv.endingIra) }] },
+                ]}
+              />
+            ) : null}
+
             <div className="chart-block" style={{ marginTop: 12 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>
                 Projected taxable income by year
               </div>
-              <BarCompare
-                height={200}
-                legend={false}
-                groups={withConv.rows.slice(0, 8).map((row) => ({
-                  label: String(row.age),
-                  bars: [{ label: 'Taxable', value: row.taxable, color: TONE.navy }],
-                }))}
+              <LineChart
+                xStart={`${firstRow.taxYear} · age ${firstRow.age}`}
+                xEnd={`${lastRow.taxYear} · age ${lastRow.age}`}
+                series={[
+                  { label: convActive ? 'Taxable income, with conversions' : 'Taxable income', color: TONE.navy, points: withConv.rows.map((row) => row.taxable) },
+                  ...(convActive ? [{ label: 'Without conversions', color: TONE.cost, points: withoutConv.rows.map((row) => row.taxable) }] : []),
+                ]}
               />
-              <p className="chart-caption">Bars show projected taxable income at each age (first 8 years shown).</p>
+              <p className="chart-caption">Lines show projected taxable income at each age across the ten-year horizon.</p>
             </div>
 
             <div style={{ overflowX: 'auto', marginTop: 16 }}>

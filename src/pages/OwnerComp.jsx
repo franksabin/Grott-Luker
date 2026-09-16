@@ -5,7 +5,9 @@ import {
   MoneyField,
   SegmentedField,
   SelectField,
-  ResultRow,
+  RefinePanel,
+  StatTiles,
+  ScenarioCards,
   Assumptions,
   Note,
   ReportHeader,
@@ -13,7 +15,7 @@ import {
   Narrative,
 } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
-import { money, toNumber, percent } from '../lib/format.js'
+import { money, toNumber } from '../lib/format.js'
 import { ordinaryTax, selfEmploymentTax, ficaOnSalary, STANDARD_DEDUCTION, SS_WAGE_BASE, TAX_YEAR } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 
@@ -22,10 +24,11 @@ const FILING = [
   { value: 'single', label: 'Single' },
 ]
 
+// Refine-panel inputs carry a non-empty default so the tool computes without opening it.
 const BLANK = {
   netProfit: '',
   salary: '',
-  otherIncome: '',
+  otherIncome: '0',
   filing: 'married',
   state: 'NH',
 }
@@ -135,22 +138,22 @@ export default function OwnerComp() {
               onChange={set('salary')}
               info="A reasonable W-2 salary for your role — required for an S-corp. Only the salary is subject to payroll tax; the remaining profit is taken as a distribution."
             />
+            <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
+          </Panel>
+          <RefinePanel summary="other household income, state">
             <MoneyField
               label="Other household taxable income"
               value={form.otherIncome}
               onChange={set('otherIncome')}
               info="Other taxable income, such as a spouse's wages. Affects the tax bracket the business income falls into."
             />
-            <div className="field-row">
-              <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
-              <SelectField
-                label="State"
-                value={form.state}
-                onChange={set('state')}
-                options={STATES.map((s) => ({ value: s.code, label: s.name }))}
-              />
-            </div>
-          </Panel>
+            <SelectField
+              label="State"
+              value={form.state}
+              onChange={set('state')}
+              options={STATES.map((s) => ({ value: s.code, label: s.name }))}
+            />
+          </RefinePanel>
           <Note title="What drives the difference">
             An S-corporation can save payroll tax because only the salary is
             subject to FICA — the distribution is not. But too low a salary
@@ -172,6 +175,13 @@ export default function OwnerComp() {
               value={money(Math.abs(r.savings))}
               note={`On ${money(r.netProfit)} of net profit · ${money(r.salary)} salary`}
             />
+            <StatTiles
+              items={[
+                { label: 'Sole prop / LLC total tax', value: money(r.soleTotal) },
+                { label: 'S-corporation total tax', value: money(r.scorpTotal) },
+                { label: 'S-corp distribution', value: money(r.distribution), note: 'not subject to payroll tax' },
+              ]}
+            />
             <Narrative>
               On {money(r.netProfit)} of net profit, taking it all as
               self-employment income results in an estimated {money(r.soleTotal)}{' '}
@@ -183,44 +193,31 @@ export default function OwnerComp() {
                 : `about ${money(Math.abs(r.savings))} more, once QBI and other effects are considered.`}
             </Narrative>
 
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th className="num">Sole prop / LLC</th>
-                  <th className="num">S-corporation</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Payroll / self-employment tax</td>
-                  <td className="num">{money(r.se)}</td>
-                  <td className="num">{money(r.fica)}</td>
-                </tr>
-                <tr>
-                  <td>QBI deduction</td>
-                  <td className="num">{money(r.soleQbi)}</td>
-                  <td className="num">{money(r.scorpQbi)}</td>
-                </tr>
-                <tr>
-                  <td>Federal income tax</td>
-                  <td className="num">{money(r.soleIncomeTax)}</td>
-                  <td className="num">{money(r.scorpIncomeTax)}</td>
-                </tr>
-                <tr>
-                  <td>State tax ({r.stateName})</td>
-                  <td className="num">{money(r.soleState)}</td>
-                  <td className="num">{money(r.scorpState)}</td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td>Estimated total tax</td>
-                  <td className="num">{money(r.soleTotal)}</td>
-                  <td className="num">{money(r.scorpTotal)}</td>
-                </tr>
-              </tfoot>
-            </table>
+            <ScenarioCards
+              sub="estimated total tax"
+              scenarios={[
+                {
+                  label: 'Sole prop / LLC',
+                  value: money(r.soleTotal),
+                  best: r.savings < 0,
+                  rows: [
+                    { label: 'Self-employment tax', value: money(r.se) },
+                    { label: 'Federal income tax', value: money(r.soleIncomeTax) },
+                    { label: 'QBI deduction', value: money(r.soleQbi) },
+                  ],
+                },
+                {
+                  label: 'S-corporation',
+                  value: money(r.scorpTotal),
+                  best: r.savings >= 0,
+                  rows: [
+                    { label: 'Payroll tax', value: money(r.fica) },
+                    { label: 'Federal income tax', value: money(r.scorpIncomeTax) },
+                    { label: 'QBI deduction', value: money(r.scorpQbi) },
+                  ],
+                },
+              ]}
+            />
 
             <div className="chart-block" style={{ marginTop: 20 }}>
               <BarCompare
@@ -241,6 +238,47 @@ export default function OwnerComp() {
                   },
                 ]}
               />
+            </div>
+
+            <div style={{ overflowX: 'auto', marginTop: 16 }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th className="num">Sole prop / LLC</th>
+                    <th className="num">S-corporation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Payroll / self-employment tax</td>
+                    <td className="num">{money(r.se)}</td>
+                    <td className="num">{money(r.fica)}</td>
+                  </tr>
+                  <tr>
+                    <td>QBI deduction</td>
+                    <td className="num">{money(r.soleQbi)}</td>
+                    <td className="num">{money(r.scorpQbi)}</td>
+                  </tr>
+                  <tr>
+                    <td>Federal income tax</td>
+                    <td className="num">{money(r.soleIncomeTax)}</td>
+                    <td className="num">{money(r.scorpIncomeTax)}</td>
+                  </tr>
+                  <tr>
+                    <td>State tax ({r.stateName})</td>
+                    <td className="num">{money(r.soleState)}</td>
+                    <td className="num">{money(r.scorpState)}</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Estimated total tax</td>
+                    <td className="num">{money(r.soleTotal)}</td>
+                    <td className="num">{money(r.scorpTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
             <div className="report-footer">Prepared for discussion with Grott Luker &amp; Co.</div>
           </section>

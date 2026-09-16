@@ -6,6 +6,8 @@ import {
   NumberField,
   SegmentedField,
   SelectField,
+  RefinePanel,
+  StatTiles,
   ResultRow,
   Assumptions,
   ReportHeader,
@@ -147,13 +149,15 @@ export default function RothConversion() {
               <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
               <NumberField label="Current age" value={form.age} onChange={set('age')} suffix="yrs" />
             </div>
+          </Panel>
+          <RefinePanel summary="state of residence">
             <SelectField
               label="State of residence"
               value={form.state}
               onChange={set('state')}
               options={STATES.map((s) => ({ value: s.code, label: s.name }))}
             />
-          </Panel>
+          </RefinePanel>
         </div>
 
         <div>
@@ -168,15 +172,13 @@ export default function RothConversion() {
               value={money(r.totalCost)}
               note={`On a ${money(r.conversion)} conversion · ${percent(r.marginalRate * 100)} effective marginal rate`}
             />
-            <Narrative>
-              Converting {money(r.conversion)} this year is estimated to cost{' '}
-              {money(r.federalTax)} in federal tax
-              {r.stateTax > 0 ? ` and ${money(r.stateTax)} in ${r.stateName} tax` : ''}
-              {r.extraIrmaa > 0 ? `, plus about ${money(r.extraIrmaa)} in added IRMAA surcharges` : ''}. That
-              places roughly {money(r.netToRoth)} into the Roth to grow tax-free, and removes an estimated{' '}
-              {money(r.rmdAvoidedAt73)} from your first-year RMD at age 73 —
-              about {money(r.futureTaxAvoidedAnnual)} of tax avoided that year at today’s rate.
-            </Narrative>
+            <StatTiles
+              items={[
+                { label: 'Net into Roth', value: money(r.netToRoth), tone: 'good', note: 'grows tax-free' },
+                { label: 'Added IRMAA surcharge', value: money(r.extraIrmaa), tone: r.extraIrmaa > 0 ? 'bad' : undefined, note: 'annual, household' },
+                { label: 'Future tax avoided per year', value: money(r.futureTaxAvoidedAnnual), tone: 'good', note: 'first RMD year, age 73' },
+              ]}
+            />
 
             <div className="result-list">
               <ResultRow label="Amount converted" value={r.conversion} />
@@ -186,6 +188,16 @@ export default function RothConversion() {
               <ResultRow label="Total cost to convert" value={r.totalCost} total />
               <ResultRow label="Net amount into Roth" value={r.netToRoth} sub />
             </div>
+
+            <Narrative>
+              Converting {money(r.conversion)} this year is estimated to cost{' '}
+              {money(r.federalTax)} in federal tax
+              {r.stateTax > 0 ? ` and ${money(r.stateTax)} in ${r.stateName} tax` : ''}
+              {r.extraIrmaa > 0 ? `, plus about ${money(r.extraIrmaa)} in added IRMAA surcharges` : ''}. That
+              places roughly {money(r.netToRoth)} into the Roth to grow tax-free, and removes an estimated{' '}
+              {money(r.rmdAvoidedAt73)} from your first-year RMD at age 73 —
+              about {money(r.futureTaxAvoidedAnnual)} of tax avoided that year at today’s rate.
+            </Narrative>
 
             <div className="chart-block" style={{ marginTop: 22 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>

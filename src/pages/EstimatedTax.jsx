@@ -5,15 +5,17 @@ import {
   MoneyField,
   SegmentedField,
   SelectField,
+  PillField,
+  RefinePanel,
+  StatTiles,
   ResultRow,
   Assumptions,
-  Note,
   ReportHeader,
   FeatureBlock,
   Narrative,
 } from '../components/ui.jsx'
 import { StackedBar, BarCompare, TONE } from '../components/charts.jsx'
-import { money, toNumber, percent } from '../lib/format.js'
+import { money, toNumber } from '../lib/format.js'
 import { ordinaryTax, STANDARD_DEDUCTION, TAX_YEAR } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 
@@ -22,9 +24,17 @@ const FILING = [
   { value: 'single', label: 'Single' },
 ]
 
+const QUARTERS = [
+  { value: '4', label: '4 (start of year)' },
+  { value: '3', label: '3' },
+  { value: '2', label: '2' },
+  { value: '1', label: '1 (final quarter)' },
+]
+
+// Refine-panel inputs carry a non-empty default so the tool computes without opening it.
 const BLANK = {
   income: '',
-  priorYearTax: '',
+  priorYearTax: '0',
   withholding: '',
   paymentsMade: '',
   quartersRemaining: '4',
@@ -131,12 +141,6 @@ export default function EstimatedTax() {
               info="Total expected taxable income for the year from all sources."
             />
             <MoneyField
-              label="Prior-year total tax"
-              value={form.priorYearTax}
-              onChange={set('priorYearTax')}
-              info="Total tax from last year's return. The safe harbor lets you pay 100% (or 110% if AGI over $150k) of this amount to avoid penalty."
-            />
-            <MoneyField
               label="Withholding expected this year"
               value={form.withholding}
               onChange={set('withholding')}
@@ -147,27 +151,28 @@ export default function EstimatedTax() {
               value={form.paymentsMade}
               onChange={set('paymentsMade')}
             />
-            <div className="field-row">
-              <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
-              <SelectField
-                label="State"
-                value={form.state}
-                onChange={set('state')}
-                options={STATES.map((s) => ({ value: s.code, label: s.name }))}
-              />
-            </div>
-            <SelectField
+            <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
+            <PillField
               label="Quarters remaining this year"
               value={form.quartersRemaining}
               onChange={set('quartersRemaining')}
-              options={[
-                { value: '4', label: '4 (start of year)' },
-                { value: '3', label: '3' },
-                { value: '2', label: '2' },
-                { value: '1', label: '1 (final quarter)' },
-              ]}
+              options={QUARTERS}
             />
           </Panel>
+          <RefinePanel summary="prior-year tax, state">
+            <MoneyField
+              label="Prior-year total tax"
+              value={form.priorYearTax}
+              onChange={set('priorYearTax')}
+              info="Total tax from last year's return. The safe harbor lets you pay 100% (or 110% if AGI over $150k) of this amount to avoid penalty."
+            />
+            <SelectField
+              label="State"
+              value={form.state}
+              onChange={set('state')}
+              options={STATES.map((s) => ({ value: s.code, label: s.name }))}
+            />
+          </RefinePanel>
         </div>
 
         <div>
@@ -182,6 +187,24 @@ export default function EstimatedTax() {
               value={money(r.perQuarter)}
               note={`${money(r.remainingRequired)} total remaining · per quarter`}
             />
+            <StatTiles
+              items={[
+                { label: 'Projected federal tax', value: money(r.projectedFed) },
+                { label: 'Safe-harbor target', value: money(r.requiredAnnual), note: `${r.safeHarborBasis} basis` },
+                r.balanceDue > 0
+                  ? { label: 'Projected balance due at filing', value: money(r.balanceDue), tone: 'bad' }
+                  : { label: 'Projected refund at filing', value: money(Math.abs(r.balanceDue)), tone: 'good' },
+              ]}
+            />
+            <div className="result-list">
+              <ResultRow label="Projected federal tax" value={r.projectedFed} />
+              <ResultRow label={`Projected state tax (${r.stateName})`} value={r.projectedState} sub />
+              <ResultRow label="Safe-harbor required (annual)" value={r.requiredAnnual} info="The lesser of 90% of this year's tax or 100%/110% of last year's tax." />
+              <ResultRow label="Already covered (withholding + payments)" value={r.alreadyCovered} sub />
+              <ResultRow label="Remaining required" value={r.remainingRequired} total />
+              <ResultRow label="Suggested payment per quarter" value={r.perQuarter} sub />
+            </div>
+
             <Narrative>
               We project {money(r.projectedFed)} of federal tax this year. The
               safe harbor requires paying at least {money(r.requiredAnnual)}{' '}
@@ -193,15 +216,6 @@ export default function EstimatedTax() {
                 ? ` A balance of roughly ${money(r.balanceDue)} is still projected at filing.`
                 : ` A refund of roughly ${money(Math.abs(r.balanceDue))} is projected at filing.`}
             </Narrative>
-
-            <div className="result-list">
-              <ResultRow label="Projected federal tax" value={r.projectedFed} />
-              <ResultRow label={`Projected state tax (${r.stateName})`} value={r.projectedState} sub />
-              <ResultRow label="Safe-harbor required (annual)" value={r.requiredAnnual} info="The lesser of 90% of this year's tax or 100%/110% of last year's tax." />
-              <ResultRow label="Already covered (withholding + payments)" value={r.alreadyCovered} sub />
-              <ResultRow label="Remaining required" value={r.remainingRequired} total />
-              <ResultRow label="Suggested payment per quarter" value={r.perQuarter} sub />
-            </div>
 
             <div className="chart-block" style={{ marginTop: 22 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>

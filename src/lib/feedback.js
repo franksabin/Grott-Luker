@@ -46,8 +46,8 @@ export const NEW_TOOL_IDEAS = [
   { id: 'niit-planning', label: 'NIIT & additional Medicare tax planning' },
   { id: 'education-529', label: '529 & education funding' },
   { id: 'hsa-strategy', label: 'HSA strategy' },
-  { id: 'tax-doc-checklist', label: 'Shareable tax-document checklist for clients' },
-  { id: 'onboarding-intake', label: 'Shareable new-client intake form' },
+  { id: 'tax-doc-checklist', label: 'Client Shareable tax-document checklist' },
+  { id: 'onboarding-intake', label: 'Client Shareable new-client intake form' },
 ]
 
 export const FREQUENCY = [

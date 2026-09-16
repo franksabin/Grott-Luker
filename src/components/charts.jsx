@@ -154,6 +154,65 @@ export function BarCompare({ groups, format = fmtMoney, height = 190, legend = t
   )
 }
 
+// Growth over time. Four gridlines, labels only at the ticks, a dot on each endpoint,
+// legend below. series: [{ label, color, points: [v0, v1, ... vn] }] — all the same length.
+const LINE_COLORS = [TONE.net, TONE.accent, TONE.cost, TONE.tax]
+export function LineChart({ series, xStart = 'Today', xEnd = 'End', format, legend = true }) {
+  const W = 1000
+  const H = 480
+  const L = 116
+  const R = 30
+  const T = 20
+  const B = 64
+  const n = Math.max(1, ...series.map((s) => s.points.length - 1))
+  const all = series.flatMap((s) => s.points)
+  const rawMax = Math.max(0, ...all)
+  const rawMin = Math.min(0, ...all)
+  const span = Math.max(1, rawMax - rawMin)
+  const max = rawMax + span * 0.08
+  const min = rawMin < 0 ? rawMin - span * 0.08 : 0
+  const x = (t) => L + (W - L - R) * (t / n)
+  const y = (v) => T + (H - T - B) * (1 - (v - min) / (max - min))
+  const tick = (v) => {
+    if (format) return format(v)
+    const a = Math.abs(v)
+    const s = a >= 1000 ? `$${Math.round(a / 1000).toLocaleString('en-US')}k` : fmtMoney(a)
+    return v < 0 ? `−${s}` : s
+  }
+  const color = (s, i) => s.color || LINE_COLORS[i % LINE_COLORS.length]
+  return (
+    <div className="chart-line">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Value over time by scenario">
+        {[0, 1, 2, 3, 4].map((i) => {
+          const v = min + ((max - min) * i) / 4
+          const yy = y(v)
+          return (
+            <g key={i}>
+              <line x1={L} x2={W - R} y1={yy} y2={yy} className="chart-line-grid" />
+              <text x={L - 14} y={yy + 6} textAnchor="end" className="chart-line-tick">{tick(v)}</text>
+            </g>
+          )
+        })}
+        {min < 0 ? <line x1={L} x2={W - R} y1={y(0)} y2={y(0)} className="chart-line-zero" /> : null}
+        {series.map((s, i) => {
+          const c = color(s, i)
+          const d = s.points.map((v, t) => `${t ? 'L' : 'M'}${x(t).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')
+          const last = s.points.length - 1
+          return (
+            <g key={i}>
+              <path d={d} fill="none" stroke={c} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx={x(last)} cy={y(s.points[last])} r={8} fill={c} />
+            </g>
+          )
+        })}
+        <text x={L} y={H - 22} className="chart-line-axis">{xStart}</text>
+        <text x={W - R} y={H - 22} textAnchor="end" className="chart-line-axis">{xEnd}</text>
+      </svg>
+      {legend ? <Legend data={series.map((s, i) => ({ label: s.label, value: 0, color: color(s, i) }))} showValue={false} /> : null}
+    </div>
+  )
+}
+
 // Simple range indicator (low → high) on a track, with an optional reference marker.
 export function RangeBar({ low, high, ceiling, reference, format = fmtMoney }) {
   const top = Math.max(ceiling || high, high, reference || 0, 1)

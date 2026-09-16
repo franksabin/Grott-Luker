@@ -6,8 +6,10 @@ import {
   NumberField,
   SelectField,
   SegmentedField,
+  PillField,
+  RefinePanel,
+  StatTiles,
   ResultRow,
-  Stat,
   Assumptions,
   Note,
   ReportHeader,
@@ -42,7 +44,7 @@ const BLANK = {
   costBasis: '',
   sellingExpenses: '',
   debtPayoff: '',
-  otherIncome: '',
+  otherIncome: '0',
   entity: 'llc',
   structure: 'asset',
   filing: 'married',
@@ -201,7 +203,7 @@ export default function BusinessSale() {
           </Panel>
 
           <Panel title="Structure & Taxation">
-            <SelectField
+            <PillField
               label="Entity type"
               value={form.entity}
               onChange={set('entity')}
@@ -215,21 +217,22 @@ export default function BusinessSale() {
               options={STRUCTURE_OPTIONS}
               info="In an asset sale the buyer purchases the assets; in a stock/equity sale the buyer purchases the ownership interest. The structure affects how gain is taxed."
             />
-            <div className="field-row">
-              <SegmentedField
-                label="Filing status"
-                value={form.filing}
-                onChange={set('filing')}
-                options={FILING_OPTIONS}
-              />
-              <SelectField
-                label="State of residence"
-                value={form.state}
-                onChange={set('state')}
-                options={STATES.map((s) => ({ value: s.code, label: s.name }))}
-                info="Used to apply a simplified state tax rate to the gain. State treatment varies widely."
-              />
-            </div>
+            <SegmentedField
+              label="Filing status"
+              value={form.filing}
+              onChange={set('filing')}
+              options={FILING_OPTIONS}
+            />
+          </Panel>
+
+          <RefinePanel summary="state, other income, installment sale">
+            <SelectField
+              label="State of residence"
+              value={form.state}
+              onChange={set('state')}
+              options={STATES.map((s) => ({ value: s.code, label: s.name }))}
+              info="Used to apply a simplified state tax rate to the gain. State treatment varies widely."
+            />
             <MoneyField
               label="Other household taxable income (this year)"
               value={form.otherIncome}
@@ -237,9 +240,6 @@ export default function BusinessSale() {
               info="Approximate taxable income apart from the sale. Capital gains stack on top of ordinary income, so this determines which capital-gains rate applies."
               hint="Optional — improves the accuracy of the capital-gains rate estimate."
             />
-          </Panel>
-
-          <Panel title="Installment Sale">
             <SegmentedField
               label="Installment sale?"
               value={form.installment}
@@ -258,7 +258,7 @@ export default function BusinessSale() {
                 suffix="yrs"
               />
             ) : null}
-          </Panel>
+          </RefinePanel>
         </div>
 
         <div>
@@ -275,14 +275,13 @@ export default function BusinessSale() {
               note={`On a ${money(r.totalGain)} capital gain · ${percent(r.effectiveTaxRate * 100)} effective tax rate`}
             />
 
-            <Narrative>
-              On a sale price of {money(r.salePrice)}, we estimate a capital gain
-              of {money(r.totalGain)} and combined taxes and transaction costs of
-              approximately {money(r.totalTax + r.sellingExpenses)}. After debt
-              payoff of {money(r.debtPayoff)}, this leaves an estimated{' '}
-              {money(r.liquidAfterTax)} in liquid proceeds after taxes — an
-              effective rate of {percent(r.effectiveTaxRate * 100)} on the gain.
-            </Narrative>
+            <StatTiles
+              items={[
+                { label: 'Capital gain', value: money(r.totalGain) },
+                { label: 'Total tax', value: money(r.totalTax), tone: 'bad', note: 'federal, NIIT, state' },
+                { label: 'Effective rate on the gain', value: percent(r.effectiveTaxRate * 100, 1) },
+              ]}
+            />
 
             <div className="result-list">
               <ResultRow label="Sale price" value={r.salePrice} />
@@ -341,6 +340,15 @@ export default function BusinessSale() {
                 negative={r.liquidAfterTax < 0}
               />
             </div>
+
+            <Narrative>
+              On a sale price of {money(r.salePrice)}, we estimate a capital gain
+              of {money(r.totalGain)} and combined taxes and transaction costs of
+              approximately {money(r.totalTax + r.sellingExpenses)}. After debt
+              payoff of {money(r.debtPayoff)}, this leaves an estimated{' '}
+              {money(r.liquidAfterTax)} in liquid proceeds after taxes — an
+              effective rate of {percent(r.effectiveTaxRate * 100)} on the gain.
+            </Narrative>
 
             <div className="chart-block" style={{ marginTop: 22 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>

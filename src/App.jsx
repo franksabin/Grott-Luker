@@ -36,6 +36,8 @@ import ClientDonationLog from './pages/ClientDonationLog.jsx'
 import Feedback from './pages/Feedback.jsx'
 import ArmVsFixed from './pages/ArmVsFixed.jsx'
 import SolarPanels from './pages/SolarPanels.jsx'
+// Roadmap tools with a plan page but no calculator yet
+import PlannedTool from './pages/PlannedTool.jsx'
 
 export default function App() {
   return (
@@ -68,6 +70,9 @@ export default function App() {
         <Route path="tools/charitable-donation-log" element={<DonationLog />} />
         <Route path="tools/arm-vs-fixed" element={<ArmVsFixed />} />
         <Route path="tools/solar-panels" element={<SolarPanels />} />
+        {/* Planned (registry entry only) */}
+        <Route path="tools/1031-exchange" element={<PlannedTool />} />
+        <Route path="tools/paying-your-kids" element={<PlannedTool />} />
         {/* Submissions from clients */}
         <Route path="client-results" element={<ClientResults />} />
         <Route path="feedback" element={<Feedback />} />

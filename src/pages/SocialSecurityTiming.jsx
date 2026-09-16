@@ -5,6 +5,9 @@ import {
   MoneyField,
   NumberField,
   SegmentedField,
+  RefinePanel,
+  StatTiles,
+  ScenarioCards,
   ResultRow,
   Assumptions,
   Note,
@@ -137,10 +140,10 @@ export default function SocialSecurityTiming() {
               </div>
             ) : null}
           </Panel>
-          <Panel title="Assumptions">
+          <RefinePanel summary="plan-to age, discount rate">
             <SliderField label="Plan to age" value={form.lifeExpectancy} onChange={set('lifeExpectancy')} min={75} max={100} step={1} readout={`${form.lifeExpectancy}`} info="Lifetime totals are counted to this age. A couple should plan to the longer-lived spouse." />
             <SliderField label="Discount rate (real)" value={form.discount} onChange={set('discount')} min={0} max={6} step={0.5} readout={`${form.discount}%`} info="0% compares raw dollars. A positive rate values earlier dollars more, which favors claiming earlier." />
-          </Panel>
+          </RefinePanel>
         </div>
 
         <div>
@@ -151,18 +154,13 @@ export default function SocialSecurityTiming() {
               value={r.best1.label}
               note={`${money(r.best1.monthly)}/mo · ${money(r.best1.cumulative)} through age ${r.lifeExp}`}
             />
-            <Narrative>
-              Claiming at 62 pays {money(r.p1.claims[0].monthly)} a month; waiting to full retirement age pays {money(r.p1.claims[1].monthly)}; waiting to 70 pays {money(r.p1.claims[2].monthly)} — {number(((r.p1.claims[2].factor / r.p1.claims[0].factor) - 1) * 100)}% more than claiming at 62, for life.
-              Waiting from 62 to FRA breaks even around age {fmtAge(r.p1.be62fra)}; FRA to 70 around {fmtAge(r.p1.beFra70)}.
-              {r.married
-                ? ` For a couple, the higher earner's benefit (${r.higher}) becomes the survivor benefit for whoever lives longer — which is why the higher earner delaying is usually the priority, even if the lower earner claims early.`
-                : ''}
-            </Narrative>
-
-            <div className="chart-block">
-              <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>Monthly benefit by claiming age{r.married ? ' — primary' : ''}</div>
-              <BarCompare height={160} groups={r.p1.claims.map((c, i) => ({ label: c.label, bars: [{ label: 'Monthly', value: c.monthly, color: [TONE.debt, TONE.navy, TONE.accent][i] }] }))} />
-            </div>
+            <StatTiles
+              items={[
+                { label: 'Waiting from 62 to 70', value: `+${number(((r.p1.claims[2].factor / r.p1.claims[0].factor) - 1) * 100)}%`, tone: 'good', note: 'monthly, for life' },
+                { label: 'Break-even 62 vs. FRA', value: fmtAge(r.p1.be62fra) },
+                { label: 'Break-even FRA vs. 70', value: fmtAge(r.p1.beFra70) },
+              ]}
+            />
 
             <div className="result-list">
               {r.p1.claims.map((c) => (
@@ -185,6 +183,32 @@ export default function SocialSecurityTiming() {
                 </div>
               </>
             ) : null}
+
+            <Narrative>
+              Claiming at 62 pays {money(r.p1.claims[0].monthly)} a month; waiting to full retirement age pays {money(r.p1.claims[1].monthly)}; waiting to 70 pays {money(r.p1.claims[2].monthly)} — {number(((r.p1.claims[2].factor / r.p1.claims[0].factor) - 1) * 100)}% more than claiming at 62, for life.
+              Waiting from 62 to FRA breaks even around age {fmtAge(r.p1.be62fra)}; FRA to 70 around {fmtAge(r.p1.beFra70)}.
+              {r.married
+                ? ` For a couple, the higher earner's benefit (${r.higher}) becomes the survivor benefit for whoever lives longer — which is why the higher earner delaying is usually the priority, even if the lower earner claims early.`
+                : ''}
+            </Narrative>
+
+            <ScenarioCards
+              sub={`lifetime to age ${r.lifeExp}`}
+              scenarios={r.p1.claims.map((c) => ({
+                label: c.label,
+                value: money(c.cumulative),
+                best: c.id === r.best1.id,
+                rows: [
+                  { label: 'Monthly benefit', value: money(c.monthly) },
+                  { label: 'Share of PIA', value: `${Math.round(c.factor * 100)}%` },
+                ],
+              }))}
+            />
+
+            <div className="chart-block">
+              <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>Monthly benefit by claiming age{r.married ? ' — primary' : ''}</div>
+              <BarCompare height={160} groups={r.p1.claims.map((c, i) => ({ label: c.label, bars: [{ label: 'Monthly', value: c.monthly, color: [TONE.debt, TONE.navy, TONE.accent][i] }] }))} />
+            </div>
             <div className="report-footer">Prepared for discussion with Grott Luker &amp; Co.</div>
           </section>
         </div>

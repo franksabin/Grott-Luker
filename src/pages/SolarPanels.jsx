@@ -5,6 +5,8 @@ import {
   MoneyField,
   NumberField,
   SegmentedField,
+  RefinePanel,
+  StatTiles,
   ResultRow,
   Assumptions,
   Note,
@@ -12,7 +14,7 @@ import {
   FeatureBlock,
   Narrative,
 } from '../components/ui.jsx'
-import { BarCompare, TONE } from '../components/charts.jsx'
+import { BarCompare, LineChart, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 
 const PAY = [
@@ -30,14 +32,14 @@ const BLANK = {
   annualSavings: '',
   escalation: '3',
   degradation: '0.5',
-  maintenance: '',
-  inverter: '',
+  maintenance: '0',
+  inverter: '0',
   pay: 'cash',
   loanRate: '',
   loanYears: '',
   horizon: '',
   discount: '5',
-  homeValueAdd: '',
+  homeValueAdd: '0',
 }
 
 const SAMPLE = {
@@ -168,6 +170,8 @@ export default function SolarPanels() {
   ], [r])
 
   const good = r.npv > 0
+  // Cumulative cash by year over the holding period; year 0 is the starting position.
+  const cumSeries = [r.financed ? 0 : -r.netCost, ...r.rows.slice(0, r.horizon).map((row) => row.cum)]
 
   return (
     <ToolShell
@@ -180,9 +184,8 @@ export default function SolarPanels() {
       <div className="tool-grid">
         <div>
           <Panel title="The quote">
-            <MoneyField label="Installed system cost (gross)" value={form.cost} onChange={set('cost')} />
             <div className="field-row">
-              <NumberField label="Federal tax credit" value={form.creditPct} onChange={set('creditPct')} suffix="%" info="The 30% residential clean energy credit (§25D) ended for systems placed in service after December 31, 2025. Leave at 0 for 2026 installs unless the client qualifies under a transition rule; the business credit (§48E) has different terms." />
+              <MoneyField label="Installed system cost (gross)" value={form.cost} onChange={set('cost')} />
               <MoneyField label="State, utility & other rebates" value={form.incentives} onChange={set('incentives')} />
             </div>
             <SegmentedField label="How it is paid for" value={form.pay} onChange={set('pay')} options={PAY} />
@@ -193,8 +196,17 @@ export default function SolarPanels() {
               </div>
             ) : null}
           </Panel>
-          <Panel title="Savings & upkeep">
-            <MoneyField label="Year-1 electricity savings" value={form.annualSavings} onChange={set('annualSavings')} info="From the installer's production estimate × the client's utility rate, or the portion of the current bill the system offsets." />
+          <Panel title="Savings & horizon">
+            <div className="field-row">
+              <MoneyField label="Year-1 electricity savings" value={form.annualSavings} onChange={set('annualSavings')} info="From the installer's production estimate × the client's utility rate, or the portion of the current bill the system offsets." />
+              <NumberField label="Years until the home is sold" value={form.horizon} onChange={set('horizon')} suffix="yrs" info={`Up to ${LIFE}, the assumed system life.`} />
+            </div>
+          </Panel>
+          <RefinePanel summary="tax credit, escalation, degradation, upkeep, discount rate, home-value premium">
+            <div className="field-row">
+              <NumberField label="Federal tax credit" value={form.creditPct} onChange={set('creditPct')} suffix="%" info="The 30% residential clean energy credit (§25D) ended for systems placed in service after December 31, 2025. Leave at 0 for 2026 installs unless the client qualifies under a transition rule; the business credit (§48E) has different terms." />
+              <NumberField label="Discount rate" value={form.discount} onChange={set('discount')} suffix="%" info="What the money could earn elsewhere — used for the net present value." />
+            </div>
             <div className="field-row">
               <NumberField label="Utility rate escalation" value={form.escalation} onChange={set('escalation')} suffix="% / yr" />
               <NumberField label="Panel degradation" value={form.degradation} onChange={set('degradation')} suffix="% / yr" info="Output loss per year; 0.5% is typical for modern panels." />
@@ -203,14 +215,8 @@ export default function SolarPanels() {
               <MoneyField label="Annual maintenance" value={form.maintenance} onChange={set('maintenance')} />
               <MoneyField label={`Inverter replacement (year ${INVERTER_YEAR})`} value={form.inverter} onChange={set('inverter')} />
             </div>
-          </Panel>
-          <Panel title="The client's horizon">
-            <div className="field-row">
-              <NumberField label="Years until the home is sold" value={form.horizon} onChange={set('horizon')} suffix="yrs" info={`Up to ${LIFE}, the assumed system life.`} />
-              <NumberField label="Discount rate" value={form.discount} onChange={set('discount')} suffix="%" info="What the money could earn elsewhere — used for the net present value." />
-            </div>
             <MoneyField label="Home-value premium at sale" value={form.homeValueAdd} onChange={set('homeValueAdd')} info="What an owned system adds to the sale price. Often a fraction of cost; zero is the conservative choice. Leased systems typically add nothing." />
-          </Panel>
+          </RefinePanel>
         </div>
 
         <div>
@@ -221,6 +227,26 @@ export default function SolarPanels() {
               value={money(r.npv)}
               note={r.paybackYear ? `Pays back in year ${r.paybackYear} · net position at exit ${money(r.exitPosition)}` : `Does not pay back within ${LIFE} years`}
             />
+            <StatTiles
+              items={[
+                { label: 'Net installed cost', value: money(r.netCost), note: r.financed ? `${money(r.monthly)}/mo financed` : 'paid up front' },
+                { label: 'Simple payback', value: r.paybackYear ? `Year ${r.paybackYear}` : 'None', note: r.paybackYear ? 'cumulative cash turns positive' : `within ${LIFE} years` },
+                { label: `Net position at exit`, value: money(r.exitPosition), tone: r.exitPosition > 0 ? 'good' : r.exitPosition < 0 ? 'bad' : undefined, note: `year ${r.horizon}, with home premium` },
+              ]}
+            />
+
+            <div className="result-list">
+              <ResultRow label="Net installed cost" value={r.netCost} />
+              {r.financed ? <ResultRow label="Monthly loan payment" value={r.monthly} /> : null}
+              <ResultRow label="Year-1 savings" value={r.savings1} sub />
+              <ResultRow label={`Total electricity saved over ${r.horizon} years`} value={r.totalSavingsH} />
+              <ResultRow label={`Upkeep over ${r.horizon} years`} value={-r.totalUpkeepH} negative sub />
+              <ResultRow label={`Cumulative cash at year ${r.horizon}`} value={r.exit.cum} />
+              <ResultRow label={`Net position at exit (with home premium${r.financed ? ', after loan payoff' : ''})`} value={r.exitPosition} total positive={r.exitPosition > 0} negative={r.exitPosition < 0} />
+              <ResultRow label={`Lifetime (${LIFE}-year) net cash if kept`} value={r.lifetimeNet} sub />
+              {r.irr !== null && !r.financed ? <ResultRow label="Internal rate of return (cash purchase)" raw={percent(r.irr * 100, 1)} /> : null}
+            </div>
+
             <Narrative>
               After the {money(r.credit + r.incentives)} in credits and rebates, the system costs {money(r.netCost)}{r.financed ? `, financed at ${money(r.monthly)} a month for ${r.loanYears} years` : ' paid up front'}.
               It saves about {money(r.savings1)} in the first year, rising with a {percent(r.esc * 100, 1)} utility escalator and easing with {percent(r.degr * 100, 1)} annual panel degradation.
@@ -228,6 +254,15 @@ export default function SolarPanels() {
               {' '}Selling in year {r.horizon} with a {money(r.homeValueAdd)} premium{r.financed ? ` and paying off the ${money(r.exit.loanBal)} loan balance` : ''} leaves the client {r.exitPosition >= 0 ? 'ahead' : 'behind'} by {money(Math.abs(r.exitPosition))}
               {' '}— {good ? 'a positive' : 'a negative'} net present value of {money(r.npv)} at a {percent(r.disc * 100, 1)} discount rate.
             </Narrative>
+
+            <div className="chart-block">
+              <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>Cumulative cash by year</div>
+              <LineChart
+                xStart="Today"
+                xEnd={`Year ${r.horizon}`}
+                series={[{ label: 'Cumulative cash position', color: TONE.net, points: cumSeries }]}
+              />
+            </div>
 
             <div className="chart-block" style={{ marginTop: 6 }}>
               <BarCompare
@@ -240,18 +275,6 @@ export default function SolarPanels() {
                   ] },
                 ]}
               />
-            </div>
-
-            <div className="result-list">
-              <ResultRow label="Net installed cost" value={r.netCost} />
-              {r.financed ? <ResultRow label="Monthly loan payment" value={r.monthly} /> : null}
-              <ResultRow label="Year-1 savings" value={r.savings1} sub />
-              <ResultRow label={`Total electricity saved over ${r.horizon} years`} value={r.totalSavingsH} />
-              <ResultRow label={`Upkeep over ${r.horizon} years`} value={-r.totalUpkeepH} negative sub />
-              <ResultRow label={`Cumulative cash at year ${r.horizon}`} value={r.exit.cum} />
-              <ResultRow label={`Net position at exit (with home premium${r.financed ? ', after loan payoff' : ''})`} value={r.exitPosition} total positive={r.exitPosition > 0} negative={r.exitPosition < 0} />
-              <ResultRow label={`Lifetime (${LIFE}-year) net cash if kept`} value={r.lifetimeNet} sub />
-              {r.irr !== null && !r.financed ? <ResultRow label="Internal rate of return (cash purchase)" raw={percent(r.irr * 100, 1)} /> : null}
             </div>
 
             <table className="data-table" style={{ marginTop: 14 }}>

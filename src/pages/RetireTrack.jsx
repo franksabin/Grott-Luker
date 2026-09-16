@@ -5,14 +5,15 @@ import {
   MoneyField,
   NumberField,
   SliderField,
+  RefinePanel,
+  StatTiles,
   ResultRow,
   Assumptions,
-  Note,
   ReportHeader,
   FeatureBlock,
   Narrative,
 } from '../components/ui.jsx'
-import { DonutChart, BarCompare, TONE, PALETTE } from '../components/charts.jsx'
+import { DonutChart, BarCompare, LineChart, TONE, PALETTE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 
 const BLANK = {
@@ -22,7 +23,7 @@ const BLANK = {
   annualContribution: '',
   ssAnnual: '',
   pensionAnnual: '',
-  otherIncome: '',
+  otherIncome: '0',
   annualExpenses: '',
   growthRate: '6',
   postRetirementReturn: '4.5',
@@ -66,6 +67,15 @@ function compute(form) {
     growth > 0 ? contribution * ((Math.pow(1 + growth, years) - 1) / growth) : contribution * years
   const projectedNestEgg = grownSavings + grownContributions
 
+  // Year-by-year balance for the chart: the same accumulation formula evaluated at each
+  // year from today to the target retirement age (its last point equals the nest egg).
+  const chartYears = Math.min(years, 100)
+  const balances = Array.from({ length: chartYears + 1 }, (_, t) => {
+    const fvSavings = savings * Math.pow(1 + growth, t)
+    const fvContrib = growth > 0 ? contribution * ((Math.pow(1 + growth, t) - 1) / growth) : contribution * t
+    return fvSavings + fvContrib
+  })
+
   // Income need is entered in today's dollars; inflate it to the retirement year.
   const futureExpenses = expenses * Math.pow(1 + inflation, years)
 
@@ -88,6 +98,7 @@ function compute(form) {
     coverage,
     onTrack,
     withdrawalRate,
+    balances,
   }
 }
 
@@ -140,20 +151,20 @@ export default function RetireTrack() {
               value={form.annualContribution}
               onChange={set('annualContribution')}
             />
-            <div className="field-row">
-              <MoneyField label="Social Security (annual)" value={form.ssAnnual} onChange={set('ssAnnual')} info="Expected annual Social Security benefit in retirement." />
-              <MoneyField label="Pension (annual)" value={form.pensionAnnual} onChange={set('pensionAnnual')} />
-            </div>
-            <MoneyField label="Other retirement income (annual)" value={form.otherIncome} onChange={set('otherIncome')} info="Rental income, part-time work, annuities, or any other expected income source." />
             <MoneyField
               label="Estimated annual spending in retirement"
               value={form.annualExpenses}
               onChange={set('annualExpenses')}
               info="Your expected annual expenses in retirement, in today's dollars."
             />
+            <div className="field-row">
+              <MoneyField label="Social Security (annual)" value={form.ssAnnual} onChange={set('ssAnnual')} info="Expected annual Social Security benefit in retirement." />
+              <MoneyField label="Pension (annual)" value={form.pensionAnnual} onChange={set('pensionAnnual')} />
+            </div>
           </Panel>
 
-          <Panel title="Assumptions">
+          <RefinePanel summary="return, inflation, withdrawal rate, other income">
+            <MoneyField label="Other retirement income (annual)" value={form.otherIncome} onChange={set('otherIncome')} info="Rental income, part-time work, annuities, or any other expected income source." />
             <div className="field-row">
               <SliderField
                 label="Assumed annual return (accumulation)"
@@ -197,7 +208,7 @@ export default function RetireTrack() {
                 info="The share of the projected nest egg drawn as income in the first year of retirement."
               />
             </div>
-          </Panel>
+          </RefinePanel>
         </div>
 
         <div>
@@ -212,6 +223,27 @@ export default function RetireTrack() {
               value={money(r.totalIncome)}
               note={`Covers ${percent(r.coverage, 0)} of your ${money(r.expenses)} estimated need`}
             />
+            <StatTiles
+              items={[
+                { label: 'Projected nest egg', value: money(r.projectedNestEgg), note: `in ${r.years} years` },
+                { label: 'Portfolio income', value: money(r.portfolioIncome), note: `${percent(r.withdrawalRate * 100, 1)} withdrawal rate` },
+                { label: r.gap >= 0 ? 'Annual surplus' : 'Annual shortfall', value: money(Math.abs(r.gap)), tone: r.gap >= 0 ? 'good' : 'bad', note: `${percent(r.coverage, 0)} of need covered` },
+              ]}
+            />
+            <div className="result-list">
+              <ResultRow label="Projected nest egg at retirement" value={r.projectedNestEgg} />
+              <ResultRow label={`Sustainable portfolio income (${percent(r.withdrawalRate * 100, 0)})`} value={r.portfolioIncome} sub />
+              <ResultRow label="Social Security + pension + other" value={r.ss + r.pension + r.other} sub />
+              <ResultRow label="Total projected income" value={r.totalIncome} total />
+              <ResultRow
+                label={r.gap >= 0 ? 'Annual surplus' : 'Annual shortfall'}
+                value={Math.abs(r.gap)}
+                sub
+                positive={r.gap >= 0}
+                negative={r.gap < 0}
+              />
+            </div>
+
             <Narrative>
               Growing your savings for {r.years} years, we project a nest egg of
               about {money(r.projectedNestEgg)} at retirement. At a {percent(r.withdrawalRate * 100, 0)}{' '}
@@ -223,7 +255,16 @@ export default function RetireTrack() {
               {r.gap >= 0 ? 'surplus' : 'shortfall'} of {money(Math.abs(r.gap))}.
             </Narrative>
 
-            <div className="tool-grid" style={{ gap: 20, gridTemplateColumns: '1fr 1fr' }}>
+            <div className="chart-block">
+              <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>Projected savings balance</div>
+              <LineChart
+                xStart={form.age ? `Age ${toNumber(form.age)}` : 'Today'}
+                xEnd={form.retireAge ? `Age ${toNumber(form.retireAge)}` : 'Retirement'}
+                series={[{ label: 'Retirement & investment savings', color: TONE.net, points: r.balances }]}
+              />
+            </div>
+
+            <div className="tool-grid" style={{ gap: 20, gridTemplateColumns: '1fr 1fr', marginTop: 18 }}>
               <div>
                 <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>Income sources</div>
                 <DonutChart
@@ -250,20 +291,6 @@ export default function RetireTrack() {
                   ]}
                 />
               </div>
-            </div>
-
-            <div className="result-list" style={{ marginTop: 18 }}>
-              <ResultRow label="Projected nest egg at retirement" value={r.projectedNestEgg} />
-              <ResultRow label={`Sustainable portfolio income (${percent(r.withdrawalRate * 100, 0)})`} value={r.portfolioIncome} sub />
-              <ResultRow label="Social Security + pension + other" value={r.ss + r.pension + r.other} sub />
-              <ResultRow label="Total projected income" value={r.totalIncome} total />
-              <ResultRow
-                label={r.gap >= 0 ? 'Annual surplus' : 'Annual shortfall'}
-                value={Math.abs(r.gap)}
-                sub
-                positive={r.gap >= 0}
-                negative={r.gap < 0}
-              />
             </div>
             <div className="report-footer">Prepared with Grott Luker &amp; Co. · Planning by BlueLine Advisors</div>
           </section>

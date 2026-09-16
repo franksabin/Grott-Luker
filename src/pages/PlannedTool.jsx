@@ -15,6 +15,7 @@ export default function PlannedTool() {
       title={tool.title}
       subtitle={tool.description}
       disclosure="This tool is planned and not yet available. Nothing entered here is saved or calculated."
+      planned
     >
       <Panel title="Planned">
         <p style={{ margin: 0, color: 'var(--ink-soft)' }}>

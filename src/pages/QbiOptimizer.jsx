@@ -4,6 +4,8 @@ import {
   Panel,
   MoneyField,
   SegmentedField,
+  RefinePanel,
+  StatTiles,
   ResultRow,
   Assumptions,
   Note,
@@ -24,10 +26,11 @@ const YESNO = [
   { value: 'yes', label: 'Yes' },
 ]
 
+// W-2 wages and UBIA live in the refine panel, so they carry a default of 0.
 const BLANK = {
   qbi: '',
-  w2wages: '',
-  ubia: '',
+  w2wages: '0',
+  ubia: '0',
   taxableIncome: '',
   filing: 'married',
   sstb: 'no',
@@ -169,6 +172,18 @@ export default function QbiOptimizer() {
               onChange={set('taxableIncome')}
               info="Total taxable income before the QBI deduction. This determines whether the limitations apply."
             />
+            <div className="field-row">
+              <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
+              <SegmentedField
+                label="Specified service business?"
+                value={form.sstb}
+                onChange={set('sstb')}
+                options={YESNO}
+                info="SSTBs (law, accounting, consulting, health, financial services, etc.) lose the deduction entirely above the upper threshold."
+              />
+            </div>
+          </Panel>
+          <RefinePanel summary="W-2 wages, qualified property">
             <MoneyField
               label="W-2 wages paid by the business"
               value={form.w2wages}
@@ -181,17 +196,7 @@ export default function QbiOptimizer() {
               onChange={set('ubia')}
               info="Unadjusted basis of qualified business property. Used in the alternative wage/property limit test."
             />
-            <div className="field-row">
-              <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
-              <SegmentedField
-                label="Specified service business?"
-                value={form.sstb}
-                onChange={set('sstb')}
-                options={YESNO}
-                info="SSTBs (law, accounting, consulting, health, financial services, etc.) lose the deduction entirely above the upper threshold."
-              />
-            </div>
-          </Panel>
+          </RefinePanel>
           <Note title="Why planning matters here">
             Near the thresholds ({money(r.start)}–{money(r.end)} of taxable income
             for this filing status), small moves — retirement contributions,
@@ -212,6 +217,21 @@ export default function QbiOptimizer() {
               value={money(r.deduction)}
               note={`Estimated tax savings of ${money(r.taxSavings)} at a ${percent(r.marginal * 100, 0)} marginal rate`}
             />
+            <StatTiles
+              items={[
+                { label: 'Full 20% of QBI', value: money(r.twentyPct), note: 'before limits' },
+                { label: 'W-2 wage / property limit', value: money(r.wageLimit) },
+                { label: 'Estimated tax savings', value: money(r.taxSavings), tone: 'good', note: `${percent(r.marginal * 100, 0)} marginal rate` },
+              ]}
+            />
+            <div className="result-list">
+              <ResultRow label="20% of qualified business income" value={r.twentyPct} />
+              <ResultRow label="W-2 wage / property limit" value={r.wageLimit} sub info="The greater of 50% of W-2 wages, or 25% of wages plus 2.5% of qualified property." />
+              <ResultRow label="20% of taxable income (overall cap)" value={r.incomeLimit} sub />
+              <ResultRow label="Estimated QBI deduction" value={r.deduction} total positive />
+              <ResultRow label="Estimated tax savings" value={r.taxSavings} sub positive />
+            </div>
+
             <Narrative>
               At {money(r.taxableIncome)} of taxable income, this is{' '}
               {PHASE_LABEL[r.phase].toLowerCase()}. The full 20% of QBI would be{' '}
@@ -220,14 +240,6 @@ export default function QbiOptimizer() {
               {r.limitBinds !== 'none' ? `, with the ${r.limitBinds} limit binding` : ''}. That
               is worth about {money(r.taxSavings)} in tax at the current marginal rate.
             </Narrative>
-
-            <div className="result-list">
-              <ResultRow label="20% of qualified business income" value={r.twentyPct} />
-              <ResultRow label="W-2 wage / property limit" value={r.wageLimit} sub info="The greater of 50% of W-2 wages, or 25% of wages plus 2.5% of qualified property." />
-              <ResultRow label="20% of taxable income (overall cap)" value={r.incomeLimit} sub />
-              <ResultRow label="Estimated QBI deduction" value={r.deduction} total positive />
-              <ResultRow label="Estimated tax savings" value={r.taxSavings} sub positive />
-            </div>
 
             <div className="chart-block" style={{ marginTop: 22 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>

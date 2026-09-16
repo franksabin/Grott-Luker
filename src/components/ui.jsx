@@ -1,4 +1,4 @@
-import { HelpCircle } from 'lucide-react'
+import { HelpCircle, Settings2, ChevronDown, Star } from 'lucide-react'
 import { money, percent as pct, toNumber, clampPct } from '../lib/format.js'
 
 /* Inline explanation for unfamiliar financial terms. */
@@ -278,6 +278,89 @@ export function SegmentedField({ label, info, value, onChange, options }) {
         ))}
       </div>
     </Field>
+  )
+}
+
+/* ---- Result-stack components (2026-09-16) ----
+   The house pattern for a calculator page:
+     inputs left (PillField for any choice of six or fewer, RefinePanel for
+     second-order inputs), result stack right (FeatureBlock → StatTiles →
+     result rows → ScenarioCards → chart → Assumptions). */
+
+/* A discrete choice with six options or fewer. Shows the whole range at a glance. */
+export function PillField({ label, info, value, onChange, options, hint }) {
+  return (
+    <Field label={label} info={info} hint={hint}>
+      <div className="pills" role="group" aria-label={typeof label === 'string' ? label : undefined}>
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            className="pill"
+            aria-pressed={String(value) === String(o.value)}
+            onClick={() => onChange(o.value)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </Field>
+  )
+}
+
+/* Second-order inputs, collapsed by default so the tool answers with its defaults first. */
+export function RefinePanel({ title = 'Refine the estimate', summary, children, defaultOpen = false }) {
+  return (
+    <details className="refine" open={defaultOpen || undefined}>
+      <summary>
+        <Settings2 size={15} strokeWidth={1.9} />
+        <b>{title}</b>
+        {summary ? <span>— {summary}</span> : null}
+        <ChevronDown className="refine-chev" size={16} />
+      </summary>
+      <div className="refine-body">{children}</div>
+    </details>
+  )
+}
+
+/* The three supporting figures that sit under the featured number.
+   items: [{ label, value, note, tone: 'good' | 'bad' }] */
+export function StatTiles({ items }) {
+  return (
+    <div className="stat-tiles" style={{ gridTemplateColumns: `repeat(${Math.min(4, Math.max(2, items.length))}, minmax(0, 1fr))` }}>
+      {items.map((it, i) => (
+        <div key={i} className="stat-tile">
+          <div className="stat-tile-label">{it.label}</div>
+          <div className={`stat-tile-value${it.tone ? ` tone-${it.tone}` : ''}`}>{it.value}</div>
+          {it.note ? <div className="stat-tile-note">{it.note}</div> : null}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* Baseline and options side by side, the winner tinted.
+   scenarios: [{ label, value, sub, best, rows: [{ label, value }] }] */
+export function ScenarioCards({ scenarios, sub = 'illustrative' }) {
+  return (
+    <div className="scenario-cards" data-count={scenarios.length}>
+      {scenarios.map((s, i) => (
+        <div key={i} className={`scenario-card${s.best ? ' is-best' : ''}`}>
+          <div className="scenario-name">
+            {s.label}
+            {s.best ? <Star size={14} className="scenario-star" aria-label="Best outcome" /> : null}
+          </div>
+          <div className="scenario-amt">{s.value}</div>
+          <div className="scenario-sub">{s.sub || sub}</div>
+          {(s.rows || []).map((r, j) => (
+            <div key={j} className="scenario-row">
+              <span>{r.label}</span>
+              <b>{r.value}</b>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   )
 }
 

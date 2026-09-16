@@ -1,10 +1,10 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import ToolShell from '../components/ToolShell.jsx'
-import { Panel, NumberField, MoneyField, SliderField, Stat, Assumptions, Note, InfoTip, ReportHeader, FeatureBlock, Narrative } from '../components/ui.jsx'
+import { Panel, NumberField, MoneyField, SliderField, RefinePanel, StatTiles, ResultRow, Assumptions, Note, InfoTip, ReportHeader, FeatureBlock, Narrative } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { ASSET_TYPES, computeDivision, DEFAULT_RATES } from '../lib/taxAdjustment.js'
+import { ASSET_TYPES, computeDivision } from '../lib/taxAdjustment.js'
 
 let COUNTER = 0
 const uid = () => `asset-${COUNTER++}`
@@ -85,43 +85,6 @@ export default function DivorceDivision() {
       onSample={() => setAssets(SAMPLE())}
       steps={steps}
     >
-      <Panel title="Tax Assumptions">
-        <div className="field-row">
-          <SliderField
-            label="Capital gains rate"
-            value={capGains}
-            onChange={setCapGains}
-            min={0}
-            max={40}
-            step={0.1}
-            readout={`${capGains}%`}
-            info="Assumed combined long-term capital gains rate (federal + NIIT + state) applied to unrealized gains on taxable assets."
-          />
-          <SliderField
-            label="Ordinary income rate"
-            value={ordinary}
-            onChange={setOrdinary}
-            min={0}
-            max={50}
-            step={0.5}
-            readout={`${ordinary}%`}
-            info="Assumed marginal ordinary rate applied to pre-tax retirement balances, which are taxed as income when withdrawn."
-          />
-        </div>
-        <div className="field-row">
-          <MoneyField
-            label="Home-sale exclusion"
-            value={exclusion}
-            onChange={setExclusion}
-            info="Assumed capital-gains exclusion on a primary residence (e.g., up to $500,000 for a married couple). Gain above this is taxed."
-          />
-          <div className="field-row" style={{ marginBottom: 0 }}>
-            <NumberField label="Party A name" value={nameA} onChange={setNameA} />
-            <NumberField label="Party B name" value={nameB} onChange={setNameB} />
-          </div>
-        </div>
-      </Panel>
-
       <Panel title="Assets & Proposed Allocation">
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
@@ -204,70 +167,53 @@ export default function DivorceDivision() {
       </Panel>
 
       <div className="tool-grid">
-        <Panel title="Tax-Adjusted Allocation">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th className="num">{nameA}</th>
-                <th className="num">{nameB}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Face (book) value</td>
-                <td className="num">{money(totals.grossA)}</td>
-                <td className="num">{money(totals.grossB)}</td>
-              </tr>
-              <tr>
-                <td>Estimated after-tax value</td>
-                <td className="num">{money(totals.afterTaxA)}</td>
-                <td className="num">{money(totals.afterTaxB)}</td>
-              </tr>
-              <tr>
-                <td>Share of after-tax value</td>
-                <td className="num">{percent(result.afterTaxSharePctA)}</td>
-                <td className="num">{percent(100 - result.afterTaxSharePctA)}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>Face value total</td>
-                <td className="num" colSpan={2}>{money(totals.grossTotal)}</td>
-              </tr>
-              <tr>
-                <td>After-tax total</td>
-                <td className="num" colSpan={2}>{money(totals.afterTaxTotal)}</td>
-              </tr>
-            </tfoot>
-          </table>
-
-          <div className="chart-block" style={{ marginTop: 20 }}>
-            <BarCompare
-              groups={[
-                {
-                  label: nameA,
-                  bars: [
-                    { label: 'Face value', value: totals.grossA, color: TONE.cost },
-                    { label: 'After-tax value', value: totals.afterTaxA, color: TONE.net },
-                  ],
-                },
-                {
-                  label: nameB,
-                  bars: [
-                    { label: 'Face value', value: totals.grossB, color: TONE.cost },
-                    { label: 'After-tax value', value: totals.afterTaxB, color: TONE.net },
-                  ],
-                },
-              ]}
+        <div>
+          <Panel title="Parties">
+            <div className="field-row">
+              <NumberField label="Party A name" value={nameA} onChange={setNameA} />
+              <NumberField label="Party B name" value={nameB} onChange={setNameB} />
+            </div>
+          </Panel>
+          <RefinePanel summary="capital gains rate, ordinary rate, home-sale exclusion">
+            <div className="field-row">
+              <SliderField
+                label="Capital gains rate"
+                value={capGains}
+                onChange={setCapGains}
+                min={0}
+                max={40}
+                step={0.1}
+                readout={`${capGains}%`}
+                info="Assumed combined long-term capital gains rate (federal + NIIT + state) applied to unrealized gains on taxable assets."
+              />
+              <SliderField
+                label="Ordinary income rate"
+                value={ordinary}
+                onChange={setOrdinary}
+                min={0}
+                max={50}
+                step={0.5}
+                readout={`${ordinary}%`}
+                info="Assumed marginal ordinary rate applied to pre-tax retirement balances, which are taxed as income when withdrawn."
+              />
+            </div>
+            <MoneyField
+              label="Home-sale exclusion"
+              value={exclusion}
+              onChange={setExclusion}
+              info="Assumed capital-gains exclusion on a primary residence (e.g., up to $500,000 for a married couple). Gain above this is taxed."
             />
-          </div>
-        </Panel>
+          </RefinePanel>
+        </div>
 
         <div>
-          <Panel title="Equalization Analysis">
+          <section className="report">
+            <ReportHeader
+              sectionTitle="Tax-Adjusted Division"
+              meta={`${lines.length} assets · ${money(totals.grossTotal)} face value · ${capGains}% / ${ordinary}%`}
+              metaRight={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            />
             <FeatureBlock
-              compact
               label="Equalizing payment (after tax)"
               value={money(afterTaxEqualization.amount)}
               note={
@@ -276,18 +222,42 @@ export default function DivorceDivision() {
                   : 'Shares are already equal after tax'
               }
             />
-            <div className="stat-grid">
-              <Stat
+            <StatTiles
+              items={[
+                {
+                  label: 'Total embedded tax',
+                  value: money(totals.embeddedTaxTotal),
+                  tone: 'bad',
+                  note: `${percent(totals.grossTotal > 0 ? (totals.embeddedTaxTotal / totals.grossTotal) * 100 : 0)} of face value`,
+                },
+                {
+                  label: 'Embedded tax shifts payment by',
+                  value: money(Math.abs(result.equalizationDelta)),
+                  note: 'Face vs. after-tax difference',
+                },
+                {
+                  label: 'Share of after-tax value',
+                  value: `${percent(result.afterTaxSharePctA, 0)} / ${percent(100 - result.afterTaxSharePctA, 0)}`,
+                  note: `${nameA} / ${nameB}`,
+                },
+              ]}
+            />
+            <div className="result-list">
+              <ResultRow label="Face value total" value={totals.grossTotal} />
+              <ResultRow label="Total embedded tax" value={totals.embeddedTaxTotal} negative />
+              <ResultRow label="After-tax total" value={totals.afterTaxTotal} total />
+              <ResultRow
                 label="Equalizing payment — face value"
-                value={money(grossEqualization.amount)}
-                note={grossEqualization.amount > 0 ? `${eqName(grossEqualization.from)} → ${eqName(grossEqualization.to)}` : 'Already equal'}
+                raw={grossEqualization.amount > 0 ? `${money(grossEqualization.amount)} · ${eqName(grossEqualization.from)} → ${eqName(grossEqualization.to)}` : `${money(0)} · Already equal`}
+                sub
               />
-              <Stat
-                label="Embedded tax shifts payment by"
-                value={money(Math.abs(result.equalizationDelta))}
-                note="Face vs. after-tax difference"
+              <ResultRow
+                label="Equalizing payment — after tax"
+                raw={afterTaxEqualization.amount > 0 ? `${money(afterTaxEqualization.amount)} · ${eqName(afterTaxEqualization.from)} → ${eqName(afterTaxEqualization.to)}` : `${money(0)} · Already equal`}
+                positive
               />
             </div>
+
             <Narrative>
               A division that looks equal on paper ({money(totals.grossA)} vs{' '}
               {money(totals.grossB)}) is worth {money(totals.afterTaxA)} vs{' '}
@@ -296,17 +266,66 @@ export default function DivorceDivision() {
               after-tax basis rather than face value changes the required payment
               by approximately {money(Math.abs(result.equalizationDelta))}.
             </Narrative>
-          </Panel>
 
-          <Panel title="Estimated Tax Consequences">
-            <div className="stat-grid">
-              <Stat label="Total embedded tax" value={money(totals.embeddedTaxTotal)} />
-              <Stat
-                label="As % of face value"
-                value={percent(totals.grossTotal > 0 ? (totals.embeddedTaxTotal / totals.grossTotal) * 100 : 0)}
+            <div className="chart-block" style={{ marginTop: 20 }}>
+              <BarCompare
+                groups={[
+                  {
+                    label: nameA,
+                    bars: [
+                      { label: 'Face value', value: totals.grossA, color: TONE.cost },
+                      { label: 'After-tax value', value: totals.afterTaxA, color: TONE.net },
+                    ],
+                  },
+                  {
+                    label: nameB,
+                    bars: [
+                      { label: 'Face value', value: totals.grossB, color: TONE.cost },
+                      { label: 'After-tax value', value: totals.afterTaxB, color: TONE.net },
+                    ],
+                  },
+                ]}
               />
             </div>
-          </Panel>
+
+            <table className="data-table" style={{ marginTop: 20 }}>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th className="num">{nameA}</th>
+                  <th className="num">{nameB}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Face (book) value</td>
+                  <td className="num">{money(totals.grossA)}</td>
+                  <td className="num">{money(totals.grossB)}</td>
+                </tr>
+                <tr>
+                  <td>Estimated after-tax value</td>
+                  <td className="num">{money(totals.afterTaxA)}</td>
+                  <td className="num">{money(totals.afterTaxB)}</td>
+                </tr>
+                <tr>
+                  <td>Share of after-tax value</td>
+                  <td className="num">{percent(result.afterTaxSharePctA)}</td>
+                  <td className="num">{percent(100 - result.afterTaxSharePctA)}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Face value total</td>
+                  <td className="num" colSpan={2}>{money(totals.grossTotal)}</td>
+                </tr>
+                <tr>
+                  <td>After-tax total</td>
+                  <td className="num" colSpan={2}>{money(totals.afterTaxTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div className="report-footer">Prepared for discussion with Grott Luker &amp; Co.</div>
+          </section>
         </div>
       </div>
 

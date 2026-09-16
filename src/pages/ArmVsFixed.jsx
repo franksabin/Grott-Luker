@@ -4,7 +4,10 @@ import {
   Panel,
   MoneyField,
   NumberField,
-  SelectField,
+  PillField,
+  RefinePanel,
+  StatTiles,
+  ScenarioCards,
   ResultRow,
   Assumptions,
   Note,
@@ -12,7 +15,7 @@ import {
   FeatureBlock,
   Narrative,
 } from '../components/ui.jsx'
-import { BarCompare, TONE } from '../components/charts.jsx'
+import { BarCompare, LineChart, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 
 const FIXED_PERIODS = [
@@ -32,7 +35,7 @@ const BLANK = {
   fixedRate: '',
   armRate: '',
   armPeriod: '7',
-  resetRate: '',
+  resetRate: '7.5',
   periodicCap: '2',
   lifetimeCap: '5',
   horizon: '',
@@ -184,7 +187,7 @@ export default function ArmVsFixed() {
           <Panel title="The loan">
             <MoneyField label="Loan amount" value={form.loan} onChange={set('loan')} />
             <div className="field-row">
-              <SelectField label="Term" value={form.term} onChange={set('term')} options={TERMS} />
+              <PillField label="Term" value={form.term} onChange={set('term')} options={TERMS} />
               <NumberField label="Years the client expects to keep this loan" value={form.horizon} onChange={set('horizon')} suffix="yrs" info="Sale, refinance, or payoff. The comparison is run over this window; the balance still owed at the end counts as a cost." />
             </div>
           </Panel>
@@ -192,16 +195,16 @@ export default function ArmVsFixed() {
             <NumberField label="Fixed rate" value={form.fixedRate} onChange={set('fixedRate')} suffix="%" />
           </Panel>
           <Panel title="Adjustable-rate option">
-            <div className="field-row">
-              <SelectField label="Initial fixed period" value={form.armPeriod} onChange={set('armPeriod')} options={FIXED_PERIODS} />
-              <NumberField label="Initial ARM rate" value={form.armRate} onChange={set('armRate')} suffix="%" />
-            </div>
+            <PillField label="Initial fixed period" value={form.armPeriod} onChange={set('armPeriod')} options={FIXED_PERIODS} />
+            <NumberField label="Initial ARM rate" value={form.armRate} onChange={set('armRate')} suffix="%" />
+          </Panel>
+          <RefinePanel summary="reset rate, rate caps">
             <NumberField label="Assumed rate after the fixed period" value={form.resetRate} onChange={set('resetRate')} suffix="%" info="Your assumption for the fully indexed rate (index + margin) once adjustments begin. The tool moves toward it within the caps below. Try a pessimistic value — that is the point." />
             <div className="field-row">
               <NumberField label="Periodic cap" value={form.periodicCap} onChange={set('periodicCap')} suffix="% / yr" info="Maximum change at each annual adjustment." />
               <NumberField label="Lifetime cap" value={form.lifetimeCap} onChange={set('lifetimeCap')} suffix="% over start" info="Maximum increase above the initial rate over the life of the loan." />
             </div>
-          </Panel>
+          </RefinePanel>
         </div>
 
         <div>
@@ -212,6 +215,26 @@ export default function ArmVsFixed() {
               value={money(Math.abs(r.armSaves))}
               note={`Total cost to exit: ARM ${money(r.armCost)} vs. fixed ${money(r.fixedCost)}`}
             />
+            <StatTiles
+              items={[
+                { label: `ARM payment, years 1–${r.fixedYears}`, value: money(r.arm.firstPayment), note: `vs. ${money(r.fixed.firstPayment)} fixed` },
+                { label: 'Highest ARM payment in the window', value: money(r.arm.maxPayment), tone: r.arm.maxPayment > r.fixed.firstPayment ? 'bad' : undefined },
+                { label: 'Break-even reset rate', value: r.breakEven !== null ? percent(r.breakEven * 100, 2) : '—', note: r.breakEven !== null ? 'ARM stops winning above this' : `exit within the ${r.fixedYears}-year fixed period` },
+              ]}
+            />
+
+            <div className="result-list">
+              <ResultRow label="Fixed · monthly payment" value={r.fixed.firstPayment} />
+              <ResultRow label={`ARM · monthly payment, years 1–${r.fixedYears}`} value={r.arm.firstPayment} />
+              <ResultRow label="ARM · highest monthly payment in the window" value={r.arm.maxPayment} />
+              <ResultRow label={`Interest paid over ${r.horizon} years · Fixed`} value={r.fixed.interest} sub />
+              <ResultRow label={`Interest paid over ${r.horizon} years · ARM`} value={r.arm.interest} sub />
+              <ResultRow label="Balance still owed at exit · Fixed" value={r.fixed.balance} sub />
+              <ResultRow label="Balance still owed at exit · ARM" value={r.arm.balance} sub />
+              <ResultRow label="ARM advantage / (cost) over the window" value={r.armSaves} total positive={armWins} negative={!armWins} />
+              {r.breakEven !== null ? <ResultRow label="Break-even reset rate" raw={percent(r.breakEven * 100, 2)} /> : null}
+            </div>
+
             <Narrative>
               The fixed loan costs {money(r.fixed.firstPayment)} a month for the whole window. The ARM starts at {money(r.arm.firstPayment)} for {r.fixedYears} years
               {inWindow
@@ -219,6 +242,33 @@ export default function ArmVsFixed() {
                 : `, then adjusts toward ${percent(r.resetRate * 100, 2)} within the caps, reaching a peak payment of ${money(r.arm.maxPayment)}. Over the full ${r.horizon} years the ${armWins ? 'ARM' : 'fixed loan'} comes out ahead by ${money(Math.abs(r.armSaves))}, including the balance still owed at exit.`}
               {r.breakEven !== null ? ` The ARM stops winning if rates after the reset average more than ${percent(r.breakEven * 100, 2)}.` : ''}
             </Narrative>
+
+            <ScenarioCards
+              sub={`total cost to exit, ${r.horizon} years`}
+              scenarios={[
+                {
+                  label: 'Fixed-rate',
+                  value: money(r.fixedCost),
+                  best: r.armSaves < 0,
+                  rows: [
+                    { label: 'Monthly payment', value: money(r.fixed.firstPayment) },
+                    { label: 'Interest paid', value: money(r.fixed.interest) },
+                    { label: 'Balance at exit', value: money(r.fixed.balance) },
+                  ],
+                },
+                {
+                  label: `${r.fixedYears}/1 ARM`,
+                  value: money(r.armCost),
+                  best: armWins,
+                  rows: [
+                    { label: 'Initial payment', value: money(r.arm.firstPayment) },
+                    { label: 'Highest payment', value: money(r.arm.maxPayment) },
+                    { label: 'Interest paid', value: money(r.arm.interest) },
+                    { label: 'Balance at exit', value: money(r.arm.balance) },
+                  ],
+                },
+              ]}
+            />
 
             <div className="chart-block" style={{ marginTop: 6 }}>
               <BarCompare
@@ -231,16 +281,15 @@ export default function ArmVsFixed() {
               />
             </div>
 
-            <div className="result-list">
-              <ResultRow label="Fixed · monthly payment" value={r.fixed.firstPayment} />
-              <ResultRow label={`ARM · monthly payment, years 1–${r.fixedYears}`} value={r.arm.firstPayment} />
-              <ResultRow label="ARM · highest monthly payment in the window" value={r.arm.maxPayment} />
-              <ResultRow label={`Interest paid over ${r.horizon} years · Fixed`} value={r.fixed.interest} sub />
-              <ResultRow label={`Interest paid over ${r.horizon} years · ARM`} value={r.arm.interest} sub />
-              <ResultRow label="Balance still owed at exit · Fixed" value={r.fixed.balance} sub />
-              <ResultRow label="Balance still owed at exit · ARM" value={r.arm.balance} sub />
-              <ResultRow label="ARM advantage / (cost) over the window" value={r.armSaves} total positive={armWins} negative={!armWins} />
-              {r.breakEven !== null ? <ResultRow label="Break-even reset rate" raw={percent(r.breakEven * 100, 2)} /> : null}
+            <div className="chart-block">
+              <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>Balance owed, year by year</div>
+              <LineChart
+                xEnd={`Year ${r.horizon}`}
+                series={[
+                  { label: 'Fixed balance', color: TONE.navy, points: [r.loan, ...r.fixed.rows.map((row) => row.balance)] },
+                  { label: 'ARM balance', color: TONE.accent, points: [r.loan, ...r.arm.rows.map((row) => row.balance)] },
+                ]}
+              />
             </div>
 
             <table className="data-table" style={{ marginTop: 14 }}>

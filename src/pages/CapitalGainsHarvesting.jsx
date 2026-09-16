@@ -4,6 +4,9 @@ import {
   Panel,
   MoneyField,
   SegmentedField,
+  RefinePanel,
+  StatTiles,
+  ScenarioCards,
   ResultRow,
   Assumptions,
   Note,
@@ -22,7 +25,7 @@ const FILING = [
 ]
 const ORDINARY_LOSS_LIMIT = 3000
 
-const BLANK = { filing: 'married', ordinaryTaxable: '', plannedGains: '', shortTermGains: '', unrealizedLosses: '', carryforward: '', otherInvestmentIncome: '' }
+const BLANK = { filing: 'married', ordinaryTaxable: '', plannedGains: '', shortTermGains: '', unrealizedLosses: '', carryforward: '0', otherInvestmentIncome: '0' }
 const SAMPLE = { filing: 'married', ordinaryTaxable: '78000', plannedGains: '60000', shortTermGains: '0', unrealizedLosses: '22000', carryforward: '4000', otherInvestmentIncome: '9000' }
 
 function compute(form) {
@@ -101,18 +104,20 @@ export default function CapitalGainsHarvesting() {
           <Panel title="This year">
             <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
             <MoneyField label="Ordinary taxable income (before gains)" value={form.ordinaryTaxable} onChange={set('ordinaryTaxable')} info="Wages, pensions, IRA distributions, interest — after the standard or itemized deduction, before any capital gains." />
-            <MoneyField label="Other investment income" value={form.otherInvestmentIncome} onChange={set('otherInvestmentIncome')} info="Dividends, interest, rents — used for the 3.8% net investment income tax test." />
           </Panel>
           <Panel title="Positions">
             <div className="field-row">
               <MoneyField label="Long-term gains planned to realize" value={form.plannedGains} onChange={set('plannedGains')} />
               <MoneyField label="Short-term gains planned to realize" value={form.shortTermGains} onChange={set('shortTermGains')} info="Taxed as ordinary income." />
             </div>
-            <div className="field-row">
-              <MoneyField label="Unrealized losses available to harvest" value={form.unrealizedLosses} onChange={set('unrealizedLosses')} />
-              <MoneyField label="Loss carryforward from prior years" value={form.carryforward} onChange={set('carryforward')} />
-            </div>
+            <MoneyField label="Unrealized losses available to harvest" value={form.unrealizedLosses} onChange={set('unrealizedLosses')} />
           </Panel>
+          <RefinePanel summary="loss carryforward, other investment income">
+            <div className="field-row">
+              <MoneyField label="Loss carryforward from prior years" value={form.carryforward} onChange={set('carryforward')} />
+              <MoneyField label="Other investment income" value={form.otherInvestmentIncome} onChange={set('otherInvestmentIncome')} info="Dividends, interest, rents — used for the 3.8% net investment income tax test." />
+            </div>
+          </RefinePanel>
         </div>
 
         <div>
@@ -123,6 +128,13 @@ export default function CapitalGainsHarvesting() {
               value={money(Math.max(0, r.harvest.total))}
               note={`${money(Math.max(0, r.noHarvest.total))} without harvesting · saves ${money(r.saved)}`}
             />
+            <StatTiles
+              items={[
+                { label: 'Saved by harvesting', value: money(r.saved), tone: 'good', note: 'federal tax' },
+                { label: 'Tax without harvesting', value: money(Math.max(0, r.noHarvest.total)) },
+                { label: 'Carryforward to next year', value: money(r.harvest.newCarry) },
+              ]}
+            />
             <Callout
               label="Long-term gains that fit in the 0% bracket this year"
               value={money(r.zeroRoom)}
@@ -130,14 +142,6 @@ export default function CapitalGainsHarvesting() {
               rightValue={money(r.fifteenRoom)}
               tone="good"
             />
-            <Narrative>
-              With {money(r.ord)} of ordinary taxable income, the first {money(r.zeroRoom)} of long-term gain is taxed at 0% and the next {money(r.fifteenRoom)} at 15%.
-              Realizing {money(r.gains)} of long-term gain{r.stGains > 0 ? ` and ${money(r.stGains)} short-term` : ''} costs about {money(Math.max(0, r.noHarvest.total))} in federal tax{r.niitApplies ? ' including the 3.8% net investment income tax' : ''}.
-              Harvesting {money(r.losses)} of losses{r.carry > 0 ? ` on top of the ${money(r.carry)} carryforward` : ''} cuts that to {money(Math.max(0, r.harvest.total))}
-              {r.harvest.ordinaryOffset > 0 ? `, and ${money(r.harvest.ordinaryOffset)} of excess loss offsets ordinary income` : ''}
-              {r.harvest.newCarry > 0 ? `, with ${money(r.harvest.newCarry)} carried forward` : ''}.
-              {r.zeroRoom > 0 && r.gains < r.zeroRoom ? ` There is still ${money(r.zeroRoom - r.gains)} of 0% room — realizing gains up to that amount and repurchasing resets basis at no federal cost.` : ''}
-            </Narrative>
 
             <div className="result-list">
               <ResultRow label="Long-term gain after losses" value={r.harvest.ltNet} />
@@ -150,6 +154,42 @@ export default function CapitalGainsHarvesting() {
               <ResultRow label="Federal tax without harvesting" value={Math.max(0, r.noHarvest.total)} sub />
               <ResultRow label="Loss carryforward to next year" value={r.harvest.newCarry} sub />
             </div>
+
+            <Narrative>
+              With {money(r.ord)} of ordinary taxable income, the first {money(r.zeroRoom)} of long-term gain is taxed at 0% and the next {money(r.fifteenRoom)} at 15%.
+              Realizing {money(r.gains)} of long-term gain{r.stGains > 0 ? ` and ${money(r.stGains)} short-term` : ''} costs about {money(Math.max(0, r.noHarvest.total))} in federal tax{r.niitApplies ? ' including the 3.8% net investment income tax' : ''}.
+              Harvesting {money(r.losses)} of losses{r.carry > 0 ? ` on top of the ${money(r.carry)} carryforward` : ''} cuts that to {money(Math.max(0, r.harvest.total))}
+              {r.harvest.ordinaryOffset > 0 ? `, and ${money(r.harvest.ordinaryOffset)} of excess loss offsets ordinary income` : ''}
+              {r.harvest.newCarry > 0 ? `, with ${money(r.harvest.newCarry)} carried forward` : ''}.
+              {r.zeroRoom > 0 && r.gains < r.zeroRoom ? ` There is still ${money(r.zeroRoom - r.gains)} of 0% room — realizing gains up to that amount and repurchasing resets basis at no federal cost.` : ''}
+            </Narrative>
+
+            <ScenarioCards
+              sub="federal tax this year"
+              scenarios={[
+                {
+                  label: 'Without harvesting',
+                  value: money(Math.max(0, r.noHarvest.total)),
+                  rows: [
+                    { label: 'Long-term gain taxed', value: money(r.noHarvest.ltNet) },
+                    { label: 'Capital gains tax', value: money(r.noHarvest.ltTax) },
+                    { label: 'Net investment income tax', value: money(r.noHarvest.niit) },
+                    { label: 'Carryforward', value: money(r.noHarvest.newCarry) },
+                  ],
+                },
+                {
+                  label: 'With losses harvested',
+                  value: money(Math.max(0, r.harvest.total)),
+                  best: r.saved > 0,
+                  rows: [
+                    { label: 'Long-term gain taxed', value: money(r.harvest.ltNet) },
+                    { label: 'Capital gains tax', value: money(r.harvest.ltTax) },
+                    { label: 'Net investment income tax', value: money(r.harvest.niit) },
+                    { label: 'Carryforward', value: money(r.harvest.newCarry) },
+                  ],
+                },
+              ]}
+            />
 
             <div className="chart-block" style={{ marginTop: 20 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>Where the long-term gain lands</div>

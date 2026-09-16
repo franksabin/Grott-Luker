@@ -5,6 +5,9 @@ import {
   MoneyField,
   NumberField,
   SegmentedField,
+  RefinePanel,
+  StatTiles,
+  ScenarioCards,
   ResultRow,
   Assumptions,
   Note,
@@ -116,17 +119,29 @@ export default function RetirementPlanComparison() {
               onChange={set('earnings')}
               info={r.entity === 'se' ? 'Net profit before the retirement contribution and before the deduction for half of self-employment tax.' : 'Only W-2 wages count as compensation for plan purposes — S-corp distributions do not.'}
             />
-            <div className="field-row">
-              <NumberField label="Owner age" value={form.age} onChange={set('age')} hint={r.catch401 ? `Catch-up eligible: +${money(r.catch401)} 401(k) · +${money(r.catchSimple)} SIMPLE` : undefined} />
-              <NumberField label="Employees (other than owner/spouse)" value={form.employees} onChange={set('employees')} info="Common-law employees working 1,000+ hours. Changes which plans are available and what they cost." />
-            </div>
+            <NumberField label="Owner age" value={form.age} onChange={set('age')} hint={r.catch401 ? `Catch-up eligible: +${money(r.catch401)} 401(k) · +${money(r.catchSimple)} SIMPLE` : undefined} />
           </Panel>
+          <RefinePanel summary="employees">
+            <NumberField label="Employees (other than owner/spouse)" value={form.employees} onChange={set('employees')} info="Common-law employees working 1,000+ hours. Changes which plans are available and what they cost." />
+          </RefinePanel>
         </div>
 
         <div>
           <section className="report">
             <ReportHeader sectionTitle="Maximum Contribution by Plan" meta={`Tax year ${TAX_YEAR} limits · compensation base ${money(r.comp)}`} metaRight={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
             <FeatureBlock label="Largest deductible contribution" value={money(r.best.total)} note={`${r.best.label}${r.best.employee ? ` · ${money(r.best.employee)} employee + ${money(r.best.employer)} employer` : ''}`} />
+            <StatTiles
+              items={[
+                { label: 'Compensation base', value: money(r.comp), note: r.entity === 'se' ? 'after ½ SE tax' : 'W-2 wages' },
+                { label: 'Solo 401(k) deferral', value: money(r.solo.employee), note: r.catch401 ? `incl. ${money(r.catch401)} catch-up` : 'no catch-up' },
+                { label: 'Solo 401(k) vs. SEP', value: `+${money(r.solo.total - r.sep.total)}`, tone: 'good', note: 'employee deferral advantage' },
+              ]}
+            />
+            <div className="result-list">
+              <ResultRow label={`SEP IRA — ${Math.round(r.employerRate * 100)}% of compensation`} value={r.sep.total} total={r.best.id === 'sep'} />
+              <ResultRow label={`Solo 401(k) — ${money(r.solo.employee)} deferral + employer`} value={r.solo.total} total={r.best.id === 'solo'} />
+              <ResultRow label={`SIMPLE IRA — ${money(r.simple.employee)} deferral + 3% match`} value={r.simple.total} total={r.best.id === 'simple'} />
+            </div>
             <Narrative>
               On {money(r.earnings)} of {r.entity === 'se' ? 'net self-employment earnings' : 'W-2 wages'}
               {r.entity === 'se' ? ` (${money(r.adjNet)} after half of self-employment tax)` : ''}, a SEP allows {money(r.sep.total)}; a Solo 401(k) allows {money(r.solo.total)} by adding a {money(r.solo.employee)} employee deferral to the {money(r.solo.employer)} employer contribution; a SIMPLE allows {money(r.simple.total)}.
@@ -134,14 +149,21 @@ export default function RetirementPlanComparison() {
               {hasEmployees ? ` With ${r.employees} employee${r.employees > 1 ? 's' : ''}, a Solo 401(k) is off the table, a SEP must contribute the same percentage for every eligible employee, and a SIMPLE requires the 3% match (or 2% non-elective) for all — the owner's numbers above don't include those costs.` : ' With no employees, all three are available and the comparison above is the whole picture.'}
             </Narrative>
 
+            <ScenarioCards
+              sub="maximum contribution"
+              scenarios={r.plans.map((p) => ({
+                label: p.label,
+                value: money(p.total),
+                best: p.id === r.best.id,
+                rows: [
+                  { label: 'Employee deferral', value: money(p.employee) },
+                  { label: 'Employer', value: money(p.employer) },
+                ],
+              }))}
+            />
+
             <div className="chart-block">
               <BarCompare height={170} groups={r.plans.map((p) => ({ label: p.label, bars: [{ label: 'Employee', value: p.employee, color: TONE.accent }, { label: 'Employer', value: p.employer, color: TONE.navy }] }))} />
-            </div>
-
-            <div className="result-list">
-              <ResultRow label={`SEP IRA — ${Math.round(r.employerRate * 100)}% of compensation`} value={r.sep.total} total={r.best.id === 'sep'} />
-              <ResultRow label={`Solo 401(k) — ${money(r.solo.employee)} deferral + employer`} value={r.solo.total} total={r.best.id === 'solo'} />
-              <ResultRow label={`SIMPLE IRA — ${money(r.simple.employee)} deferral + 3% match`} value={r.simple.total} total={r.best.id === 'simple'} />
             </div>
 
             <div className="panel-title" style={{ border: 'none', marginTop: 18, paddingBottom: 6 }}>Practical differences</div>

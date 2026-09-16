@@ -5,6 +5,9 @@ import {
   MoneyField,
   NumberField,
   SegmentedField,
+  RefinePanel,
+  StatTiles,
+  ScenarioCards,
   ResultRow,
   Assumptions,
   Note,
@@ -20,11 +23,13 @@ const YESNO = [
   { value: 'yes', label: 'Yes' },
 ]
 
+// Fee and tax-rate assumptions live in the refine panel, so they carry defaults
+// and the tool computes before the panel is opened.
 const BLANK = {
   balance: '',
-  currentFee: '',
-  newPlanFee: '',
-  iraFee: '',
+  currentFee: '0.85',
+  newPlanFee: '0.45',
+  iraFee: '0.25',
   age: '',
   employed: 'no',
   newPlanAvailable: 'no',
@@ -176,6 +181,14 @@ export default function Rollover401k() {
         <div>
           <Panel title="Your 401(k)">
             <MoneyField label="Current 401(k) balance" value={form.balance} onChange={set('balance')} />
+            <NumberField label="Current age" value={form.age} onChange={set('age')} suffix="yrs" />
+            <div className="field-row">
+              <SegmentedField label="Still employed there?" value={form.employed} onChange={set('employed')} options={YESNO} />
+              <SegmentedField label="New employer plan available?" value={form.newPlanAvailable} onChange={set('newPlanAvailable')} options={YESNO} />
+            </div>
+            <SegmentedField label="Holds employer stock?" value={form.employerStock} onChange={set('employerStock')} options={YESNO} />
+          </Panel>
+          <RefinePanel summary="plan and IRA fees, tax rate if cashed out">
             <div className="field-row">
               <NumberField label="Current plan fees" value={form.currentFee} onChange={set('currentFee')} suffix="%" info="Approximate all-in annual fees / expense ratio in the current plan." />
               <NumberField label="New employer plan fees" value={form.newPlanFee} onChange={set('newPlanFee')} suffix="%" info="Approximate all-in annual fees of a new employer's 401(k), if available." />
@@ -184,13 +197,7 @@ export default function Rollover401k() {
               <NumberField label="IRA fees" value={form.iraFee} onChange={set('iraFee')} suffix="%" info="Approximate annual fees of the IRA option you'd roll into." />
               <NumberField label="Tax rate if cashed out" value={form.taxRate} onChange={set('taxRate')} suffix="%" info="Your marginal ordinary income tax rate, applied to the full balance if cashed out." />
             </div>
-            <NumberField label="Current age" value={form.age} onChange={set('age')} suffix="yrs" />
-            <div className="field-row">
-              <SegmentedField label="Still employed there?" value={form.employed} onChange={set('employed')} options={YESNO} />
-              <SegmentedField label="New employer plan available?" value={form.newPlanAvailable} onChange={set('newPlanAvailable')} options={YESNO} />
-            </div>
-            <SegmentedField label="Holds employer stock?" value={form.employerStock} onChange={set('employerStock')} options={YESNO} />
-          </Panel>
+          </RefinePanel>
           <Note title="Not just about fees">
             Fees are the easiest factor to quantify, but rarely the whole story.
             Creditor protection, the age-55 separation rule, and NUA treatment for
@@ -211,6 +218,23 @@ export default function Rollover401k() {
               value={money(r.best.ending)}
               note="Highest of the illustrated options below, based on the figures entered"
             />
+            <StatTiles
+              items={[
+                { label: 'Fees saved rolling to an IRA', value: money(r.feeSavings), tone: r.feeSavings > 0 ? 'good' : undefined, note: `over ${HORIZON} years vs. leaving` },
+                { label: 'Cash-out tax and penalty', value: money(r.cashOutCost), tone: r.cashOutCost > 0 ? 'bad' : undefined, note: 'paid now' },
+                { label: 'Annual fee today', value: money(r.annualCurrent), note: `vs. ${money(r.annualIra)} in an IRA` },
+              ]}
+            />
+
+            <div className="result-list">
+              <ResultRow label="Annual fee today (current plan)" value={r.annualCurrent} />
+              <ResultRow label="Annual fee in an IRA" value={r.annualIra} sub />
+              <ResultRow label={`Fees over ${HORIZON} years · leave in plan`} value={r.currentFees} negative />
+              <ResultRow label={`Fees over ${HORIZON} years · IRA`} value={r.iraFees} negative />
+              <ResultRow label="Fee savings from rolling to an IRA" value={r.feeSavings} positive />
+              <ResultRow label={`Ending balance difference, IRA vs. leave (${HORIZON} years)`} value={r.balanceDelta} total />
+            </div>
+
             <Narrative>
               On a {money(r.balance)} balance, cashing out now costs an estimated{' '}
               {money(r.cashOutCost)} in taxes{r.age < 59.5 ? ' and penalty' : ''}. Of the
@@ -218,6 +242,22 @@ export default function Rollover401k() {
               value after {HORIZON} years — but fees are only one factor. Review
               the considerations below before deciding.
             </Narrative>
+
+            <ScenarioCards
+              sub={`in ${HORIZON} years`}
+              scenarios={r.options.map((o) => ({
+                label: o.label,
+                value: money(o.ending),
+                best: o.id === r.best.id,
+              }))}
+            />
+            <ul className="assumptions" style={{ marginTop: 14, paddingLeft: 18 }}>
+              {r.options.map((o) => (
+                <li key={o.id}>
+                  <strong>{o.label}:</strong> {o.note}
+                </li>
+              ))}
+            </ul>
 
             <div className="chart-block" style={{ marginTop: 12 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>
@@ -235,13 +275,6 @@ export default function Rollover401k() {
                   },
                 ]}
               />
-              <ul className="assumptions" style={{ marginTop: 14, paddingLeft: 18 }}>
-                {r.options.map((o) => (
-                  <li key={o.id}>
-                    <strong>{o.label}:</strong> {o.note}
-                  </li>
-                ))}
-              </ul>
             </div>
 
             <div className="section-heading" style={{ fontSize: 15 }}>Planning considerations</div>

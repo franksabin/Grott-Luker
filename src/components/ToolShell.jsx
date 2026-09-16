@@ -18,6 +18,7 @@ export default function ToolShell({
   children,
   disclosure = STANDARD_DISCLOSURE,
   steps,
+  planned = false, // a roadmap entry with no calculator yet: no "baseline model" banner
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -93,7 +94,7 @@ export default function ToolShell({
         Estimate generated {generatedAt}
       </div>
 
-      {tool?.status === 'testing' ? (
+      {tool?.status === 'testing' && !planned ? (
         <div className="baseline-banner">
           <strong>Baseline model.</strong> This tool works but has not yet been reviewed by Grott Luker &amp; Co. Treat the numbers as a first pass for discussion, not as figures to rely on for a client decision.
         </div>
@@ -101,7 +102,7 @@ export default function ToolShell({
 
       {clientLink ? (
         <div className="share-how no-print">
-          <div className="share-how-title">How this Shareable tool works</div>
+          <div className="share-how-title">How this Client Shareable works</div>
           <ol>
             <li><strong>Send the link.</strong> Use “Email client the form” (a ready-made email with the link) or “Copy client link” and paste it into your own message or text.</li>
             <li><strong>The client fills it in.</strong> The form opens in any browser — no login, no account. It saves on their device as they go.</li>

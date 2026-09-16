@@ -5,7 +5,9 @@ import {
   MoneyField,
   NumberField,
   SegmentedField,
-  SelectField,
+  PillField,
+  RefinePanel,
+  StatTiles,
   ResultRow,
   Assumptions,
   Note,
@@ -43,12 +45,12 @@ const BLANK = {
   ytdWithholding: '',
   spouseYtdWages: '',
   spouseYtdWithholding: '',
-  bonus: '',
-  otherIncome: '',
+  bonus: '0',
+  otherIncome: '0',
   deductionType: 'standard',
-  itemized: '',
-  credits: '',
-  estimatedPayments: '',
+  itemized: '0',
+  credits: '0',
+  estimatedPayments: '0',
 }
 
 const SAMPLE = {
@@ -152,6 +154,13 @@ export default function WithholdingCheckup() {
   const married = form.filing === 'married'
   const owes = r.gap > 0
 
+  // The third tile is the action figure: what changes on the W-4, or what an estimated payment must cover.
+  const actionTile = owes
+    ? r.remaining > 0
+      ? { label: 'Extra per paycheck', value: money(r.extraPerCheck), note: `W-4 Step 4(c) · ${r.remaining} paychecks left` }
+      : { label: 'Estimated payment needed', value: money(r.gap), tone: 'bad', note: 'no paychecks remain' }
+    : { label: 'Could reduce per paycheck', value: money(r.reducePerCheck), tone: r.reducePerCheck > 0 ? 'good' : undefined, note: `${r.remaining} paychecks left` }
+
   return (
     <ToolShell
       title="Withholding Checkup (W-4)"
@@ -163,10 +172,8 @@ export default function WithholdingCheckup() {
       <div className="tool-grid">
         <div>
           <Panel title="From the most recent pay stub">
-            <div className="field-row">
-              <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
-              <SelectField label="Pay frequency" value={form.frequency} onChange={set('frequency')} options={FREQ} />
-            </div>
+            <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
+            <PillField label="Pay frequency" value={form.frequency} onChange={set('frequency')} options={FREQ} />
             <NumberField
               label="Pay periods paid so far this year"
               value={form.periodsPaid}
@@ -186,7 +193,7 @@ export default function WithholdingCheckup() {
             ) : null}
           </Panel>
 
-          <Panel title="Rest of the year">
+          <RefinePanel summary="bonus, other income, deductions, credits, estimated payments">
             <div className="field-row">
               <MoneyField label="Bonus or other wages still expected" value={form.bonus} onChange={set('bonus')} info="Wages beyond the regular pace — a year-end bonus, RSU vest, commission." />
               <MoneyField label="Other income (not from wages)" value={form.otherIncome} onChange={set('otherIncome')} info="Interest, dividends, side income, retirement distributions — anything with little or no withholding." />
@@ -203,7 +210,7 @@ export default function WithholdingCheckup() {
               <MoneyField label="Tax credits expected" value={form.credits} onChange={set('credits')} info="Child tax credit, dependent care, education credits — reduce tax dollar for dollar." />
               <MoneyField label="Estimated payments made" value={form.estimatedPayments} onChange={set('estimatedPayments')} />
             </div>
-          </Panel>
+          </RefinePanel>
         </div>
 
         <div>
@@ -217,6 +224,13 @@ export default function WithholdingCheckup() {
               label={owes ? 'Projected balance due at filing' : 'Projected refund at filing'}
               value={money(Math.abs(r.gap))}
               note={`${money(r.projTax)} projected tax · ${money(r.projPaid)} projected withholding & payments · ${percent(r.coverage * 100, 0)} covered`}
+            />
+            <StatTiles
+              items={[
+                { label: 'Projected tax', value: money(r.projTax), note: `marginal ${percent(r.marginal * 100, 0)}` },
+                { label: 'Withholding & payments on pace', value: money(r.projPaid), note: `${percent(r.coverage * 100, 0)} of tax covered` },
+                actionTile,
+              ]}
             />
 
             {r.remaining > 0 && owes ? (
@@ -238,19 +252,6 @@ export default function WithholdingCheckup() {
               />
             ) : null}
 
-            <Narrative>
-              On the current pace, {married ? 'the household' : 'the client'} ends the year with about{' '}
-              {money(r.projIncome)} of income and {money(r.projTax)} of federal tax
-              {r.credits > 0 ? ` after ${money(r.credits)} in credits` : ''}. Withholding is running at{' '}
-              {money(r.projWithholding)} for the year
-              {r.estPayments > 0 ? ` plus ${money(r.estPayments)} in estimated payments` : ''}, which{' '}
-              {owes ? `leaves a shortfall of ${money(r.gap)}` : `produces a refund of ${money(Math.abs(r.gap))}`}.
-              {owes && r.remaining > 0
-                ? ` Adding ${money(r.extraPerCheck)} of extra withholding on each of the remaining ${r.remaining} paychecks closes the gap; ${money(r.extraToSafeHarbor)} per paycheck is the minimum to reach the 90% safe harbor.`
-                : ''}
-              {owes && r.remaining === 0 ? ' No paychecks remain — the balance should be covered with an estimated payment.' : ''}
-            </Narrative>
-
             <div className="result-list">
               <ResultRow label="Projected wages (primary)" value={r.projWages} />
               {married && r.projSpouseWages > 0 ? <ResultRow label="Projected wages (spouse)" value={r.projSpouseWages} /> : null}
@@ -264,6 +265,19 @@ export default function WithholdingCheckup() {
               {r.estPayments > 0 ? <ResultRow label="Estimated payments" value={r.estPayments} sub /> : null}
               <ResultRow label={owes ? 'Balance due' : 'Refund'} value={Math.abs(r.gap)} total negative={owes} positive={!owes} />
             </div>
+
+            <Narrative>
+              On the current pace, {married ? 'the household' : 'the client'} ends the year with about{' '}
+              {money(r.projIncome)} of income and {money(r.projTax)} of federal tax
+              {r.credits > 0 ? ` after ${money(r.credits)} in credits` : ''}. Withholding is running at{' '}
+              {money(r.projWithholding)} for the year
+              {r.estPayments > 0 ? ` plus ${money(r.estPayments)} in estimated payments` : ''}, which{' '}
+              {owes ? `leaves a shortfall of ${money(r.gap)}` : `produces a refund of ${money(Math.abs(r.gap))}`}.
+              {owes && r.remaining > 0
+                ? ` Adding ${money(r.extraPerCheck)} of extra withholding on each of the remaining ${r.remaining} paychecks closes the gap; ${money(r.extraToSafeHarbor)} per paycheck is the minimum to reach the 90% safe harbor.`
+                : ''}
+              {owes && r.remaining === 0 ? ' No paychecks remain — the balance should be covered with an estimated payment.' : ''}
+            </Narrative>
 
             <div className="chart-block" style={{ marginTop: 22 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>

@@ -1,6 +1,20 @@
 import { useState, useMemo } from 'react'
 import ToolShell from '../components/ToolShell.jsx'
-import { Panel, MoneyField, SelectField, SegmentedField, Assumptions, Note, ReportHeader, FeatureBlock, Narrative } from '../components/ui.jsx'
+import {
+  Panel,
+  MoneyField,
+  SelectField,
+  SegmentedField,
+  RefinePanel,
+  StatTiles,
+  ScenarioCards,
+  ResultRow,
+  Assumptions,
+  Note,
+  ReportHeader,
+  FeatureBlock,
+  Narrative,
+} from '../components/ui.jsx'
 import { StackedBar, DonutChart, BarCompare, PALETTE, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 import {
@@ -209,6 +223,12 @@ export default function RetirementTaxMap() {
     setCompareB(true)
   }
 
+  const scenarioRows = (x) => [
+    { label: 'Total tax', value: money(x.totalTax) },
+    { label: 'Effective rate', value: percent(x.effectiveRate * 100) },
+    { label: 'IRMAA (annual)', value: x.irmaa.tierApplies ? money(x.irmaa.annualHousehold) : 'None' },
+  ]
+
   return (
     <ToolShell
       title="Retirement Income Tax Map"
@@ -217,104 +237,145 @@ export default function RetirementTaxMap() {
       onSample={sample}
       steps={steps}
     >
-      <Panel title="Household Settings">
-        <div className="field-row">
-          <SegmentedField label="Filing status" value={filing} onChange={setFiling} options={FILING_OPTIONS} />
-          <SelectField
-            label="State of residence"
-            value={stateCode}
-            onChange={setStateCode}
-            options={STATES.map((s) => ({ value: s.code, label: s.name }))}
-          />
-        </div>
-        <label className="field-label" style={{ cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={compareB}
-            onChange={(e) => setCompareB(e.target.checked)}
-            style={{ marginRight: 8 }}
-          />
-          Compare a second scenario
-        </label>
-      </Panel>
-
-      <div className={compareB ? 'scenario-cols' : ''}>
-        <ScenarioInputs title="Scenario A — Annual Income" values={a} onChange={setAField} />
-        {compareB ? (
-          <ScenarioInputs title="Scenario B — Annual Income" values={b} onChange={setBField} />
-        ) : null}
-      </div>
-
-      <section className="report">
-        <ReportHeader
-          sectionTitle="Retirement Income Tax Summary"
-          meta={compareB ? 'Scenario A vs. Scenario B' : 'Scenario A'}
-          metaRight={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-        />
-        <FeatureBlock
-          label="Estimated after-tax cash flow (Scenario A)"
-          value={money(ra.afterTaxCashFlow)}
-          note={`On ${money(ra.gross)} gross · ${percent(ra.effectiveRate * 100)} effective tax rate`}
-        />
-
-        <Narrative>
-          In Scenario A, {money(ra.gross)} of gross income results in an
-          estimated {money(ra.taxableIncome)} of taxable income and{' '}
-          {money(ra.totalTax)} in total taxes, leaving {money(ra.afterTaxCashFlow)}{' '}
-          of after-tax cash flow. About {percent(ra.ssTaxablePct, 0)} of Social
-          Security benefits are taxable at this income level
-          {ra.irmaa.tierApplies
-            ? `, and an IRMAA surcharge of about ${money(ra.irmaa.annualHousehold)} per year applies`
-            : ', with no IRMAA surcharge at this level'}
-          .{compareB ? ' Scenario B is shown alongside for comparison.' : ''}
-        </Narrative>
-
-        <OutputRows a={ra} b={rb} compareB={compareB} />
-        <div className="report-footer">Prepared for discussion with Grott Luker &amp; Co.</div>
-      </section>
-
       <div className="tool-grid">
-        <Panel title="Income Composition — Scenario A">
-          <StackedBar
-            data={INCOME_FIELDS.map((f, i) => ({
-              label: f.label,
-              value: toNumber(a[f.key]),
-              color: PALETTE[i % PALETTE.length],
-            }))}
-          />
-        </Panel>
+        <div>
+          <Panel title="Household Settings">
+            <SegmentedField label="Filing status" value={filing} onChange={setFiling} options={FILING_OPTIONS} />
+            <label className="field-label" style={{ cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={compareB}
+                onChange={(e) => setCompareB(e.target.checked)}
+                style={{ marginRight: 8 }}
+              />
+              Compare a second scenario
+            </label>
+          </Panel>
 
-        <Panel title={compareB ? 'Scenario Comparison' : 'Taxes vs. After-Tax Cash Flow'}>
+          <ScenarioInputs title="Scenario A — Annual Income" values={a} onChange={setAField} />
           {compareB ? (
-            <BarCompare
-              groups={[
-                {
-                  label: 'Scenario A',
-                  bars: [
+            <ScenarioInputs title="Scenario B — Annual Income" values={b} onChange={setBField} />
+          ) : null}
+
+          <RefinePanel summary="state of residence">
+            <SelectField
+              label="State of residence"
+              value={stateCode}
+              onChange={setStateCode}
+              options={STATES.map((s) => ({ value: s.code, label: s.name }))}
+            />
+          </RefinePanel>
+        </div>
+
+        <div>
+          <section className="report">
+            <ReportHeader
+              sectionTitle="Retirement Income Tax Summary"
+              meta={compareB ? 'Scenario A vs. Scenario B' : 'Scenario A'}
+              metaRight={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            />
+            <FeatureBlock
+              label="Estimated after-tax cash flow (Scenario A)"
+              value={money(ra.afterTaxCashFlow)}
+              note={`On ${money(ra.gross)} gross · ${percent(ra.effectiveRate * 100)} effective tax rate`}
+            />
+            <StatTiles
+              items={[
+                { label: 'Estimated total tax', value: money(ra.totalTax), tone: ra.totalTax > 0 ? 'bad' : undefined, note: 'federal + state' },
+                { label: 'Taxable Social Security', value: percent(ra.ssTaxablePct, 0), note: `${money(ra.taxableSS)} of benefit` },
+                { label: 'IRMAA exposure', value: ra.irmaa.tierApplies ? money(ra.irmaa.annualHousehold) : 'None', tone: ra.irmaa.tierApplies ? 'bad' : undefined, note: 'annual, household' },
+              ]}
+            />
+
+            <div className="result-list">
+              <ResultRow label="Gross income" value={ra.gross} />
+              <ResultRow label="Taxable Social Security" raw={`${money(ra.taxableSS)} (${percent(ra.ssTaxablePct, 0)})`} sub />
+              <ResultRow label="Adjusted gross income" value={ra.agi} />
+              <ResultRow label="Estimated taxable income" value={ra.taxableIncome} />
+              <ResultRow label="Estimated federal tax" raw={`(${money(ra.federalTax)})`} negative />
+              <ResultRow label="Estimated state tax" raw={`(${money(ra.stateTax)})`} negative />
+              <ResultRow label="Estimated total tax" raw={`(${money(ra.totalTax)})`} negative />
+              <ResultRow label="Estimated after-tax cash flow" value={ra.afterTaxCashFlow} total />
+            </div>
+
+            <Narrative>
+              In Scenario A, {money(ra.gross)} of gross income results in an
+              estimated {money(ra.taxableIncome)} of taxable income and{' '}
+              {money(ra.totalTax)} in total taxes, leaving {money(ra.afterTaxCashFlow)}{' '}
+              of after-tax cash flow. About {percent(ra.ssTaxablePct, 0)} of Social
+              Security benefits are taxable at this income level
+              {ra.irmaa.tierApplies
+                ? `, and an IRMAA surcharge of about ${money(ra.irmaa.annualHousehold)} per year applies`
+                : ', with no IRMAA surcharge at this level'}
+              .{compareB ? ' Scenario B is shown alongside for comparison.' : ''}
+            </Narrative>
+
+            {compareB ? (
+              <ScenarioCards
+                sub="after-tax cash flow"
+                scenarios={[
+                  { label: 'Scenario A', value: money(ra.afterTaxCashFlow), rows: scenarioRows(ra) },
+                  { label: 'Scenario B', value: money(rb.afterTaxCashFlow), rows: scenarioRows(rb) },
+                ]}
+              />
+            ) : null}
+
+            <div className="chart-block" style={{ marginTop: 22 }}>
+              <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>
+                Income Composition — Scenario A
+              </div>
+              <StackedBar
+                data={INCOME_FIELDS.map((f, i) => ({
+                  label: f.label,
+                  value: toNumber(a[f.key]),
+                  color: PALETTE[i % PALETTE.length],
+                }))}
+              />
+            </div>
+
+            <div className="chart-block" style={{ marginTop: 20 }}>
+              <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>
+                {compareB ? 'Scenario Comparison' : 'Taxes vs. After-Tax Cash Flow'}
+              </div>
+              {compareB ? (
+                <BarCompare
+                  groups={[
+                    {
+                      label: 'Scenario A',
+                      bars: [
+                        { label: 'After-tax cash flow', value: ra.afterTaxCashFlow, color: TONE.net },
+                        { label: 'Total tax', value: ra.totalTax, color: TONE.tax },
+                      ],
+                    },
+                    {
+                      label: 'Scenario B',
+                      bars: [
+                        { label: 'After-tax cash flow', value: rb.afterTaxCashFlow, color: TONE.net },
+                        { label: 'Total tax', value: rb.totalTax, color: TONE.tax },
+                      ],
+                    },
+                  ]}
+                />
+              ) : (
+                <DonutChart
+                  centerValue={percent(ra.effectiveRate * 100)}
+                  centerLabel="Effective rate"
+                  data={[
                     { label: 'After-tax cash flow', value: ra.afterTaxCashFlow, color: TONE.net },
-                    { label: 'Total tax', value: ra.totalTax, color: TONE.tax },
-                  ],
-                },
-                {
-                  label: 'Scenario B',
-                  bars: [
-                    { label: 'After-tax cash flow', value: rb.afterTaxCashFlow, color: TONE.net },
-                    { label: 'Total tax', value: rb.totalTax, color: TONE.tax },
-                  ],
-                },
-              ]}
-            />
-          ) : (
-            <DonutChart
-              centerValue={percent(ra.effectiveRate * 100)}
-              centerLabel="Effective rate"
-              data={[
-                { label: 'After-tax cash flow', value: ra.afterTaxCashFlow, color: TONE.net },
-                { label: 'Estimated total tax', value: ra.totalTax, color: TONE.tax },
-              ]}
-            />
-          )}
-        </Panel>
+                    { label: 'Estimated total tax', value: ra.totalTax, color: TONE.tax },
+                  ]}
+                />
+              )}
+            </div>
+
+            {compareB ? (
+              <div style={{ overflowX: 'auto', marginTop: 20 }}>
+                <OutputRows a={ra} b={rb} compareB={compareB} />
+              </div>
+            ) : null}
+            <div className="report-footer">Prepared for discussion with Grott Luker &amp; Co.</div>
+          </section>
+        </div>
       </div>
 
       <Note title="Reading the map">
