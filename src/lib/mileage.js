@@ -4,6 +4,7 @@
 // API so every layer computes and validates identically.
 import { toNumber } from './format.js'
 import { isValidEmail } from './knowYourNumbers.js'
+import { CATEGORIES, CATEGORY_BY_ID, INDUSTRY_BY_ID, DEFAULT_INDUSTRY, classify } from './expenseGuide.js'
 
 /**
  * IRS standard mileage rates, dollars per mile, by effective period.
@@ -24,10 +25,9 @@ export const PURPOSES = [
   { id: 'medical', label: 'Medical / moving' },
 ]
 
-export const EXPENSE_TYPES = [
-  { id: 'meal', label: 'Meal', deductible: 0.5 },
-  { id: 'entertainment', label: 'Entertainment', deductible: 0 },
-]
+// Expense categories live in expenseGuide.js (with industry guidance).
+// Kept under the old name for the pages that import it.
+export const EXPENSE_TYPES = CATEGORIES.map((c) => ({ id: c.id, label: c.label, deductible: c.treatment === 'ok' || c.treatment === 'limited' ? c.share : 0 }))
 
 export const TAX_YEARS = [2024, 2025, 2026]
 
@@ -75,12 +75,13 @@ export const blankExpense = (year) => ({
 })
 
 export function blankLog(year = new Date().getFullYear()) {
-  return { taxYear: year, trips: [blankTrip(year)], expenses: [blankExpense(year)] }
+  return { taxYear: year, industry: DEFAULT_INDUSTRY, trips: [blankTrip(year)], expenses: [blankExpense(year)] }
 }
 
 export function sampleLog(year = 2026) {
   return {
     taxYear: year,
+    industry: 'realtor',
     trips: [
       { id: newId(), date: `${year}-01-14`, client: 'Hanover Dental', description: 'Site visit — Hanover, NH', miles: '62', purpose: 'business' },
       { id: newId(), date: `${year}-02-03`, client: 'Seacoast Realty', description: 'Closing — Portsmouth', miles: '18', purpose: 'business' },
@@ -93,6 +94,10 @@ export function sampleLog(year = 2026) {
       { id: newId(), date: `${year}-01-14`, client: 'Hanover Dental', matter: 'Q1 planning, equipment purchase', amount: '86.40', type: 'meal' },
       { id: newId(), date: `${year}-02-19`, client: 'Board', matter: 'Working lunch — budget review', amount: '142.00', type: 'meal' },
       { id: newId(), date: `${year}-06-11`, client: 'Portside LLC', matter: 'Client appreciation — ballgame', amount: '210.00', type: 'entertainment' },
+      { id: newId(), date: `${year}-03-01`, client: '—', matter: 'MLS and board dues', amount: '1240.00', type: 'dues' },
+      { id: newId(), date: `${year}-04-18`, client: '—', matter: 'Yard signs and lockboxes', amount: '386.50', type: 'supplies' },
+      { id: newId(), date: `${year}-07-30`, client: 'The Kims', matter: 'Closing gift — cutting board', amount: '85.00', type: 'gifts' },
+      { id: newId(), date: `${year}-10-05`, client: '—', matter: 'New laptop', amount: '1899.00', type: 'equipment' },
     ],
   }
 }
@@ -116,14 +121,38 @@ export function compute(log) {
   const totalMiles = Object.values(byPurpose).reduce((s, v) => s + v.miles, 0)
   const totalMileage = Object.values(byPurpose).reduce((s, v) => s + v.amount, 0)
 
+  const industry = INDUSTRY_BY_ID[log?.industry] ? log.industry : DEFAULT_INDUSTRY
   const expenses = (log?.expenses || []).map((e) => {
     const amount = Math.max(0, toNumber(e.amount))
-    const spec = EXPENSE_TYPES.find((x) => x.id === e.type) || EXPENSE_TYPES[0]
-    return { ...e, amountNum: amount, deductible: amount * spec.deductible, counted: amount > 0 }
+    const c = classify(e.type, industry)
+    const counted = amount > 0
+    const inEstimate = c.treatment === 'ok' || c.treatment === 'limited'
+    return {
+      ...e,
+      amountNum: amount,
+      category: c,
+      treatment: c.treatment,
+      deductible: inEstimate ? amount * c.share : 0,
+      review: c.treatment === 'ask' ? amount : 0,
+      excluded: c.treatment === 'not' ? amount : 0,
+      counted,
+    }
   })
   const mealsTotal = expenses.filter((e) => e.type === 'meal').reduce((s, e) => s + e.amountNum, 0)
   const entTotal = expenses.filter((e) => e.type === 'entertainment').reduce((s, e) => s + e.amountNum, 0)
+  const expensesTotal = expenses.reduce((s, e) => s + e.amountNum, 0)
   const expenseDeductible = expenses.reduce((s, e) => s + e.deductible, 0)
+  const reviewTotal = expenses.reduce((s, e) => s + e.review, 0)
+  const excludedTotal = expenses.reduce((s, e) => s + e.excluded, 0)
+  // Totals by treatment, for the report and the math trace.
+  const byTreatment = {}
+  for (const t of ['ok', 'limited', 'ask', 'not']) byTreatment[t] = { amount: 0, deductible: 0, count: 0 }
+  for (const e of expenses) {
+    if (!e.counted) continue
+    byTreatment[e.treatment].amount += e.amountNum
+    byTreatment[e.treatment].deductible += e.deductible
+    byTreatment[e.treatment].count += 1
+  }
 
   return {
     trips,
@@ -131,9 +160,14 @@ export function compute(log) {
     byPurpose,
     totalMiles,
     totalMileage,
+    industry,
     mealsTotal,
     entTotal,
+    expensesTotal,
     expenseDeductible,
+    reviewTotal,
+    excludedTotal,
+    byTreatment,
     estimatedDeduction: totalMileage + expenseDeductible,
     tripCount: trips.filter((t) => t.counted).length,
     expenseCount: expenses.filter((e) => e.counted).length,
@@ -174,6 +208,7 @@ export function normalizeMileageSubmission(body) {
 
   const taxYear = Number.parseInt(body.taxYear, 10)
   if (!TAX_YEARS.includes(taxYear)) return { error: 'Tax year is not supported.' }
+  const industry = INDUSTRY_BY_ID[body.industry] ? body.industry : DEFAULT_INDUSTRY
 
   const tripsIn = Array.isArray(body.trips) ? body.trips.slice(0, MILEAGE_LIMITS.rows) : []
   const expensesIn = Array.isArray(body.expenses) ? body.expenses.slice(0, MILEAGE_LIMITS.rows) : []
@@ -196,7 +231,7 @@ export function normalizeMileageSubmission(body) {
       client: trimmed(e?.client, MILEAGE_LIMITS.text),
       matter: trimmed(e?.matter, MILEAGE_LIMITS.text),
       amount: String(Math.min(MILEAGE_LIMITS.amount, Math.max(0, toNumber(e?.amount)))),
-      type: EXPENSE_TYPES.some((x) => x.id === e?.type) ? e.type : 'meal',
+      type: CATEGORY_BY_ID[e?.type] ? e.type : 'meal',
     }))
     .filter((e) => toNumber(e.amount) > 0)
 
@@ -204,7 +239,7 @@ export function normalizeMileageSubmission(body) {
     return { error: 'Add at least one trip or expense before submitting.' }
   }
 
-  const log = { taxYear, trips, expenses }
+  const log = { taxYear, industry, trips, expenses }
   const r = compute(log)
   return {
     value: {
@@ -213,6 +248,7 @@ export function normalizeMileageSubmission(body) {
       phone,
       notes,
       taxYear,
+      industry,
       log,
       totalMiles: Math.round(r.totalMiles),
       estimatedDeduction: Math.round(r.estimatedDeduction * 100) / 100,

@@ -385,7 +385,7 @@ export const TOOLS = [
     title: 'Mileage & Expense Log',
     short: 'Mileage & Expense Log',
     description:
-      'Log business, charity, and medical mileage plus meals through the year. IRS standard rates apply automatically by trip date; clients keep the log all year and send it in January.',
+      'Log business, charity, and medical mileage plus meals and other expenses through the year. Pick the client’s line of work and each expense is flagged as deductible, limited, for the CPA, or not. IRS standard rates apply by trip date; clients keep the log all year and send it in January.',
   },
   {
     id: 'charitable-donation-log',

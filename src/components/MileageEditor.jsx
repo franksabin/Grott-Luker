@@ -3,21 +3,28 @@ import { Panel, Note, ReportHeader, FeatureBlock, Stat } from './ui.jsx'
 import { money, number } from '../lib/format.js'
 import {
   PURPOSES,
-  EXPENSE_TYPES,
   TAX_YEARS,
   blankTrip,
   blankExpense,
   compute,
   periodsForYear,
+  newId,
 } from '../lib/mileage.js'
+import { INDUSTRIES, CATEGORY_BY_ID, TREATMENTS, industryFor, categoryGroups } from '../lib/expenseGuide.js'
 
 const fmtRate = (r) => `$${r.toFixed(3).replace(/0$/, '')}`
+
+function Flag({ treatment }) {
+  return <span className={`exp-flag ${treatment}`}>{TREATMENTS[treatment].short}</span>
+}
 
 /* ---------------- Editor (inputs) ---------------- */
 
 export function MileageEditor({ log, setLog, className = '' }) {
   const r = compute(log)
   const year = log.taxYear
+  const industry = industryFor(log.industry)
+  const groups = categoryGroups(industry.id)
 
   const updateRow = (key, id, patch) =>
     setLog((l) => ({ ...l, [key]: l[key].map((row) => (row.id === id ? { ...row, ...patch } : row)) }))
@@ -25,6 +32,21 @@ export function MileageEditor({ log, setLog, className = '' }) {
     setLog((l) => ({ ...l, [key]: l[key].length > 1 ? l[key].filter((row) => row.id !== id) : l[key] }))
   const addRow = (key, maker) => setLog((l) => ({ ...l, [key]: [...l[key], maker(year)] }))
   const setYear = (y) => setLog((l) => ({ ...l, taxYear: Number(y) }))
+  const setIndustry = (id) => setLog((l) => ({ ...l, industry: id }))
+
+  // One click from the attention list: a new expense row with the category set
+  // and the item as its description. Reuses a still-blank row if there is one.
+  const addFromGuide = (item, cat) =>
+    setLog((l) => {
+      const blankIdx = l.expenses.findIndex((e) => !e.amount && !e.matter && !e.client)
+      const row = { id: newId(), date: `${l.taxYear}-`, client: '', matter: item, amount: '', type: cat }
+      if (blankIdx >= 0) {
+        const next = [...l.expenses]
+        next[blankIdx] = { ...next[blankIdx], matter: item, type: cat }
+        return { ...l, expenses: next }
+      }
+      return { ...l, expenses: [...l.expenses, row] }
+    })
 
   const periods = periodsForYear(year)
 
@@ -60,6 +82,44 @@ export function MileageEditor({ log, setLog, className = '' }) {
           </div>
           <div className="hint">
             IRS standard rates apply automatically by each trip’s date. Verify against irs.gov every January.
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title="Your line of work">
+        <div className="ind-grid">
+          <div>
+            <label className="field-label" htmlFor="mlog-industry">What kind of work is this log for?</label>
+            <select id="mlog-industry" className="input" value={industry.id} onChange={(e) => setIndustry(e.target.value)}>
+              {INDUSTRIES.map((i) => (
+                <option key={i.id} value={i.id}>{i.label}</option>
+              ))}
+            </select>
+            <div className="hint" style={{ marginTop: 8 }}>
+              Picking your line of work changes the checklist on the right and puts your usual categories first in the expense picker. The rules are general; your CPA decides.
+            </div>
+            <div className="ind-head" style={{ marginTop: 18 }}>Usually not deductible</div>
+            <ul className="ind-watch">
+              {industry.avoid.map(([cat, why]) => (
+                <li key={cat}>
+                  <b>{CATEGORY_BY_ID[cat]?.label.split(':')[0]}</b>
+                  <span>{why}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="ind-head">Pay extra attention to these. Click to add one to the log.</div>
+            <ul className="ind-attn">
+              {industry.attention.map(([item, cat]) => (
+                <li key={item}>
+                  <button type="button" className="ind-add" onClick={() => addFromGuide(item, cat)} title={`Add “${item}” as an expense line`}>
+                    <Plus size={13} /> {item}
+                  </button>
+                  <Flag treatment={CATEGORY_BY_ID[cat].treatment} />
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </Panel>
@@ -131,17 +191,17 @@ export function MileageEditor({ log, setLog, className = '' }) {
         </button>
       </Panel>
 
-      <Panel title="Meals & Entertainment">
+      <Panel title="Expenses">
         <div className="mlog-tablewrap">
-          <table className="data-table mlog-table">
+          <table className="data-table mlog-table exp">
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Client</th>
-                <th>Matter(s) discussed</th>
+                <th>Client / vendor</th>
+                <th>What and why</th>
                 <th className="num">Amount</th>
-                <th>Type</th>
-                <th className="num">Deductible</th>
+                <th>Category</th>
+                <th className="num">Counted</th>
                 <th />
               </tr>
             </thead>
@@ -152,25 +212,30 @@ export function MileageEditor({ log, setLog, className = '' }) {
                     <input className="input" type="date" value={e.date} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(ev) => updateRow('expenses', e.id, { date: ev.target.value })} />
                   </td>
                   <td>
-                    <input className="input" value={e.client} placeholder="Client" onChange={(ev) => updateRow('expenses', e.id, { client: ev.target.value })} />
+                    <input className="input" value={e.client} placeholder="Client or vendor" onChange={(ev) => updateRow('expenses', e.id, { client: ev.target.value })} />
                   </td>
                   <td>
-                    <input className="input" value={e.matter} placeholder="What was discussed" onChange={(ev) => updateRow('expenses', e.id, { matter: ev.target.value })} />
+                    <input className="input" value={e.matter} placeholder="What it was, who was there, why" onChange={(ev) => updateRow('expenses', e.id, { matter: ev.target.value })} />
                   </td>
                   <td className="num">
                     <input className="input num" inputMode="decimal" value={e.amount} placeholder="0.00" onChange={(ev) => updateRow('expenses', e.id, { amount: ev.target.value })} />
                   </td>
                   <td>
-                    <select className="input" value={e.type} onChange={(ev) => updateRow('expenses', e.id, { type: ev.target.value })}>
-                      {EXPENSE_TYPES.map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.label}
-                        </option>
+                    <select className="input cat" value={e.type} onChange={(ev) => updateRow('expenses', e.id, { type: ev.target.value })}>
+                      {groups.map((g) => (
+                        <optgroup key={g.label} label={g.label}>
+                          {g.options.map((x) => (
+                            <option key={x.id} value={x.id}>{x.label}</option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </td>
                   <td className="num">
-                    <strong>{e.counted ? money(e.deductible, 2) : '—'}</strong>
+                    <div className="exp-cell">
+                      <strong>{e.counted ? (e.treatment === 'ask' ? '—' : money(e.deductible, 2)) : '—'}</strong>
+                      <Flag treatment={e.treatment} />
+                    </div>
                   </td>
                   <td className="num">
                     <button type="button" className="mlog-del" aria-label="Remove expense" onClick={() => removeRow('expenses', e.id)}>
@@ -182,8 +247,8 @@ export function MileageEditor({ log, setLog, className = '' }) {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={3}>Total</td>
-                <td className="num">{money(r.mealsTotal + r.entTotal, 2)}</td>
+                <td colSpan={3}>Total logged · counted in the estimate</td>
+                <td className="num">{money(r.expensesTotal, 2)}</td>
                 <td />
                 <td className="num">{money(r.expenseDeductible, 2)}</td>
                 <td />
@@ -195,7 +260,8 @@ export function MileageEditor({ log, setLog, className = '' }) {
           <Plus size={14} /> Add expense
         </button>
         <div className="hint" style={{ marginTop: 10 }}>
-          Business meals are generally 50% deductible; entertainment is generally not deductible. Keep receipts for any single expense of $75 or more.
+          <Flag treatment="ok" /> counted in full · <Flag treatment="limited" /> counted at 50%, or capped · <Flag treatment="ask" /> recorded for your CPA, not counted yet · <Flag treatment="not" /> recorded, not deductible.
+          Keep receipts for any single expense of $75 or more.
         </div>
       </Panel>
     </div>
@@ -212,6 +278,7 @@ function fmtDate(iso, dayOffset = 0) {
 
 export function MileageReport({ log, clientName, dateLabel }) {
   const r = compute(log)
+  const industry = industryFor(log.industry)
   const purposeRows = PURPOSES.map((p) => ({ ...p, ...r.byPurpose[p.id] })).filter((p) => p.miles > 0)
   const today =
     dateLabel ||
@@ -221,14 +288,14 @@ export function MileageReport({ log, clientName, dateLabel }) {
     <section className="report">
       <ReportHeader
         sectionTitle={`Mileage & Expense Log — Tax year ${log.taxYear}`}
-        meta={clientName ? `Prepared for ${clientName}` : 'Year-to-date summary'}
+        meta={`${clientName ? `Prepared for ${clientName} · ` : ''}${industry.label}`}
         metaRight={today}
       />
 
       <FeatureBlock
-        label="Estimated deduction — mileage plus deductible meals"
+        label="Estimated deduction — mileage plus counted expenses"
         value={money(r.estimatedDeduction, 2)}
-        note={`${number(r.totalMiles)} miles across ${r.tripCount} ${r.tripCount === 1 ? 'trip' : 'trips'} · ${r.expenseCount} meal/entertainment ${r.expenseCount === 1 ? 'entry' : 'entries'}`}
+        note={`${number(r.totalMiles)} miles across ${r.tripCount} ${r.tripCount === 1 ? 'trip' : 'trips'} · ${r.expenseCount} expense ${r.expenseCount === 1 ? 'entry' : 'entries'}${r.reviewTotal > 0 ? ` · ${money(r.reviewTotal, 2)} more awaiting CPA review` : ''}`}
       />
 
       <div className="stat-grid" style={{ marginTop: 14 }}>
@@ -238,9 +305,10 @@ export function MileageReport({ log, clientName, dateLabel }) {
       </div>
 
       <div className="stat-grid" style={{ marginTop: 10 }}>
-        <Stat label="Meals logged" value={money(r.mealsTotal, 2)} note="50% generally deductible" />
-        <Stat label="Entertainment logged" value={money(r.entTotal, 2)} note="Generally not deductible" />
-        <Stat label="Deductible meals" value={money(r.expenseDeductible, 2)} feature />
+        <Stat label="Expenses logged" value={money(r.expensesTotal, 2)} note={`${r.expenseCount} ${r.expenseCount === 1 ? 'entry' : 'entries'}`} />
+        <Stat label="Counted in the estimate" value={money(r.expenseDeductible, 2)} note="Deductible and partly deductible" feature />
+        <Stat label="For CPA review" value={money(r.reviewTotal, 2)} note="Equipment, phone, home office, inventory" />
+        <Stat label="Not deductible" value={money(r.excludedTotal, 2)} note="Recorded, counted at zero" />
       </div>
 
       {r.tripCount > 0 ? (
@@ -289,16 +357,17 @@ export function MileageReport({ log, clientName, dateLabel }) {
 
       {r.expenseCount > 0 ? (
         <>
-          <h3 className="report-h3">Meals &amp; Entertainment</h3>
+          <h3 className="report-h3">Expenses</h3>
           <table className="data-table">
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Client</th>
-                <th>Matter(s) discussed</th>
-                <th>Type</th>
+                <th>Client / vendor</th>
+                <th>What and why</th>
+                <th>Category</th>
+                <th>Treatment</th>
                 <th className="num">Amount</th>
-                <th className="num">Deductible</th>
+                <th className="num">Counted</th>
               </tr>
             </thead>
             <tbody>
@@ -309,18 +378,31 @@ export function MileageReport({ log, clientName, dateLabel }) {
                     <td>{e.date || '—'}</td>
                     <td>{e.client || '—'}</td>
                     <td>{e.matter || '—'}</td>
-                    <td>{EXPENSE_TYPES.find((x) => x.id === e.type)?.label}</td>
+                    <td>{e.category.label}</td>
+                    <td><Flag treatment={e.treatment} /></td>
                     <td className="num">{money(e.amountNum, 2)}</td>
-                    <td className="num">{money(e.deductible, 2)}</td>
+                    <td className="num">{e.treatment === 'ask' ? 'review' : money(e.deductible, 2)}</td>
                   </tr>
                 ))}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={5}>Counted in the estimate</td>
+                <td className="num">{money(r.expensesTotal, 2)}</td>
+                <td className="num">{money(r.expenseDeductible, 2)}</td>
+              </tr>
+            </tfoot>
           </table>
         </>
       ) : null}
 
-      <Note title="Substantiation">
-        Deductions depend on documentation, not arithmetic: keep receipts for any single expense of $75 or more, and record the business purpose and who was present. Personal commuting miles are not deductible.
+      <Note title={`Notes for ${industry.label.toLowerCase()}`}>
+        {industry.avoid.map(([cat, why]) => (
+          <div key={cat} style={{ marginBottom: 6 }}>
+            <strong>{CATEGORY_BY_ID[cat]?.label.split(':')[0]}.</strong> {why}
+          </div>
+        ))}
+        <div>Deductions depend on documentation, not arithmetic: keep receipts for any single expense of $75 or more, and record the business purpose and who was present.</div>
       </Note>
       <div className="report-footer">Prepared for discussion with Grott Luker &amp; Co.</div>
     </section>

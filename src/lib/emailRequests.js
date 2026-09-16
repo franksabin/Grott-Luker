@@ -83,11 +83,11 @@ export const EMAIL_REQUESTS = {
   'mileage-log': {
     subject: 'Your mileage and expense log for this year',
     intro:
-      'To make sure you capture every deductible mile and business meal, please keep this log through the year and send it to us in January. It saves on your device as you go and takes one click to submit.',
+      'To make sure you capture every deductible mile and business expense, please keep this log through the year and send it to us in January. Pick your line of work at the top and the log will tell you which expenses are usually deductible, which are limited, and which to leave for us. It saves on your device as you go and takes one click to submit.',
     questions: [
       'Open the link and enter your name and email once',
       'Add each trip as it happens: date, client, destination, and miles; choose Business, Charity, or Medical',
-      'Add business meals with the client and matter discussed; keep receipts for anything $75 or more',
+      'Add expenses as they come up: meals with the client and matter discussed, supplies, dues, software, and anything you are unsure about; keep receipts for anything $75 or more',
       'In January, click Send to Grott Luker & Co. and we will receive the itemized log with totals',
     ],
   },

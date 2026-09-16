@@ -29,9 +29,11 @@ export default function MileageLog() {
   const steps = [
     ...PURPOSES.filter((p) => r.byPurpose[p.id].miles > 0).map((p) => ({ label: `${p.label} miles × rate by trip date`, formula: `${number(r.byPurpose[p.id].miles)} miles; each trip × the IRS rate in effect on its date`, result: money(r.byPurpose[p.id].amount, 2) })),
     { label: 'Mileage deduction', formula: 'sum of purposes above', result: money(r.totalMileage, 2) },
-    { label: 'Meals — 50% deductible', formula: `50% × ${money(r.mealsTotal, 2)}`, result: money(r.mealsTotal * 0.5, 2) },
-    ...(r.entTotal > 0 ? [{ label: 'Entertainment — not deductible', formula: `0% × ${money(r.entTotal, 2)}`, result: money(0, 2) }] : []),
-    { label: 'Estimated deduction', formula: `${money(r.totalMileage, 2)} + ${money(r.expenseDeductible, 2)}`, result: money(r.estimatedDeduction, 2) },
+    ...(r.byTreatment.ok.count ? [{ label: 'Expenses counted in full', formula: `${r.byTreatment.ok.count} ${r.byTreatment.ok.count === 1 ? 'entry' : 'entries'} · supplies, dues, software, and the like`, result: money(r.byTreatment.ok.deductible, 2) }] : []),
+    ...(r.byTreatment.limited.count ? [{ label: 'Partly deductible expenses', formula: `meals at 50% of ${money(r.mealsTotal, 2)}; gifts capped at $25 per recipient`, result: money(r.byTreatment.limited.deductible, 2) }] : []),
+    ...(r.byTreatment.ask.count ? [{ label: 'Recorded for CPA review, not counted', formula: `${r.byTreatment.ask.count} ${r.byTreatment.ask.count === 1 ? 'entry' : 'entries'} · equipment, phone, home office, inventory`, result: money(r.reviewTotal, 2), note: 'Depends on business-use share, cost per item, or exclusive use.' }] : []),
+    ...(r.byTreatment.not.count ? [{ label: 'Not deductible', formula: `${r.byTreatment.not.count} ${r.byTreatment.not.count === 1 ? 'entry' : 'entries'} · entertainment, clothing, commuting, vehicle costs on the mileage method`, result: money(0, 2) }] : []),
+    { label: 'Estimated deduction', formula: `${money(r.totalMileage, 2)} mileage + ${money(r.expenseDeductible, 2)} expenses`, result: money(r.estimatedDeduction, 2) },
   ]
 
   useEffect(() => {
@@ -45,11 +47,11 @@ export default function MileageLog() {
   return (
     <ToolShell
       title="Mileage & Expense Log"
-      subtitle="Log business, charity, and medical mileage plus meals through the year. The IRS standard rate applies automatically by trip date, and the year-end summary prints as a clean log."
+      subtitle="Log business, charity, and medical mileage plus meals and other expenses through the year. Pick the client’s line of work and each expense is flagged as deductible, limited, for the CPA, or not deductible; the IRS standard rate applies by trip date, and the year-end summary prints as a clean log."
       onReset={() => setLog(blankLog(log.taxYear))}
       onSample={() => setLog(sampleLog(2026))}
       steps={steps}
-      disclosure="This log estimates deductions using IRS standard mileage rates and general meal rules. It is not tax advice; deductibility depends on the taxpayer's facts and current law. Review with Grott Luker & Co. before filing."
+      disclosure="This log estimates deductions using IRS standard mileage rates and general expense rules by line of work. It is not tax advice; deductibility depends on the taxpayer's facts and current law. Review with Grott Luker & Co. before filing."
     >
       <MileageEditor log={log} setLog={setLog} className="no-print" />
       <MileageReport log={log} />

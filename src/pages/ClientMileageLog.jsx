@@ -69,6 +69,7 @@ export default function ClientMileageLog() {
         phone: contact.phone,
         notes: contact.notes,
         taxYear: log.taxYear,
+        industry: log.industry,
         trips: log.trips,
         expenses: log.expenses,
       })
@@ -113,7 +114,7 @@ export default function ClientMileageLog() {
       <div className="tool-header">
         <h1>Mileage &amp; Expense Log</h1>
         <p className="tool-sub">
-          Keep track of business, charity, and medical miles plus meals through the year. Everything is saved on this device as you type; when you’re ready — usually in January — send it to Grott Luker &amp; Co. with one click.
+          Keep track of business, charity, and medical miles plus meals and other business expenses through the year. Pick your line of work and the log shows which costs are usually deductible, which are limited, and which to leave for your CPA. Everything is saved on this device as you type; when you’re ready — usually in January — send it to Grott Luker &amp; Co. with one click.
         </p>
       </div>
 
@@ -163,7 +164,7 @@ export default function ClientMileageLog() {
       <MileageReport log={log} clientName={contact.name || undefined} />
 
       <Note title="About this log">
-        Estimates use IRS standard mileage rates by trip date and general meal rules. It is not tax advice — your CPA will review it with your return. Keep receipts for any single expense of $75 or more.
+        Estimates use IRS standard mileage rates by trip date and general expense rules for your line of work. Items marked “For your CPA” are recorded but not counted until your CPA decides. It is not tax advice — your CPA will review it with your return. Keep receipts for any single expense of $75 or more.
       </Note>
     </div>
   )
