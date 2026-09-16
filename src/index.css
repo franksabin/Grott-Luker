@@ -2396,3 +2396,25 @@ button.backlink {
 .review-notes { margin: 8px 0 0; display: grid; gap: 8px; }
 .dev-note { display: inline-flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); max-width: 520px; line-height: 1.35; }
 .dev-note .status-chip { flex: 0 0 auto; }
+/* Poll v2.1: report screenshot per tool + interest ranking */
+.shot { display: block; margin: 12px 0 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-2); position: relative; }
+.shot img { display: block; width: 100%; height: auto; }
+.shot-cap { position: absolute; right: 10px; bottom: 10px; font-size: 12px; color: var(--navy); background: rgba(255,255,255,0.92); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 5px; }
+.shot:hover .shot-cap { background: #fff; }
+.spec-ask textarea { min-height: 0; }
+.rank-list { display: grid; gap: 8px; }
+.rank-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: #fff; cursor: pointer; text-align: left; font: inherit; color: var(--ink); transition: border-color 0.15s ease, background 0.15s ease; }
+.rank-item:hover { border-color: var(--navy-500); }
+.rank-item.on { background: var(--bg-2); border-color: var(--navy); }
+.rank-badge { flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--muted-2); }
+.rank-item.on .rank-badge { background: var(--navy); border: 0; color: #fff; }
+.rank-title { flex: 1; font-size: 14.5px; font-weight: 500; }
+.rank-hint { font-size: 12.5px; color: var(--muted); }
+.rank-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.rank-actions button { font: inherit; font-size: 13px; color: var(--navy-600); background: none; border: 0; cursor: pointer; padding: 0; }
+.interest-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 160px 90px; gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.interest-row:last-child { border-bottom: none; }
+.interest-row .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.interest-n { color: var(--muted-2); font-variant-numeric: tabular-nums; }
+.shot { max-width: 560px; }
+.poll-q-text h3 .rating-dev, .poll-q-text h3 .spec-live { margin-left: 10px; vertical-align: middle; }

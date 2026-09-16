@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ArrowLeft, RotateCcw, Database, FileDown, Mail, Link2, Check, Eye } from 'lucide-react'
 import { timestampNow } from '../lib/format.js'
@@ -22,7 +22,14 @@ export default function ToolShell({
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+
+  // ?sample=1 opens the tool with its sample data loaded (used for the poll
+  // screenshots and handy for sharing a filled-in example).
+  useEffect(() => {
+    if (onSample && new URLSearchParams(search).get('sample') === '1') onSample()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const tool = TOOLS.find((t) => t.path === pathname)
   const emailSpec = tool ? EMAIL_REQUESTS[tool.id] : null
   const clientLink = tool?.clientPath ? `${window.location.origin}${tool.clientPath}` : null

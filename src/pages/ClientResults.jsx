@@ -60,16 +60,16 @@ function PairingPlan({ rows }) {
 
   const copyPlan = async () => {
     const text = plan.cpas
-      .map((c) => `${c.name}${c.firm ? ` (${c.firm})` : ''}\n${c.tools.map((t) => `  - ${t.label}${t.reason === 'volunteered' ? ' — volunteered' : ' — assigned to balance'}`).join('\n')}`)
+      .map((c) => `${c.name}${c.firm ? ` (${c.firm})` : ''}\n${c.tools.map((t) => `  - ${t.label}${t.rank ? ` — their #${t.rank}` : ' — assigned to balance'}`).join('\n')}`)
       .join('\n\n')
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch { /* ignore */ }
   }
 
   return (
-    <Panel title="Suggested pairing — who refines which CPA tool">
+    <Panel title="Suggested pairing — who works on which CPA tool">
       <p className="tally-intro">
-        Each named CPA takes the CPA tools they offered to refine, spread evenly so everyone gets about the same number.
-        Tools nobody volunteered for are dealt out to balance the load. Only the latest response per name counts.
+        Each named CPA takes the CPA tools they ranked highest, spread evenly so everyone gets about the same number.
+        Ties go to whoever has fewer tools; tools nobody ranked are dealt out to balance the load. Only the latest response per name counts.
         {plan.anonymous ? ` ${plan.anonymous} anonymous ${plan.anonymous === 1 ? 'response is' : 'responses are'} left out — ask those CPAs to resubmit with a name.` : ''}
       </p>
       {plan.cpas.length === 0 ? (
@@ -95,7 +95,7 @@ function PairingPlan({ rows }) {
                 {c.tools.map((t) => (
                   <div key={t.id} className={`pair-tool${t.reason === 'assigned' ? ' unrated' : ''}`}>
                     <span className="pair-tool-title">{t.label}</span>
-                    <span className={`dist ${t.reason === 'volunteered' ? 'r4' : 'r0 none'}`}>{t.reason === 'volunteered' ? 'Yes' : '—'}</span>
+                    <span className={`dist ${t.rank ? (t.rank <= 2 ? 'r4' : t.rank <= 4 ? 'r3' : 'r2') : 'r0 none'}`}>{t.rank ? `#${t.rank}` : '—'}</span>
                   </div>
                 ))}
               </div>
@@ -140,8 +140,22 @@ function PollResults({ rows, loading }) {
       </div>
       <PairingPlan rows={rows} />
 
-      <Panel title="CPA tools — what to add, change, or include">
-        <p className="tally-intro">One block per tool: how many said it works as is, who offered to refine it, and every note in the CPA’s own words.</p>
+      <Panel title="Interest — which tools CPAs want to work on">
+        <p className="tally-intro">From the ranking question. Score is the average position, scaled so a unanimous #1 is 100%; "first picks" is how many put the tool at the top.</p>
+        <div>
+          {t.ranking.map((tool, i) => (
+            <div key={tool.id} className="interest-row">
+              <span className="num">{tool.score === null ? '—' : i + 1}</span>
+              <span>{tool.label}{tool.planned ? <span className="rank-hint"> · planned</span> : null}</span>
+              <span className="tally-bar"><i style={{ width: `${tool.score ?? 0}%` }} /></span>
+              <span className="num">{tool.score === null ? 'unranked' : `${tool.score}%`} <span className="interest-n">· {tool.firstPicks.length} first</span></span>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="CPA tools — quick assessments">
+        <p className="tally-intro">One block per tool: how many said it works as is, who ranked it first, and every note in the CPA’s own words.</p>
         {t.cpaTools.map((tool) => (
           <div key={tool.id} className="review-tool">
             <div className="review-tool-head">
@@ -149,7 +163,7 @@ function PollResults({ rows, loading }) {
               <span className="review-meta">
                 {tool.planned ? <span>Planned</span> : <span><b>{tool.asIs}</b> works as is</span>}
                 <span><b>{tool.notes.length}</b> {tool.notes.length === 1 ? 'note' : 'notes'}</span>
-                <span><b>{tool.refine.length}</b> to refine{tool.refine.length ? `: ${tool.refine.map((r) => r.name || 'Anonymous').join(', ')}` : ''}</span>
+                <span><b>{tool.firstPicks.length}</b> first {tool.firstPicks.length === 1 ? 'pick' : 'picks'}{tool.firstPicks.length ? `: ${tool.firstPicks.map((r) => r.name || 'Anonymous').join(', ')}` : ''}</span>
               </span>
             </div>
             {tool.notes.length ? <div className="review-notes"><NoteList notes={tool.notes} empty="" /></div> : null}

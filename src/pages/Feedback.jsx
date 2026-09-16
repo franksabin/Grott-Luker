@@ -15,7 +15,8 @@ function Choice({ checked, onChange, children }) {
   )
 }
 
-function CpaToolReview({ tool, index, notes, asIs, refine, onNotes, onAsIs, onRefine }) {
+function CpaToolReview({ tool, index, notes, asIs, onNotes, onAsIs }) {
+  const openHref = tool.planned ? tool.path : `${tool.path}?sample=1`
   return (
     <Panel>
       <div className="poll-q">
@@ -23,41 +24,68 @@ function CpaToolReview({ tool, index, notes, asIs, refine, onNotes, onAsIs, onRe
         <div className="poll-q-text">
           <h3>
             {tool.label}
-            {tool.planned ? <span className="rating-dev">Planned</span> : tool.status === 'testing' ? <span className="rating-dev">Baseline model</span> : <span className="spec-live">Live</span>}
+            {tool.planned ? <span className="rating-dev">Planned</span> : <span className="rating-dev">Baseline model</span>}
           </h3>
-          <p>{tool.model}</p>
+          <p>{tool.quick}</p>
         </div>
       </div>
-      <div className="spec-grid">
-        <div>
-          <div className="spec-head">Inputs</div>
-          <ul className="spec-list">{tool.inputs.map((x) => <li key={x}>{x}</li>)}</ul>
-        </div>
-        <div>
-          <div className="spec-head">Outputs</div>
-          <ul className="spec-list">{tool.outputs.map((x) => <li key={x}>{x}</li>)}</ul>
-        </div>
-      </div>
+      {tool.shot ? (
+        <a className="shot" href={openHref} target="_blank" rel="noopener noreferrer" title="Open the tool with this sample loaded">
+          <img src={tool.shot} alt={`${tool.label} report with sample data`} loading="lazy" />
+          <span className="shot-cap">Report with sample data · open the tool <ExternalLink size={12} /></span>
+        </a>
+      ) : (
+        <p className="hint" style={{ margin: '6px 0 12px' }}>
+          Not built yet. <Link to={tool.path} target="_blank" rel="noopener noreferrer">Read the plan <ExternalLink size={11} /></Link>
+        </p>
+      )}
       <div className="spec-ask">
         <label className="field-label" htmlFor={`notes-${tool.id}`}>
-          {tool.planned ? 'What should this tool cover when we build it? Anything to add or leave out?' : 'What should be added, changed, or included?'}
+          {tool.planned ? 'Quick take: what should it cover, or leave out?' : 'Quick assessment: what would you add or change?'}
         </label>
         <textarea
           id={`notes-${tool.id}`}
           className="input poll-textarea"
-          rows={3}
+          rows={2}
           maxLength={FEEDBACK_LIMITS.text}
           value={notes}
           onChange={(e) => onNotes(e.target.value)}
-          placeholder={tool.planned ? 'Situations you see, inputs we would need, what the client should walk away with…' : 'Missing inputs, outputs you would want on the page, situations it does not handle, wording…'}
+          placeholder={tool.planned ? 'Situations you see, what the client should walk away with…' : 'A missing input, a number you would want on the page, a case it does not handle…'}
         />
         <div className="spec-checks">
           {!tool.planned ? <Choice checked={asIs} onChange={onAsIs}>Works as is</Choice> : null}
-          <Choice checked={refine} onChange={onRefine}>I’d help refine this one</Choice>
-          <Link to={tool.path} target="_blank" rel="noopener noreferrer" className="spec-open">
-            Open the tool <ExternalLink size={12} />
-          </Link>
         </div>
+      </div>
+    </Panel>
+  )
+}
+
+// Click tools in order of interest; the badge shows the rank. Click again to remove.
+function RankPanel({ order, onChange }) {
+  const pick = (id) => onChange((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
+  return (
+    <Panel>
+      <div className="poll-q">
+        <div className="poll-q-text">
+          <h3>Which tools would you most like to work on?</h3>
+          <p>Everyone has offered to help, so this decides who pairs with what. Click the tools in order of interest: first click is 1, next is 2, and so on. Rank as many or as few as you like.</p>
+        </div>
+      </div>
+      <div className="rank-list">
+        {CPA_TOOLS.map((t) => {
+          const k = order.indexOf(t.id)
+          return (
+            <button type="button" key={t.id} className={`rank-item${k >= 0 ? ' on' : ''}`} onClick={() => pick(t.id)} aria-pressed={k >= 0}>
+              <span className="rank-badge">{k >= 0 ? k + 1 : ''}</span>
+              <span className="rank-title">{t.label}</span>
+              {t.planned ? <span className="rank-hint">planned</span> : null}
+            </button>
+          )
+        })}
+      </div>
+      <div className="rank-actions">
+        <span>{order.length ? `${order.length} of ${CPA_COUNT} ranked` : 'Nothing ranked yet'}</span>
+        {order.length ? <button type="button" onClick={() => onChange([])}>Start over</button> : null}
       </div>
     </Panel>
   )
@@ -68,7 +96,7 @@ export default function Feedback() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
-  const set = (k) => (v) => setA((s) => ({ ...s, [k]: v }))
+  const set = (k) => (v) => setA((s) => ({ ...s, [k]: typeof v === 'function' ? v(s[k]) : v }))
   const setNote = (bag, id) => (v) => setA((s) => ({ ...s, [bag]: { ...s[bag], [id]: v } }))
   const toggleId = (bag, id) => () =>
     setA((s) => ({ ...s, [bag]: s[bag].includes(id) ? s[bag].filter((x) => x !== id) : [...s[bag], id] }))
@@ -107,7 +135,7 @@ export default function Feedback() {
     )
   }
 
-  const answeredTools = CPA_TOOLS.filter((t) => a.toolNotes[t.id] || a.toolAsIs.includes(t.id) || a.toolRefine.includes(t.id)).length
+  const answeredTools = CPA_TOOLS.filter((t) => a.toolNotes[t.id] || a.toolAsIs.includes(t.id)).length
 
   return (
     <div>
@@ -119,10 +147,10 @@ export default function Feedback() {
         <div className="eyebrow-e">CPA review</div>
         <h1>Start with the CPA tools.</h1>
         <p className="tool-sub">
-          These {CPA_COUNT} tools are yours, so they get the close look. For each one we describe
-          what it models, what it takes in, and what it gives back. Tell us what to add,
-          change, or include. Every tool matters, so there is nothing to grade. Then one
-          quick question for each of the other sections. Ten minutes, give or take.
+          These {CPA_COUNT} tools are yours, so they get the close look. Each one below is a
+          sentence and a picture of its report with sample data loaded. Give us a quick
+          assessment, then rank the ones you would most like to work on. After that, one
+          question for each of the other sections. Ten minutes, give or take.
         </p>
       </div>
 
@@ -130,8 +158,8 @@ export default function Feedback() {
         <div className="poll-stage">
           <span className="poll-stage-num">Stage 1</span>
           <div>
-            <h2>The CPA tools, one at a time</h2>
-            <p>Open any tool in a new tab while you read. Skip anything you have not looked at.</p>
+            <h2>The CPA tools</h2>
+            <p>Click any picture to open the tool with the same sample loaded. Skip anything you have not looked at.</p>
           </div>
         </div>
 
@@ -142,13 +170,13 @@ export default function Feedback() {
             index={i}
             notes={a.toolNotes[t.id] || ''}
             asIs={a.toolAsIs.includes(t.id)}
-            refine={a.toolRefine.includes(t.id)}
             onNotes={setNote('toolNotes', t.id)}
             onAsIs={toggleId('toolAsIs', t.id)}
-            onRefine={toggleId('toolRefine', t.id)}
           />
         ))}
-        <div className="poll-counter">{answeredTools} of {CPA_COUNT} CPA tools reviewed</div>
+        <div className="poll-counter">{answeredTools} of {CPA_COUNT} CPA tools assessed</div>
+
+        <RankPanel order={a.toolRank} onChange={set('toolRank')} />
 
         <div className="poll-stage">
           <span className="poll-stage-num">Stage 2</span>
@@ -168,14 +196,14 @@ export default function Feedback() {
             </div>
             <div className="tool-chips">
               {s.tools.map((t) => (
-                <span key={t.id} className={`tool-chip${t.status === 'testing' ? ' dev' : ''}`}>{t.label}</span>
+                <span key={t.id} className="tool-chip">{t.label}</span>
               ))}
             </div>
             <label className="field-label" htmlFor={`sec-${s.id}`}>Anything to add or remove? Other thoughts?</label>
             <textarea
               id={`sec-${s.id}`}
               className="input poll-textarea"
-              rows={3}
+              rows={2}
               maxLength={FEEDBACK_LIMITS.text}
               value={a.sectionNotes[s.id] || ''}
               onChange={(e) => setNote('sectionNotes', s.id)(e.target.value)}
@@ -193,7 +221,7 @@ export default function Feedback() {
           </div>
           <textarea
             className="input poll-textarea"
-            rows={4}
+            rows={3}
             maxLength={FEEDBACK_LIMITS.text}
             value={a.anythingElse}
             onChange={(e) => set('anythingElse')(e.target.value)}
@@ -202,7 +230,7 @@ export default function Feedback() {
         </Panel>
 
         <Panel title="Who's answering">
-          <p className="poll-who-note">Your name lets us pair you with the tools you offered to refine. Email is only for follow-up.</p>
+          <p className="poll-who-note">Your name lets us pair you with the tools you ranked highest. Email is only for follow-up.</p>
           <div className="field-row">
             <Field label="Name" hint="Needed for pairing.">
               <input className="input" type="text" maxLength={FEEDBACK_LIMITS.name} value={a.name} onChange={(e) => set('name')(e.target.value)} />
@@ -226,9 +254,10 @@ export default function Feedback() {
         </div>
 
         <Note title="Why we're asking this way">
-          The CPA tools are the ones you will use in front of clients, so they come first
-          and in detail. The rest of the toolkit only needs a yes, a no, or an idea. Your
-          notes decide what gets added to each tool and what gets built next.
+          The CPA tools are the ones you will use in front of clients, so they come first.
+          Every one of them was rebuilt this week and none has been reviewed yet, which is
+          why each carries the baseline-model mark. Your assessments decide what gets added
+          to each tool; your ranking decides who works on which.
         </Note>
       </div>
     </div>
