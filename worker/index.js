@@ -10,6 +10,8 @@
 //   GET  /api/mileage-logs/:id staff   — one log including all entries
 //   POST /api/donation-logs    public  — a client submits a charitable donation log
 //   GET  /api/donation-logs     staff   — list; GET /api/donation-logs/:id staff — detail
+//   POST /api/feedback         public  — a CPA answers the roadmap poll
+//   GET  /api/feedback          staff   — list all poll answers
 //
 // Staff routes require the `x-cpa-passcode` header to match the CPA_PASSCODE
 // secret. If that secret is not configured the staff routes fail closed, so a
@@ -17,6 +19,7 @@
 import { normalizeSubmission, LIMITS } from '../src/lib/submission.js'
 import { normalizeMileageSubmission, MILEAGE_LIMITS } from '../src/lib/mileage.js'
 import { normalizeDonationSubmission, DONATION_LIMITS } from '../src/lib/donations.js'
+import { normalizeFeedback, FEEDBACK_LIMITS } from '../src/lib/feedback.js'
 
 const LIST_LIMIT = 200
 
@@ -32,6 +35,7 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS idx_mileage_logs_created_at ON mileage_logs (created_at DESC)`,
   `CREATE TABLE IF NOT EXISTS donation_logs (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT, notes TEXT, tax_year INTEGER NOT NULL, log TEXT NOT NULL, total_gifts REAL, estimated_deduction REAL)`,
   `CREATE INDEX IF NOT EXISTS idx_donation_logs_created_at ON donation_logs (created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS feedback (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT, email TEXT, firm TEXT, answers TEXT NOT NULL)`,
 ]
 let schemaReady = null
 function ensureSchema(env) {
@@ -235,6 +239,34 @@ async function handleDonationDetail(env, id) {
   return json({ log: { ...row, log } })
 }
 
+async function handleFeedbackCreate(request, env) {
+  const raw = await request.text()
+  if (raw.length > FEEDBACK_LIMITS.body) return json({ error: 'Submission is too large.' }, 413)
+  let body
+  try {
+    body = JSON.parse(raw)
+  } catch {
+    return json({ error: 'Invalid JSON.' }, 400)
+  }
+  const { value, error } = normalizeFeedback(body)
+  if (error) return json({ error }, 400)
+  const id = crypto.randomUUID()
+  await env.DB.prepare(
+    `INSERT INTO feedback (id, created_at, name, email, firm, answers) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).bind(id, new Date().toISOString(), value.name || null, value.email || null, value.firm || null, JSON.stringify(value)).run()
+  return json({ ok: true, id }, 201)
+}
+
+async function handleFeedbackList(env) {
+  const { results } = await env.DB.prepare(`SELECT * FROM feedback ORDER BY created_at DESC LIMIT ?`).bind(LIST_LIMIT).all()
+  const rows = (results || []).map((r) => {
+    let answers = {}
+    try { answers = JSON.parse(r.answers) } catch { answers = {} }
+    return { id: r.id, created_at: r.created_at, ...answers, name: r.name || '', email: r.email || '', firm: r.firm || '' }
+  })
+  return json({ rows })
+}
+
 // Anonymous usage ping. Accepts { tool_id } and records a timestamp. No PII.
 async function handleUsage(request, env) {
   let body
@@ -306,6 +338,15 @@ export default {
         if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405)
         if (!isStaff(request, env)) return json({ error: 'Unauthorized.' }, 401)
         return await handleDonationDetail(env, decodeURIComponent(ddetail[1]))
+      }
+
+      if (pathname === '/api/feedback') {
+        if (request.method === 'POST') return await handleFeedbackCreate(request, env)
+        if (request.method === 'GET') {
+          if (!isStaff(request, env)) return json({ error: 'Unauthorized.' }, 401)
+          return await handleFeedbackList(env)
+        }
+        return json({ error: 'Method not allowed.' }, 405)
       }
 
       if (pathname === '/api/usage') {

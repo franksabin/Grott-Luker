@@ -161,6 +161,11 @@ export default function Dashboard() {
       </section>
 
       <div className="dash-bar">
+        <Link to="/feedback" className="poll-cta">
+          <span className="poll-cta-tag">Beta</span>
+          Tell us what to finish or build next — a two-minute poll
+          <ArrowRight size={14} />
+        </Link>
         <div className="dash-bar-right">
           <label className="dev-toggle">
           <span>Show in-development tools</span>

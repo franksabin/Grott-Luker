@@ -2144,7 +2144,7 @@ button.backlink {
   .hero-e-visual { display: none; }
 }
 
-.dash .dash-bar { justify-content: flex-end; }
+.dash .dash-bar { justify-content: space-between; }
 
 .dash .disclosure-box { margin-top: 40px; }
 
@@ -2170,4 +2170,66 @@ button.backlink {
 @media (max-width: 480px) {
   .hero-e h1 { font-size: 33px; }
   .hero-e p { font-size: 16px; }
+}
+
+/* ------- CPA roadmap poll ------- */
+.poll-cta {
+  display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 600; color: var(--navy);
+  padding: 8px 14px 8px 8px; border-radius: 999px; border: 1px solid #ddd7c8; background: #fff; text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.poll-cta:hover { text-decoration: none; border-color: var(--navy); box-shadow: 0 8px 20px -12px rgba(19, 31, 56, 0.35); }
+.poll-cta-tag {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: #a5533c; background: #f7e9e3; padding: 4px 9px; border-radius: 20px;
+}
+.poll { display: flex; flex-direction: column; gap: 16px; max-width: 860px; }
+.poll-q { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+.poll-num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; color: #c4a054; padding-top: 5px; letter-spacing: 0.06em; }
+.poll-q-text h3 { font-size: 18px; margin: 0 0 4px; }
+.poll-q-text p { margin: 0; font-size: 13.5px; color: var(--muted); }
+.choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.choice {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #ddd7c8; border-radius: 10px;
+  background: #fff; font-size: 14px; cursor: pointer; transition: border-color 0.12s, background 0.12s; min-width: 0; position: relative;
+}
+.choice input { position: absolute; opacity: 0; width: 0; height: 0; }
+.choice-box {
+  width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid #b9b2a3; display: inline-flex; align-items: center;
+  justify-content: center; color: #fff; flex-shrink: 0; background: #fff;
+}
+.choice.on { border-color: var(--navy); background: #f3f6fb; }
+.choice.on .choice-box { background: var(--navy); border-color: var(--navy); }
+.choice.off { opacity: 0.5; cursor: not-allowed; }
+.choice:hover:not(.off) { border-color: var(--navy-500); }
+.poll-counter { margin-top: 10px; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px; color: var(--muted); letter-spacing: 0.06em; }
+.poll-other { margin-top: 10px; width: 100%; }
+.poll-textarea { width: 100%; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.5; padding: 10px 12px; }
+.poll-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.poll-actions-note { font-size: 12.5px; color: var(--muted); }
+.poll-thanks { max-width: 560px; margin: 40px auto; text-align: center; }
+.poll-thanks-mark {
+  width: 56px; height: 56px; border-radius: 50%; background: #e7f1ea; color: #3e8158; display: inline-flex; align-items: center;
+  justify-content: center; margin-bottom: 18px;
+}
+.poll-thanks h1 { font-size: 34px; margin: 0 0 12px; }
+.poll-thanks p { color: var(--ink-soft); font-size: 16px; line-height: 1.65; margin: 0 0 24px; }
+.poll-results { display: flex; flex-direction: column; gap: 16px; }
+.poll-results-head { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+.tally { display: flex; flex-direction: column; gap: 8px; }
+.tally-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 36px; gap: 14px; align-items: center; font-size: 14px; }
+.tally-row.zero { color: var(--muted); }
+.tally-bar { height: 10px; background: var(--bg-2); border-radius: 5px; overflow: hidden; }
+.tally-bar i { display: block; height: 100%; background: linear-gradient(90deg, #0f2440 0%, #3868a5 100%); border-radius: 5px; }
+.tally-n { text-align: right; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+.tally-empty { color: var(--muted); font-size: 14px; margin: 0; }
+.quotes { display: flex; flex-direction: column; gap: 14px; }
+.quote { padding: 14px 16px; border-left: 3px solid #c4a054; background: #faf8f2; border-radius: 0 10px 10px 0; }
+.quote p { margin: 0 0 6px; font-size: 14.5px; line-height: 1.6; }
+.quote-meta { font-size: 12px; color: var(--muted); }
+@media (max-width: 640px) {
+  .choice-grid { grid-template-columns: 1fr; }
+  .tally-row { grid-template-columns: minmax(0, 1fr) 36px; }
+  .tally-bar { display: none; }
+  .poll-cta { font-size: 12.5px; }
 }

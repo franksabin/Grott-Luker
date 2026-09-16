@@ -33,6 +33,7 @@ import ClientKnowYourNumbers from './pages/ClientKnowYourNumbers.jsx'
 import ClientResults from './pages/ClientResults.jsx'
 import ClientMileageLog from './pages/ClientMileageLog.jsx'
 import ClientDonationLog from './pages/ClientDonationLog.jsx'
+import Feedback from './pages/Feedback.jsx'
 
 export default function App() {
   return (
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="tools/charitable-donation-log" element={<DonationLog />} />
         {/* Submissions from clients */}
         <Route path="client-results" element={<ClientResults />} />
+        <Route path="feedback" element={<Feedback />} />
       </Route>
 
       {/* Public, client-facing — no links back into the toolkit */}

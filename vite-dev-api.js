@@ -12,6 +12,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { normalizeSubmission, LIMITS } from './src/lib/submission.js'
 import { normalizeMileageSubmission, MILEAGE_LIMITS } from './src/lib/mileage.js'
 import { normalizeDonationSubmission, DONATION_LIMITS } from './src/lib/donations.js'
+import { normalizeFeedback, FEEDBACK_LIMITS } from './src/lib/feedback.js'
 
 const DATA_DIR = '.dev-data'
 const DB_FILE = 'snapshots.db'
@@ -214,6 +215,27 @@ export default function devApi() {
             let log = null
             try { log = JSON.parse(row.log) } catch { log = null }
             return send(res, 200, { log: { ...row, log } })
+          }
+          if (route === '/feedback' && req.method === 'POST') {
+            const { raw, tooLarge } = await readBody(req, FEEDBACK_LIMITS.body)
+            if (tooLarge) return send(res, 413, { error: 'Submission is too large.' })
+            let body
+            try { body = JSON.parse(raw) } catch { return send(res, 400, { error: 'Invalid JSON.' }) }
+            const { value, error } = normalizeFeedback(body)
+            if (error) return send(res, 400, { error })
+            const id = crypto.randomUUID()
+            db.prepare(`INSERT INTO feedback (id, created_at, name, email, firm, answers) VALUES (?, ?, ?, ?, ?, ?)`)
+              .run(id, new Date().toISOString(), value.name || null, value.email || null, value.firm || null, JSON.stringify(value))
+            return send(res, 201, { ok: true, id })
+          }
+          if (route === '/feedback' && req.method === 'GET') {
+            if (!isStaff(req)) return send(res, 401, { error: 'Unauthorized.' })
+            const rows = db.prepare(`SELECT * FROM feedback ORDER BY created_at DESC LIMIT ?`).all(LIST_LIMIT).map((r) => {
+              let answers = {}
+              try { answers = JSON.parse(r.answers) } catch { answers = {} }
+              return { id: r.id, created_at: r.created_at, ...answers, name: r.name || '', email: r.email || '', firm: r.firm || '' }
+            })
+            return send(res, 200, { rows })
           }
           if (route === '/usage' && req.method === 'POST') {
             const { raw } = await readBody(req)

@@ -61,3 +61,13 @@ CREATE TABLE IF NOT EXISTS donation_logs (
   estimated_deduction  REAL
 );
 CREATE INDEX IF NOT EXISTS idx_donation_logs_created_at ON donation_logs (created_at DESC);
+
+-- CPA roadmap poll answers (beta). `answers` is the validated JSON blob.
+CREATE TABLE IF NOT EXISTS feedback (
+  id          TEXT PRIMARY KEY,
+  created_at  TEXT NOT NULL,
+  name        TEXT,
+  email       TEXT,
+  firm        TEXT,
+  answers     TEXT NOT NULL
+);

@@ -109,6 +109,14 @@ export function getMileageLog(id, passcode) {
   return request(`/mileage-logs/${encodeURIComponent(id)}`, { passcode })
 }
 
+// ---------------- CPA roadmap poll ----------------
+export function submitFeedback(answers) {
+  return request('/feedback', { method: 'POST', body: answers })
+}
+export function listFeedback(passcode) {
+  return request('/feedback', { passcode })
+}
+
 // ---------------- Charitable Donation Log ----------------
 export function submitDonationLog({ name, email, phone, notes, taxYear, gifts }) {
   return request('/donation-logs', { method: 'POST', body: { name, email, phone, notes, taxYear, gifts } })

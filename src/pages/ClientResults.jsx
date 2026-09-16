@@ -22,17 +22,20 @@ import {
   getMileageLog,
   listDonationLogs,
   getDonationLog,
+  listFeedback,
   getPasscode,
   setPasscode as persistPasscode,
   clearPasscode,
 } from '../lib/api.js'
 import { money, number } from '../lib/format.js'
 import { compute } from '../lib/knowYourNumbers.js'
+import { QUESTIONS, tally } from '../lib/feedback.js'
 
 const TABS = {
   kyn: { label: 'Know Your Numbers', clientPath: '/client/know-your-numbers' },
   mileage: { label: 'Mileage & Expense Logs', clientPath: '/client/mileage-log' },
   donations: { label: 'Donation Logs', clientPath: '/client/charitable-donation-log' },
+  poll: { label: 'CPA Poll', clientPath: '/feedback' },
 }
 
 function formatWhen(iso) {
@@ -45,6 +48,50 @@ function formatWhen(iso) {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+/* CPA roadmap poll tallies. */
+function PollResults({ rows, loading }) {
+  if (loading && rows.length === 0) {
+    return <Panel><div className="empty-state"><Loader2 size={22} className="spin" /><p>Loading answers…</p></div></Panel>
+  }
+  if (rows.length === 0) {
+    return <Panel><div className="empty-state"><Inbox size={26} strokeWidth={1.5} /><p>No poll answers yet. Send CPAs the link with <strong>Copy client link</strong> above.</p></div></Panel>
+  }
+  const t = tally(rows)
+  return (
+    <div className="poll-results">
+      <div className="poll-results-head">{t.n} {t.n === 1 ? 'response' : 'responses'} · latest {formatWhen(rows[0].created_at)}</div>
+      {QUESTIONS.filter((q) => q.options).map((q) => (
+        <Panel key={q.id} title={q.title}>
+          <div className="tally">
+            {t.counts[q.id].map((o) => (
+              <div key={o.id} className={`tally-row${o.count === 0 ? ' zero' : ''}`}>
+                <span className="tally-label">{o.label}</span>
+                <span className="tally-bar"><i style={{ width: `${t.n ? (o.count / t.n) * 100 : 0}%` }} /></span>
+                <span className="tally-n">{o.count}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ))}
+      <Panel title="In their words">
+        {t.text.length === 0 ? (
+          <p className="tally-empty">No written comments yet.</p>
+        ) : (
+          <div className="quotes">
+            {t.text.map((r) => (
+              <div key={r.id} className="quote">
+                {r.otherIdea ? <p><strong>Idea:</strong> {r.otherIdea}</p> : null}
+                {r.blockers ? <p>{r.blockers}</p> : null}
+                <div className="quote-meta">{r.name || 'Anonymous'}{r.firm ? ` · ${r.firm}` : ''} · {formatWhen(r.created_at)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+    </div>
+  )
 }
 
 /* Passcode gate. */
@@ -102,6 +149,7 @@ export default function ClientResults() {
   const [rows, setRows] = useState([])
   const [logRows, setLogRows] = useState([])
   const [donRows, setDonRows] = useState([])
+  const [pollRows, setPollRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [listError, setListError] = useState('')
 
@@ -115,10 +163,11 @@ export default function ClientResults() {
     setLoading(true)
     setListError('')
     try {
-      const [data, logs, dons] = await Promise.all([listSnapshots(code), listMileageLogs(code), listDonationLogs(code)])
+      const [data, logs, dons, poll] = await Promise.all([listSnapshots(code), listMileageLogs(code), listDonationLogs(code), listFeedback(code)])
       setRows(data?.snapshots || [])
       setLogRows(logs?.logs || [])
       setDonRows(dons?.logs || [])
+      setPollRows(poll?.rows || [])
       return true
     } catch (err) {
       if (err?.status === 401) {
@@ -162,6 +211,8 @@ export default function ClientResults() {
         setLogRows(logs?.logs || [])
         const dons = await listDonationLogs(code)
         setDonRows(dons?.logs || [])
+        const poll = await listFeedback(code)
+        setPollRows(poll?.rows || [])
       } catch {
         /* mileage table may not exist yet on an un-migrated deployment */
       }
@@ -374,7 +425,7 @@ export default function ClientResults() {
             className={`seg-btn${tab === id ? ' on' : ''}`}
             onClick={() => setTab(id)}
           >
-            {t.label} <small>{id === 'kyn' ? rows.length : id === 'mileage' ? logRows.length : donRows.length}</small>
+            {t.label} <small>{id === 'kyn' ? rows.length : id === 'mileage' ? logRows.length : id === 'donations' ? donRows.length : pollRows.length}</small>
           </button>
         ))}
       </div>
@@ -404,7 +455,9 @@ export default function ClientResults() {
 
       {listError ? <div className="form-error no-print">{listError}</div> : null}
 
-      {tab === 'donations' ? (
+      {tab === 'poll' ? (
+        <PollResults rows={pollRows} loading={loading} />
+      ) : tab === 'donations' ? (
         <Panel>
           {loading && donRows.length === 0 ? (
             <div className="empty-state"><Loader2 size={22} className="spin" /><p>Loading submissions…</p></div>
