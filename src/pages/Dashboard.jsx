@@ -180,91 +180,58 @@ export default function Dashboard() {
         return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} />
       })}
 
-      <div className="section-divider" aria-hidden="true">
-        <span className="section-divider-mark">✳</span>
-      </div>
-      <div className="dash-bottom">
-        <div className="dash-note">
-          <div className="section-eyebrow">A note to Grott Luker CPAs</div>
-          <h3>Happy to help with any question.</h3>
-          <p>
-            Email, call, or text. We want this toolkit to be as good as it can
-            be, so if a number looks off, a tool is missing something, or a
-            client situation deserves a second look — send it over.
-          </p>
-          <p>
-            Introductions are welcome too, but never required. It's simply good
-            for us to be front of mind; the right opportunities tend to find
-            their way.
-          </p>
-          <div className="contacts">
-            <div className="contact">
-              <div className="contact-who">
-                <img src="/brand/frank-sabin.png" alt="Frank Sabin" />
-                <div>
-                  <b>Frank Sabin, CFA</b>
-                  <span>Chief Investment Officer</span>
+      <div className="sbs-wrap">
+          <div className="sbs">
+            <div className="sbs-note">
+              <div className="eyebrow-e">A note to Grott Luker CPAs</div>
+              <h3>Happy to help with any question.</h3>
+              <p>
+                Email, call, or text. We want this toolkit to be as good as it can
+                be, so if a number looks off, a tool is missing something, or a
+                client situation deserves a second look — send it over.
+              </p>
+              <p>
+                Introductions are welcome too, but never required. It's simply good
+                for us to be front of mind; the right opportunities tend to find
+                their way.
+              </p>
+              <div className="contacts">
+                <div className="contact">
+                  <div className="contact-who">
+                    <img src="/brand/frank-sabin.png" alt="Frank Sabin" />
+                    <div><b>Frank Sabin, CFA</b><span>Chief Investment Officer</span></div>
+                  </div>
+                  <a href="mailto:fsabin@blueline-advisors.com"><Mail size={13} /> fsabin@blueline-advisors.com</a>
+                  <a href="tel:+16036860364"><Phone size={13} /> 603-686-0364 · call or text</a>
+                </div>
+                <div className="contact">
+                  <div className="contact-who">
+                    <img src="/brand/jenn-young.png" alt="Jennifer Young" />
+                    <div><b>Jennifer Young</b><span>Operations Manager</span></div>
+                  </div>
+                  <a href="mailto:jyoung@blueline-advisors.com"><Mail size={13} /> jyoung@blueline-advisors.com</a>
+                  <a href="tel:+16037707887"><Phone size={13} /> 603-770-7887 · call or text</a>
                 </div>
               </div>
-              <a href="mailto:fsabin@blueline-advisors.com">
-                <Mail size={13} /> fsabin@blueline-advisors.com
-              </a>
-              <a href="tel:+16036860364">
-                <Phone size={13} /> 603-686-0364 · call or text
-              </a>
             </div>
-            <div className="contact">
-              <div className="contact-who">
-                <img src="/brand/jenn-young.png" alt="Jennifer Young" />
-                <div>
-                  <b>Jennifer Young</b>
-                  <span>Operations Manager</span>
-                </div>
+            <div className="sbs-about">
+              <div className="eyebrow-e">About BlueLine</div>
+              <h3>Collaborative. Analytical. Custom.</h3>
+              <p>
+                That's how these tools were built, and it's how we work with the
+                CPAs and clients who use them. Independent, SEC-registered, and
+                planning-first — based in Exeter, NH.
+              </p>
+              <div className="who-label">Who we serve</div>
+              <div className="who-chips">
+                {['Retirement Plans – Cash Balance & 401(k)', 'Business owners', 'Individuals & families', 'Divorce & major transitions', 'Pre-retirees & retirees', 'Executives & professionals'].map((w) => (
+                  <span key={w} className="who-chip">{w}</span>
+                ))}
               </div>
-              <a href="mailto:jyoung@blueline-advisors.com">
-                <Mail size={13} /> jyoung@blueline-advisors.com
-              </a>
-              <a href="tel:+16037707887">
-                <Phone size={13} /> 603-770-7887 · call or text
-              </a>
+              <a className="about-link" href="https://www.blueline-advisors.com" target="_blank" rel="noopener noreferrer">blueline-advisors.com ↗</a>
             </div>
           </div>
         </div>
-
-        <div className="dash-about">
-          <div className="section-eyebrow">About BlueLine</div>
-          <h3>Collaborative. Analytical. Custom.</h3>
-          <p>
-            That's how these tools were built, and it's how we work with the
-            CPAs and clients who use them. Independent, SEC-registered, and
-            planning-first — based in Exeter, NH.
-          </p>
-          <div className="who-label">Who we serve</div>
-          <div className="who-chips">
-            {[
-              'Retirement Plans – Cash Balance & 401(k)',
-              'Business owners',
-              'Individuals & families',
-              'Divorce & major transitions',
-              'Pre-retirees & retirees',
-              'Executives & professionals',
-            ].map((w) => (
-              <span key={w} className="who-chip">
-                {w}
-              </span>
-            ))}
-          </div>
-          <a
-            className="about-link"
-            href="https://www.blueline-advisors.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            blueline-advisors.com ↗
-          </a>
-        </div>
-      </div>
-
       <div className="disclosure-box">
         <strong>How this works:</strong> BlueLine builds, maintains, and brands
         the BlueLine planning tools — reports carry BlueLine's name alongside
