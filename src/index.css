@@ -2288,3 +2288,22 @@ button.backlink {
   .rank-row { grid-template-columns: 28px minmax(0, 1fr) 90px; }
   .rank-row .num, .rank-dist { display: none; }
 }
+
+/* ------- Poll: pairing plan ------- */
+.poll-who-note { margin: -4px 0 14px; font-size: 13.5px; color: var(--muted); }
+.pair-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.pair-cap { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.pair-cap .input { width: 72px; padding: 6px 10px; }
+.pair-note { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+.pair-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.pair-col { border: 1px solid #ddd7c8; border-radius: 12px; overflow: hidden; background: #fff; }
+.pair-head { padding: 12px 14px; background: var(--navy-900); color: #fff; }
+.pair-name { font-family: var(--font-serif); font-size: 16px; }
+.pair-firm { font-size: 11.5px; opacity: 0.7; }
+.pair-count { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; margin-top: 4px; }
+.pair-tool { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 14px; border-top: 1px solid #efeae0; font-size: 13.5px; }
+.pair-tool.unrated { color: var(--muted); }
+.pair-tool-title { min-width: 0; }
+.dist.none { background: #e9e5d8; color: var(--muted); }
+
+.pair-tool .dist { flex-shrink: 0; min-width: 44px; }

@@ -129,7 +129,8 @@ export default function Feedback() {
           This is a brand-new experiment, and we want to know which of these{' '}
           {TOOL_COUNT} tools would actually earn a place in your practice. Rate the ones
           you have an opinion on, skip the rest, and tell us what's missing.
-          Nothing is required; name and email are optional.
+          Then we'd like to pair each of you with a handful of the tools you rated
+          highest and refine them together, one on one — so please include your name.
         </p>
       </div>
 
@@ -193,9 +194,10 @@ export default function Feedback() {
           </Panel>
         ))}
 
-        <Panel title="Optional — who's answering">
+        <Panel title="Who's answering">
+          <p className="poll-who-note">Your name lets us pair you with the tools you rated highest. Email is only for follow-up.</p>
           <div className="field-row">
-            <Field label="Name">
+            <Field label="Name" hint="Needed for pairing.">
               <input className="input" type="text" maxLength={FEEDBACK_LIMITS.name} value={a.name} onChange={(e) => set('name')(e.target.value)} />
             </Field>
             <Field label="Email" hint="Only if you'd like a reply.">

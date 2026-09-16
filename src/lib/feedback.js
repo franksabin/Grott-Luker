@@ -176,3 +176,56 @@ export function tally(rows) {
     .map((r) => ({ id: r.id, created_at: r.created_at, name: r.name, firm: r.firm, otherIdea: r.otherIdea }))
   return { n, counts, tools, text }
 }
+
+// ---------------------------------------------------------------------------
+// Pairing: give each named CPA a set of tools to refine 1:1, favouring the
+// tools they rated highest, with a cap per CPA so the work is spread evenly.
+//
+// Greedy by strength of preference: every (CPA, tool, rating) is sorted by
+// rating, then a tool goes to the first CPA in that order who still has room.
+// Ties go to the CPA with fewer tools so far. Tools nobody rated are dealt to
+// whoever has the most room. Only the latest response per name is used;
+// anonymous responses cannot be paired.
+// ---------------------------------------------------------------------------
+export function pairing(rows, perCpa) {
+  const byName = new Map()
+  for (const r of [...rows].sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) {
+    const key = (r.name || '').trim().toLowerCase()
+    if (!key) continue
+    byName.set(key, r) // later rows overwrite earlier ones → latest wins
+  }
+  const cpas = [...byName.values()].map((r) => ({ id: r.id, name: r.name.trim(), firm: r.firm || '', ratings: r.toolInterest || {}, tools: [] }))
+  const anonymous = rows.length - rows.filter((r) => (r.name || '').trim()).length
+  if (cpas.length === 0) return { cpas, anonymous, cap: 0, unassigned: RATED_TOOLS.map((t) => t.id) }
+
+  const cap = Math.max(1, perCpa || Math.ceil(RATED_TOOLS.length / cpas.length))
+  const prefs = []
+  for (const c of cpas) {
+    for (const t of RATED_TOOLS) {
+      const v = c.ratings[t.id]
+      if (Number.isInteger(v)) prefs.push({ cpa: c, tool: t, rating: v })
+    }
+  }
+  prefs.sort((a, b) => b.rating - a.rating)
+
+  const taken = new Set()
+  for (const p of prefs) {
+    if (taken.has(p.tool.id)) continue
+    // Among CPAs who gave this tool the same top rating, prefer the one with fewer tools.
+    const same = prefs.filter((q) => q.tool.id === p.tool.id && q.rating === p.rating && q.cpa.tools.length < cap)
+    if (!same.length) continue
+    const pick = same.reduce((a, b) => (b.cpa.tools.length < a.cpa.tools.length ? b : a))
+    pick.cpa.tools.push({ ...p.tool, rating: p.rating, reason: 'rated' })
+    taken.add(p.tool.id)
+  }
+  // Deal the leftovers to whoever has the most room.
+  const leftovers = RATED_TOOLS.filter((t) => !taken.has(t.id))
+  const unassigned = []
+  for (const t of leftovers) {
+    const open = cpas.filter((c) => c.tools.length < cap)
+    if (!open.length) { unassigned.push(t.id); continue }
+    const c = open.reduce((a, b) => (b.tools.length < a.tools.length ? b : a))
+    c.tools.push({ ...t, rating: null, reason: 'unrated' })
+  }
+  return { cpas, anonymous, cap, unassigned }
+}

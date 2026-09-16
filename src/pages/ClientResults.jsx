@@ -29,7 +29,7 @@ import {
 } from '../lib/api.js'
 import { money, number } from '../lib/format.js'
 import { compute } from '../lib/knowYourNumbers.js'
-import { QUESTIONS, RATINGS, tally } from '../lib/feedback.js'
+import { QUESTIONS, RATINGS, RATED_TOOLS, tally, pairing } from '../lib/feedback.js'
 
 const TABS = {
   kyn: { label: 'Know Your Numbers', clientPath: '/client/know-your-numbers' },
@@ -51,6 +51,65 @@ function formatWhen(iso) {
 }
 
 /* CPA roadmap poll tallies. */
+function PairingPlan({ rows }) {
+  const [perCpa, setPerCpa] = useState('')
+  const [copied, setCopied] = useState(false)
+  const named = new Set(rows.map((r) => (r.name || '').trim().toLowerCase()).filter(Boolean)).size
+  const defaultCap = named ? Math.ceil(RATED_TOOLS.length / named) : 0
+  const plan = pairing(rows, Number(perCpa) || defaultCap)
+
+  const copyPlan = async () => {
+    const text = plan.cpas
+      .map((c) => `${c.name}${c.firm ? ` (${c.firm})` : ''}\n${c.tools.map((t) => `  - ${t.label}${t.rating !== null ? ` — rated ${RATINGS[t.rating].label}` : ' — not rated; assigned to balance'}`).join('\n')}`)
+      .join('\n\n')
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch { /* ignore */ }
+  }
+
+  return (
+    <Panel title="Suggested pairing — who refines what">
+      <p className="tally-intro">
+        Each named CPA is matched to the tools they rated highest, spread evenly so everyone gets about the same number.
+        Ties go to whoever has fewer tools; tools nobody rated are dealt out to balance the load. Only the latest response
+        per name counts.{plan.anonymous ? ` ${plan.anonymous} anonymous ${plan.anonymous === 1 ? 'response is' : 'responses are'} left out — ask those CPAs to resubmit with a name.` : ''}
+      </p>
+      {plan.cpas.length === 0 ? (
+        <p className="tally-empty">No named responses yet. Pairing needs a name on the poll.</p>
+      ) : (
+        <>
+          <div className="pair-controls">
+            <label className="pair-cap">
+              Tools per CPA
+              <input className="input" type="number" min="1" max={RATED_TOOLS.length} value={perCpa} placeholder={String(defaultCap)} onChange={(e) => setPerCpa(e.target.value)} />
+            </label>
+            <span className="pair-note">{plan.cpas.length} CPAs · {RATED_TOOLS.length} tools · cap {plan.cap} each{plan.unassigned.length ? ` · ${plan.unassigned.length} left over` : ''}</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={copyPlan}>{copied ? <Check size={14} /> : <Link2 size={14} />} {copied ? 'Copied' : 'Copy plan'}</button>
+          </div>
+          <div className="pair-grid">
+            {plan.cpas.map((c) => (
+              <div key={c.id} className="pair-col">
+                <div className="pair-head">
+                  <div className="pair-name">{c.name}</div>
+                  {c.firm ? <div className="pair-firm">{c.firm}</div> : null}
+                  <div className="pair-count">{c.tools.length} {c.tools.length === 1 ? 'tool' : 'tools'}</div>
+                </div>
+                {c.tools.map((t) => (
+                  <div key={t.id} className={`pair-tool${t.reason === 'unrated' ? ' unrated' : ''}`}>
+                    <span className="pair-tool-title">{t.label}</span>
+                    <span className={`dist r${t.rating ?? 0}${t.rating === null ? ' none' : ''}`}>{t.rating === null ? '—' : RATINGS[t.rating].short}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          {plan.unassigned.length ? (
+            <p className="tally-empty" style={{ marginTop: 12 }}>Not assigned (raise the cap to include): {plan.unassigned.map((id) => RATED_TOOLS.find((t) => t.id === id)?.label).join(' · ')}</p>
+          ) : null}
+        </>
+      )}
+    </Panel>
+  )
+}
+
 function PollResults({ rows, loading }) {
   if (loading && rows.length === 0) {
     return <Panel><div className="empty-state"><Loader2 size={22} className="spin" /><p>Loading answers…</p></div></Panel>
@@ -62,6 +121,7 @@ function PollResults({ rows, loading }) {
   return (
     <div className="poll-results">
       <div className="poll-results-head">{t.n} {t.n === 1 ? 'response' : 'responses'} · latest {formatWhen(rows[0].created_at)}</div>
+      <PairingPlan rows={rows} />
       <Panel title="Tool interest — ranked">
         <p className="tally-intro">
           Score is the average rating on a five-point scale (Not useful → Must have), shown as a percentage of the maximum,
