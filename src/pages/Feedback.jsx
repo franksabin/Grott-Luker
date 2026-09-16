@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Check, Loader2, Send } from 'lucide-react'
 import { Panel, Field, Note } from '../components/ui.jsx'
-import { QUESTIONS, blankAnswers, FEEDBACK_LIMITS } from '../lib/feedback.js'
+import { QUESTIONS, RATINGS, blankAnswers, FEEDBACK_LIMITS } from '../lib/feedback.js'
 import { submitFeedback } from '../lib/api.js'
 
 function Choice({ type, checked, disabled, onChange, children }) {
@@ -15,12 +15,65 @@ function Choice({ type, checked, disabled, onChange, children }) {
   )
 }
 
+function RatingGrid({ q, value, onRate }) {
+  const rated = Object.keys(value).length
+  let lastGroup = null
+  return (
+    <div className="rating">
+      <div className="rating-legend">
+        <span />
+        {RATINGS.map((r) => <span key={r.id}>{r.label}</span>)}
+      </div>
+      {q.options.map((t) => {
+        const head = t.group !== lastGroup ? <div className="rating-group" key={`g-${t.group}`}>{t.groupTitle}</div> : null
+        lastGroup = t.group
+        return (
+          <div key={t.id} style={{ display: 'contents' }}>
+            {head}
+            <div className={`rating-row${value[t.id] !== undefined ? ' rated' : ''}`}>
+              <div className="rating-tool">
+                <span className="rating-title">{t.label}</span>
+                {t.status === 'testing' ? <span className="rating-dev">In development</span> : null}
+              </div>
+              <div className="rating-opts" role="radiogroup" aria-label={t.label}>
+                {RATINGS.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={value[t.id] === r.id}
+                    className={`rating-btn r${r.id}${value[t.id] === r.id ? ' on' : ''}`}
+                    onClick={() => onRate(t.id, value[t.id] === r.id ? undefined : r.id)}
+                    title={r.label}
+                  >
+                    <span className="rating-btn-long">{r.label}</span>
+                    <span className="rating-btn-short">{r.short}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+      <div className="poll-counter">{rated} of {q.options.length} tools rated</div>
+    </div>
+  )
+}
+
 export default function Feedback() {
   const [a, setA] = useState(blankAnswers)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
   const set = (k) => (v) => setA((s) => ({ ...s, [k]: v }))
+
+  const rate = (toolId, v) =>
+    setA((s) => {
+      const next = { ...s.toolInterest }
+      if (v === undefined) delete next[toolId]
+      else next[toolId] = v
+      return { ...s, toolInterest: next }
+    })
 
   const toggle = (q, id) => {
     const cur = a[q.id]
@@ -73,9 +126,10 @@ export default function Feedback() {
         <div className="eyebrow-e">CPA roadmap poll</div>
         <h1>What should we focus on next?</h1>
         <p className="tool-sub">
-          Two minutes, six questions, nothing required. This is the beta, and what
-          you answer here sets the order we finish, fix, and build. Name and email
-          are optional — leave them if you'd like us to follow up.
+          This is a brand-new experiment, and we want to know which of these
+          twenty tools would actually earn a place in your practice. Rate the ones
+          you have an opinion on, skip the rest, and tell us what's missing.
+          Nothing is required; name and email are optional.
         </p>
       </div>
 
@@ -90,7 +144,9 @@ export default function Feedback() {
               </div>
             </div>
 
-            {q.type === 'text' ? (
+            {q.type === 'rating' ? (
+              <RatingGrid q={q} value={a[q.id]} onRate={rate} />
+            ) : q.type === 'text' ? (
               <textarea
                 className="input poll-textarea"
                 rows={4}
@@ -161,9 +217,10 @@ export default function Feedback() {
         </div>
 
         <Note title="Why we're asking">
-          There are twenty tools here and eleven are still baseline models. Rather
-          than guess, we'd like to finish the ones you'll use and stop polishing
-          the ones you won't.
+          There are twenty tools here and eleven are still baseline models. Your
+          ratings decide which get finished and reviewed first, which get
+          reworked, and which get retired — and your ideas set what gets built
+          next.
         </Note>
       </div>
     </div>

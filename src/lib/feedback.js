@@ -1,7 +1,7 @@
 // CPA roadmap poll — shared between the client page, the Worker, and the dev API.
 // Questions are defined once here so the form, validation, and the tally in
 // Client results can never drift apart.
-import { TOOLS } from './tools.js'
+import { TOOLS, GROUPS, GROUP_ORDER } from './tools.js'
 import { isValidEmail } from './knowYourNumbers.js'
 
 export const FEEDBACK_LIMITS = {
@@ -13,8 +13,25 @@ export const FEEDBACK_LIMITS = {
   otherIdea: 200,
 }
 
-const liveTools = TOOLS.filter((t) => t.status === 'live')
-const devTools = TOOLS.filter((t) => t.status === 'testing')
+// Interest scale for every tool. Stored as 0–3; "haven't looked" is simply unrated.
+export const RATINGS = [
+  { id: 0, label: 'Not useful', short: 'No' },
+  { id: 1, label: 'Maybe', short: 'Maybe' },
+  { id: 2, label: 'Useful', short: 'Useful' },
+  { id: 3, label: 'Must have', short: 'Must' },
+]
+
+// All tools, in dashboard order, with the section they live in.
+export const RATED_TOOLS = GROUP_ORDER.flatMap((gid) =>
+  TOOLS.filter((t) => t.group === gid).map((t) => ({
+    id: t.id,
+    label: t.title,
+    group: gid,
+    groupTitle: GROUPS[gid].title,
+    status: t.status,
+    description: t.description,
+  })),
+)
 
 export const NEW_TOOL_IDEAS = [
   { id: 'entity-choice', label: 'Entity choice — LLC vs. S-corp vs. C-corp' },
@@ -48,19 +65,11 @@ export const SHARING = [
 // The poll, in display order. `type`: multi | pick3 | single | text.
 export const QUESTIONS = [
   {
-    id: 'usedTools',
-    type: 'multi',
-    title: 'Which live tools have you used, or would use in the next month?',
-    hint: 'Pick as many as apply.',
-    options: liveTools.map((t) => ({ id: t.id, label: t.title })),
-  },
-  {
-    id: 'priority',
-    type: 'pick3',
-    max: 3,
-    title: 'Which in-development tools should we finish and review first?',
-    hint: 'Choose up to three.',
-    options: devTools.map((t) => ({ id: t.id, label: t.title })),
+    id: 'toolInterest',
+    type: 'rating',
+    title: 'How useful would each tool be in your practice?',
+    hint: 'Rate every tool you have an opinion on. Skip any you have not looked at — a skip is not a zero.',
+    options: RATED_TOOLS,
   },
   {
     id: 'newIdeas',
@@ -95,8 +104,7 @@ const trimmed = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : ''
 
 export function blankAnswers() {
   return {
-    usedTools: [],
-    priority: [],
+    toolInterest: {},
     newIdeas: [],
     otherIdea: '',
     frequency: '',
@@ -114,7 +122,15 @@ export function normalizeFeedback(body) {
   const out = blankAnswers()
   for (const q of QUESTIONS) {
     const ids = q.options ? optionIds(q) : null
-    if (q.type === 'multi' || q.type === 'pick3') {
+    if (q.type === 'rating') {
+      const src = body[q.id] && typeof body[q.id] === 'object' && !Array.isArray(body[q.id]) ? body[q.id] : {}
+      const clean = {}
+      for (const o of q.options) {
+        const v = Number(src[o.id])
+        if (Number.isInteger(v) && v >= 0 && v <= 3) clean[o.id] = v
+      }
+      out[q.id] = clean
+    } else if (q.type === 'multi' || q.type === 'pick3') {
       const arr = Array.isArray(body[q.id]) ? body[q.id].filter((v) => ids.has(v)) : []
       out[q.id] = [...new Set(arr)].slice(0, q.type === 'pick3' ? q.max : q.options.length)
       if (q.other) out[q.other.id] = trimmed(body[q.other.id], FEEDBACK_LIMITS.otherIdea)
@@ -130,7 +146,7 @@ export function normalizeFeedback(body) {
   if (out.email && !isValidEmail(out.email)) return { error: 'That email address does not look right.' }
 
   const answered =
-    out.usedTools.length || out.priority.length || out.newIdeas.length || out.otherIdea ||
+    Object.keys(out.toolInterest).length || out.newIdeas.length || out.otherIdea ||
     out.frequency || out.sharing || out.blockers
   if (!answered) return { error: 'Answer at least one question before sending.' }
   return { value: out }
@@ -140,8 +156,17 @@ export function normalizeFeedback(body) {
 export function tally(rows) {
   const n = rows.length
   const counts = {}
+  // Per-tool interest: average of 0–3 ratings among those who rated it, plus the spread.
+  const tools = RATED_TOOLS.map((t) => {
+    const votes = rows.map((r) => r.toolInterest?.[t.id]).filter((v) => Number.isInteger(v))
+    const dist = RATINGS.map((r) => votes.filter((v) => v === r.id).length)
+    const avg = votes.length ? votes.reduce((x, y) => x + y, 0) / votes.length : null
+    const mustHave = dist[3]
+    return { ...t, n: votes.length, avg, dist, mustHave, score: avg === null ? null : Math.round((avg / 3) * 100) }
+  })
+  tools.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.n - a.n || b.mustHave - a.mustHave)
   for (const q of QUESTIONS) {
-    if (!q.options) continue
+    if (!q.options || q.type === 'rating') continue
     counts[q.id] = q.options.map((o) => ({
       id: o.id,
       label: o.label,
@@ -152,5 +177,5 @@ export function tally(rows) {
   const text = rows
     .filter((r) => r.blockers || r.otherIdea)
     .map((r) => ({ id: r.id, created_at: r.created_at, name: r.name, firm: r.firm, blockers: r.blockers, otherIdea: r.otherIdea }))
-  return { n, counts, text }
+  return { n, counts, tools, text }
 }

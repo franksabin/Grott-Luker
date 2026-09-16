@@ -29,7 +29,7 @@ import {
 } from '../lib/api.js'
 import { money, number } from '../lib/format.js'
 import { compute } from '../lib/knowYourNumbers.js'
-import { QUESTIONS, tally } from '../lib/feedback.js'
+import { QUESTIONS, RATINGS, tally } from '../lib/feedback.js'
 
 const TABS = {
   kyn: { label: 'Know Your Numbers', clientPath: '/client/know-your-numbers' },
@@ -62,7 +62,36 @@ function PollResults({ rows, loading }) {
   return (
     <div className="poll-results">
       <div className="poll-results-head">{t.n} {t.n === 1 ? 'response' : 'responses'} · latest {formatWhen(rows[0].created_at)}</div>
-      {QUESTIONS.filter((q) => q.options).map((q) => (
+      <Panel title="Tool interest — ranked">
+        <p className="tally-intro">
+          Score is the average rating on a 0–3 scale (Not useful → Must have), shown as a percentage of the maximum,
+          among CPAs who rated the tool. Skips do not count against a tool. The dots show the spread.
+        </p>
+        <div className="rank">
+          <div className="rank-head"><span>#</span><span>Tool</span><span>Score</span><span className="num">Rated</span><span className="num">Must have</span><span>Spread</span></div>
+          {t.tools.map((tool, i) => (
+            <div key={tool.id} className={`rank-row${tool.n === 0 ? ' zero' : ''}`}>
+              <span className="rank-n">{tool.n ? i + 1 : '—'}</span>
+              <span className="rank-tool">
+                <span className="rank-title">{tool.label}</span>
+                <span className="rank-meta">{tool.groupTitle}{tool.status === 'testing' ? ' · In development' : ''}</span>
+              </span>
+              <span className="rank-score">
+                <span className="tally-bar"><i style={{ width: `${tool.score ?? 0}%` }} /></span>
+                <b>{tool.score === null ? '—' : `${tool.score}%`}</b>
+              </span>
+              <span className="num">{tool.n}</span>
+              <span className="num">{tool.mustHave}</span>
+              <span className="rank-dist" title={RATINGS.map((r, k) => `${r.label}: ${tool.dist[k]}`).join(' · ')}>
+                {tool.dist.map((c, k) => (
+                  <span key={k} className={`dist r${k}`}>{c}</span>
+                ))}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Panel>
+      {QUESTIONS.filter((q) => q.options && q.type !== 'rating').map((q) => (
         <Panel key={q.id} title={q.title}>
           <div className="tally">
             {t.counts[q.id].map((o) => (
