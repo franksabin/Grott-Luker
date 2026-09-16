@@ -2069,3 +2069,8 @@ button.backlink {
   .math-trace[open] summary { display: none; }
   .math-trace-body { border-top: 0; padding: 0; }
 }
+
+.dash-bar-note {
+  font-size: 13px;
+  color: var(--ink-soft, #5b6472);
+}

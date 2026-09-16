@@ -50,9 +50,9 @@ export default function ToolShell({
         <h1>{title}</h1>
         {subtitle ? <p className="tool-sub">{subtitle}</p> : null}
         <div className="tool-tech-attrib">
-          {tool?.owner === 'grott'
-            ? 'A Grott Luker & Co. tool · Platform by BlueLine Advisors'
-            : 'Decision Support Technology by BlueLine Advisors'}
+          {tool?.group === 'cpa'
+            ? 'A GrottLuker CPA Tool · Platform by BlueLine Advisors'
+            : 'A BlueLine Advisors tool for Grott Luker & Co. clients'}
         </div>
       </div>
 

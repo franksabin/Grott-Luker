@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Mail, Phone, Inbox, Link2 } from 'lucide-react'
-import { GROUPS, GROUP_ORDER, OWNERS, TOOLS } from '../lib/tools.js'
+import { GROUPS, GROUP_ORDER, TOOLS } from '../lib/tools.js'
 
 const DEV_KEY = 'gl-show-dev-tools'
 
@@ -21,7 +21,7 @@ function ToolCard({ tool }) {
   return (
     <Link
       to={tool.path}
-      className={`tcard owner-${tool.owner}${testing ? ' is-testing' : ''}`}
+      className={`tcard${testing ? ' is-testing' : ''}`}
     >
       <div className="tcard-top">
         <span className="tcard-icon">
@@ -39,7 +39,7 @@ function ToolCard({ tool }) {
       <h3>{tool.title}</h3>
       <p>{tool.description}</p>
       <div className="tcard-foot">
-        <span className="owner-chip">{OWNERS[tool.owner].label}</span>
+        <span />
         <span className="tcard-open">
           Open <ArrowRight size={14} />
         </span>
@@ -73,7 +73,6 @@ function GroupSection({ group, tools }) {
 }
 
 export default function Dashboard() {
-  const [owner, setOwner] = useState('all')
   const [showDev, setShowDev] = useState(readDevFlag)
 
   useEffect(() => {
@@ -88,12 +87,7 @@ export default function Dashboard() {
     () => TOOLS.filter((t) => showDev || t.status === 'live'),
     [showDev],
   )
-  const filtered = useMemo(
-    () => visible.filter((t) => owner === 'all' || t.owner === owner),
-    [visible, owner],
-  )
-  const countFor = (o) =>
-    visible.filter((t) => o === 'all' || t.owner === o).length
+  const filtered = visible
 
   return (
     <div className="dash">
@@ -111,24 +105,8 @@ export default function Dashboard() {
       </section>
 
       <div className="dash-bar">
-        <div className="seg" role="tablist" aria-label="Filter by builder">
-          {[
-            ['all', 'All tools'],
-            ['grott', OWNERS.grott.label],
-            ['blueline', OWNERS.blueline.label],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={owner === id}
-              className={`seg-btn owner-${id}${owner === id ? ' on' : ''}`}
-              onClick={() => setOwner(id)}
-            >
-              {id !== 'all' ? <i className="seg-dot" /> : null}
-              {label} <small>{countFor(id)}</small>
-            </button>
-          ))}
+        <div className="dash-bar-note">
+          {filtered.length} tools · GrottLuker CPA Tools are Grott Luker &amp; Co.&apos;s; the other sections are BlueLine Advisors&apos;.
         </div>
         <div className="dash-bar-right">
           <label className="dev-toggle">

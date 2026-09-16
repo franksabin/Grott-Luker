@@ -1,8 +1,9 @@
 // Registry of tools.
 //
-// Each tool carries three independent attributes:
-//   group  — which dashboard section it lives in (who it's for)
-//   owner  — who built it: 'grott' | 'blueline'   (drives the provenance chip)
+// Each tool carries two independent attributes:
+//   group  — which dashboard section it lives in. The CPA group is Grott Luker's;
+//            every other group is BlueLine's. The section heading says which, so
+//            there is no per-tool owner label.
 //   status — 'live' | 'testing'                    (testing tools are hidden
 //            unless a CPA turns on "Show in-development tools"; never shown
 //            on client routes)
@@ -29,34 +30,29 @@ import {
   Gift,
 } from 'lucide-react'
 
-export const OWNERS = {
-  grott: { id: 'grott', label: 'Grott Luker' },
-  blueline: { id: 'blueline', label: 'BlueLine' },
-}
-
 export const GROUPS = {
   cpa: {
     id: 'cpa',
-    title: 'CPA Tools',
-    eyebrow: 'For Grott Luker CPAs',
+    title: 'GrottLuker CPA Tools',
+    eyebrow: 'Grott Luker & Co.',
     description: 'Projections, safe harbors, conversions, and year-end planning.',
   },
   'business-owner': {
     id: 'business-owner',
     title: 'Business Owner Planning',
-    eyebrow: 'For business-owner clients',
+    eyebrow: 'BlueLine Advisors · for business-owner clients',
     description: 'Entity, compensation, and retirement plan design.',
   },
   'individual-family': {
     id: 'individual-family',
     title: 'Individual & Family Planning',
-    eyebrow: 'For individuals & families',
+    eyebrow: 'BlueLine Advisors · for individuals & families',
     description: 'Retirement readiness, life transitions, and financial discovery.',
   },
   'client-intake': {
     id: 'client-intake',
     title: 'Shareable',
-    eyebrow: 'Send to a client',
+    eyebrow: 'BlueLine Advisors · send to a client',
     description: 'Clients fill these in themselves; submissions arrive in Client results.',
   },
 }
@@ -68,7 +64,6 @@ export const TOOLS = [
   {
     id: 'estimated-tax',
     group: 'cpa',
-    owner: 'grott',
     status: 'live',
     path: '/tools/estimated-tax',
     icon: CalendarClock,
@@ -80,7 +75,6 @@ export const TOOLS = [
   {
     id: 'multi-year-projection',
     group: 'cpa',
-    owner: 'grott',
     status: 'live',
     path: '/tools/multi-year-projection',
     icon: LineChart,
@@ -92,7 +86,6 @@ export const TOOLS = [
   {
     id: 'retirement-tax-map',
     group: 'cpa',
-    owner: 'blueline',
     status: 'testing',
     path: '/tools/retirement-tax-map',
     icon: Map,
@@ -104,7 +97,6 @@ export const TOOLS = [
   {
     id: 'withholding-checkup',
     group: 'cpa',
-    owner: 'grott',
     status: 'testing',
     path: '/tools/withholding-checkup',
     icon: FileCheck,
@@ -124,7 +116,6 @@ export const TOOLS = [
   {
     id: 'capital-gains-harvesting',
     group: 'cpa',
-    owner: 'grott',
     status: 'testing',
     path: '/tools/capital-gains-harvesting',
     icon: TrendingUp,
@@ -144,7 +135,6 @@ export const TOOLS = [
   {
     id: 'charitable-giving-optimizer',
     group: 'cpa',
-    owner: 'grott',
     status: 'testing',
     path: '/tools/charitable-giving-optimizer',
     icon: HeartHandshake,
@@ -165,8 +155,7 @@ export const TOOLS = [
   // ---------- Business Owner Planning ----------
   {
     id: 'qbi-optimizer',
-    group: 'business-owner',
-    owner: 'grott',
+    group: 'cpa',
     status: 'live',
     path: '/tools/qbi-optimizer',
     icon: Percent,
@@ -178,7 +167,6 @@ export const TOOLS = [
   {
     id: 'owner-comp',
     group: 'business-owner',
-    owner: 'blueline',
     status: 'live',
     path: '/tools/owner-comp',
     icon: Wallet,
@@ -190,7 +178,6 @@ export const TOOLS = [
   {
     id: 'cash-balance',
     group: 'business-owner',
-    owner: 'blueline',
     status: 'live',
     path: '/tools/cash-balance',
     icon: PiggyBank,
@@ -202,7 +189,6 @@ export const TOOLS = [
   {
     id: 'business-sale',
     group: 'business-owner',
-    owner: 'blueline',
     status: 'testing',
     path: '/tools/business-sale',
     icon: Briefcase,
@@ -214,7 +200,6 @@ export const TOOLS = [
   {
     id: 'retirement-plan-comparison',
     group: 'business-owner',
-    owner: 'blueline',
     status: 'testing',
     path: '/tools/retirement-plan-comparison',
     icon: Landmark,
@@ -236,7 +221,6 @@ export const TOOLS = [
   {
     id: 'roth-conversion',
     group: 'individual-family',
-    owner: 'grott',
     status: 'live',
     path: '/tools/roth-conversion',
     icon: RefreshCw,
@@ -248,7 +232,6 @@ export const TOOLS = [
   {
     id: 'retire-track',
     group: 'individual-family',
-    owner: 'blueline',
     status: 'live',
     path: '/tools/retire-track',
     icon: Target,
@@ -260,7 +243,6 @@ export const TOOLS = [
   {
     id: 'rollover-401k',
     group: 'individual-family',
-    owner: 'blueline',
     status: 'live',
     path: '/tools/rollover-401k',
     icon: ArrowLeftRight,
@@ -272,7 +254,6 @@ export const TOOLS = [
   {
     id: 'divorce-division',
     group: 'individual-family',
-    owner: 'blueline',
     status: 'live',
     path: '/tools/divorce-division',
     icon: Scale,
@@ -284,7 +265,6 @@ export const TOOLS = [
   {
     id: 'concentrated-wealth',
     group: 'individual-family',
-    owner: 'blueline',
     status: 'testing',
     path: '/tools/concentrated-wealth',
     icon: Layers,
@@ -296,7 +276,6 @@ export const TOOLS = [
   {
     id: 'social-security-timing',
     group: 'individual-family',
-    owner: 'blueline',
     status: 'testing',
     path: '/tools/social-security-timing',
     icon: Clock,
@@ -318,7 +297,6 @@ export const TOOLS = [
   {
     id: 'know-your-numbers',
     group: 'client-intake',
-    owner: 'blueline',
     status: 'live',
     path: '/tools/know-your-numbers',
     icon: ClipboardList,
@@ -332,7 +310,6 @@ export const TOOLS = [
   {
     id: 'mileage-log',
     group: 'client-intake',
-    owner: 'grott',
     status: 'testing',
     path: '/tools/mileage-log',
     icon: Car,
@@ -346,7 +323,6 @@ export const TOOLS = [
   {
     id: 'charitable-donation-log',
     group: 'client-intake',
-    owner: 'grott',
     status: 'testing',
     shareable: true,
     clientPath: '/client/charitable-donation-log',
