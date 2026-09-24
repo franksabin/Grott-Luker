@@ -161,6 +161,20 @@ export const EMAIL_REQUESTS = {
   },
 
   // ---------- BlueLine Specialty Planning Tools ----------
+  'exchange-1031': {
+    subject: 'Information needed for your 1031 exchange review',
+    intro:
+      'We are reviewing the like-kind exchange so we can estimate the tax deferred, any boot, and the basis in what you buy. For each asset involved, please send:',
+    questions: [
+      'What is being sold: each property (and any equipment, vehicles, or other items included in the sale) with its expected sale price and any mortgage being paid off',
+      'For each asset sold: original cost plus improvements, and total depreciation taken',
+      'What is being bought: each replacement property or item with its price and any new loan',
+      'Whether you plan to take any cash out at closing, or bring cash in',
+      'Expected closing date of the first sale',
+      'Approximate other taxable income for the year and your state of residence',
+    ],
+  },
+
   'arm-vs-fixed': {
     subject: 'Information needed to compare an ARM with a fixed-rate mortgage',
     intro:

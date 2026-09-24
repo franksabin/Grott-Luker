@@ -108,7 +108,7 @@ export const TOOLS = [
     title: '1031 Exchange Analyzer',
     short: '1031 Exchange',
     description:
-      'Full or partial like-kind exchange of investment real estate — realized gain, gain recognized on boot, depreciation recapture, carryover basis in the replacement property, and the tax deferred versus an outright sale.',
+      'Like-kind exchange with up to three properties on each side (1-for-2, 2-for-1, 3-for-2), default closing costs, cash taken out or brought in, boot and recapture, carryover basis by property, and equipment such as tractors taxed correctly outside the exchange.',
   },
   {
     id: 'retirement-tax-map',
