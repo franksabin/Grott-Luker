@@ -24,7 +24,7 @@ function ToolCard({ tool }) {
               <Link2 size={11} /> Client Shareable
             </span>
           ) : null}
-          {testing ? <span className="status-chip" title="Works, but not yet reviewed with Grott Luker & Co. Do not use with clients.">Beta · not client ready</span> : <span className="live-chip" title="Reviewed with Grott Luker & Co. Ready to use with clients.">Live · client ready</span>}
+          {testing ? <span className="status-chip" title="Beta: works, but not reviewed with Grott Luker & Co. Not client ready.">Beta</span> : <span className="live-chip" title="Live: reviewed with Grott Luker & Co. Client ready.">Live</span>}
         </span>
       </div>
       <h3>{tool.title}</h3>
@@ -145,9 +145,8 @@ export default function Dashboard() {
         </Link>
         <div className="dash-bar-right">
           <span className="dev-note">
-            <span className="status-chip">Beta · not client ready</span>
-            <span className="live-chip">Live · client ready</span>
-            Beta tools work but have not been reviewed with Grott Luker &amp; Co.; Live tools have been and can be used with clients.
+            <span className="status-chip">Beta</span> not client ready
+            <span className="live-chip">Live</span> client ready
           </span>
         </div>
       </div>

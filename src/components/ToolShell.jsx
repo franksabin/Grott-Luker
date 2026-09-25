@@ -103,7 +103,7 @@ export default function ToolShell({
 
       {tool?.status === 'testing' && !planned ? (
         <div className="baseline-banner">
-          <strong>Beta — not client ready.</strong> This tool works but has not yet been reviewed with Grott Luker &amp; Co. Use it to explore; do not put its figures in front of a client until it is marked Live.
+          <strong>Beta.</strong> Not yet reviewed with Grott Luker &amp; Co. — not client ready.
         </div>
       ) : null}
 
