@@ -2461,3 +2461,17 @@ button.backlink {
 
 /* Full-bleed bands use 100vw, which includes the vertical scrollbar; clip the sliver so the page never scrolls sideways. */
 html, body { overflow-x: hidden; }
+
+/* ------- Multi-year: bracket-fill columns ------- */
+.chart-title { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 4px 0 10px; }
+.bracket-chart { margin: 0 0 6px; }
+.bracket-cols { display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid var(--border); padding-bottom: 2px; }
+.bracket-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: stretch; height: 100%; position: relative; }
+.bracket-stack { flex: 1; display: flex; flex-direction: column-reverse; justify-content: flex-start; position: relative; }
+.bracket-stack span { display: block; width: 100%; }
+.bracket-conv { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background: #c4a054; margin-bottom: 3px; }
+.bracket-age { position: absolute; top: 100%; left: 0; right: 0; text-align: center; font-size: 9.5px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 3px; }
+.bracket-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 20px; font-size: 11.5px; color: var(--muted); }
+.bracket-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.bracket-conv-key { border-radius: 50% !important; background: #c4a054; }
+.data-table tr.is-conv td { background: #fbf8f1; }

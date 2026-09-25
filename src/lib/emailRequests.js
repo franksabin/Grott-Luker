@@ -138,11 +138,13 @@ export const EMAIL_REQUESTS = {
     intro:
       'We are building a multi-year tax projection to identify planning opportunities such as low-bracket years for Roth conversions or capital gains. Please reply with the following:',
     questions: [
-      'Your current age (and your spouse’s, if applicable) and filing status',
+      'Your year of birth (and your spouse’s, if applicable) and filing status',
+      'Current balances: pre-tax IRA / 401(k), Roth, and taxable savings',
       'Expected wages or business income, and the year you plan to stop working',
       'The age(s) at which you plan to begin Social Security, and the expected benefit',
       'Current Traditional IRA / 401(k) balances (for RMD projection)',
       'Any Roth conversions you are considering, and in which years',
+      'Who inherits the retirement accounts, and roughly what tax bracket they are in',
       'Any large expected events — a business sale, large capital gain, or major charitable gift — and the year',
     ],
   },

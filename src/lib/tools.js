@@ -86,7 +86,7 @@ export const TOOLS = [
     title: 'Multi-Year Tax Projection Planner',
     short: 'Multi-Year Tax Projection',
     description:
-      'Project taxable income and tax across several years to visualize the impact of Roth conversions, RMDs, Social Security timing, and other events — and find low-bracket planning windows.',
+      'Year by year to the end of the plan: RMDs from 73 or 75, Social Security, Roth conversions that fill a bracket or run at a set amount, and what the heirs keep — do nothing vs. act, side by side.',
   },
   {
     id: 'roth-conversion',
