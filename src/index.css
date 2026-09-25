@@ -2478,3 +2478,8 @@ html, body { overflow-x: hidden; }
 
 .dev-note { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
 .dev-note .live-chip { margin-left: 2px; }
+
+/* Card status pills are long now ("Beta · not client ready"): let them wrap instead of riding over the icon. */
+.tcard-top { align-items: flex-start; }
+.tcard-flags { flex: 1 1 auto; }
+.tcard-flags .status-chip, .tcard-flags .live-chip { white-space: normal; text-align: center; line-height: 1.3; max-width: 160px; }
