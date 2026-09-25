@@ -2475,3 +2475,6 @@ html, body { overflow-x: hidden; }
 .bracket-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .bracket-conv-key { border-radius: 50% !important; background: #c4a054; }
 .data-table tr.is-conv td { background: #fbf8f1; }
+
+.dev-note { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.dev-note .live-chip { margin-left: 2px; }

@@ -5,6 +5,7 @@ import {
   MoneyField,
   NumberField,
   SegmentedField,
+  SelectField,
   PillField,
   RefinePanel,
   StatTiles,
@@ -19,6 +20,7 @@ import {
 import { LineChart, TONE } from '../components/charts.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 import { TAX_YEAR, rmdStartAge } from '../lib/tax.js'
+import { STATES, getState } from '../lib/states.js'
 import { computeMultiYear, TAXABLE_DRAG } from '../lib/multiYear.js'
 
 const FILING = [
@@ -64,7 +66,7 @@ const BLANK = {
   ret: '6',
   infl: '2.5',
   index: 'yes',
-  state: '0',
+  state: 'NH',
 }
 
 // The accountant's RMD Planner case: single filer, 62 in 2026, $900k pre-tax.
@@ -90,7 +92,7 @@ const SAMPLE = {
   ret: '7',
   infl: '2',
   index: 'yes',
-  state: '0',
+  state: 'NH',
 }
 
 const RATE_COLORS = { 0.1: '#c9d6e6', 0.12: '#9fb8d6', 0.22: '#5a93cf', 0.24: '#2f6099', 0.32: '#1d4576', 0.35: '#0f2440', 0.37: '#08162b' }
@@ -129,6 +131,7 @@ export default function MultiYearProjection() {
   const [form, setForm] = useState(() => (new URLSearchParams(window.location.search).get('sample') ? SAMPLE : BLANK))
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
 
+  const st = getState(form.state)
   const birthYear = Math.round(toNumber(form.birthYear)) || TAX_YEAR - 63
   const startAge = TAX_YEAR - birthYear
   const rmdAge = rmdStartAge(birthYear)
@@ -148,17 +151,17 @@ export default function MultiYearProjection() {
     ret: toNumber(form.ret) / 100,
     infl: toNumber(form.infl) / 100,
     index: form.index !== 'no',
-    stateRate: toNumber(form.state) / 100,
+    stateRate: st.wage / 100,
     mode: form.mode,
     flatAmount: toNumber(form.flatAmount),
     flatYears: Math.round(toNumber(form.flatYears)) || 0,
     fillBracket: Math.round(toNumber(form.fillBracket)) || 24,
     fillUntilAge: Math.round(toNumber(form.fillUntilAge)) || rmdAge - 1,
     beneficiaryRate: toNumber(form.beneficiaryRate) / 100,
-  }), [form, birthYear, startAge, rmdAge])
+  }), [form, birthYear, startAge, rmdAge, st])
 
   const r = useMemo(() => computeMultiYear(inputs), [inputs])
-  const { plan, none } = r
+  const { plan, none, thisYear } = r
   const hasPlan = form.mode !== 'none' && plan.totalConverted > 0
   const better = r.delta > 0
 
@@ -171,13 +174,19 @@ export default function MultiYearProjection() {
       formula: `${row.wages ? `wages ${money(row.wages)} + ` : ''}${row.rmd ? `RMD ${money(row.rmd)} + ` : ''}${row.conversion ? `conversion ${money(row.conversion)} + ` : ''}taxable SS ${money(row.taxableSS)}${row.pension ? ` + pension ${money(row.pension)}` : ''}${row.other ? ` + other ${money(row.other)}` : ''} − deduction ${money(row.std)}${row.senior ? ` − senior ${money(row.senior)}` : ''} = taxable ${money(row.taxable)} (${percent(row.marginal * 100, 0)})`,
       result: money(row.tax),
     })),
+    ...(hasPlan ? [
+      { label: `This year’s conversion (${TAX_YEAR})`, formula: `tax with conversion ${money(plan.rows[0].tax)} − tax without ${money(none.rows[0].tax)}`, result: `${money(thisYear.tax)} on ${money(thisYear.conversion)} · ${percent(thisYear.rate * 100, 1)} effective` },
+      { label: 'Net into the Roth this year', formula: `${money(thisYear.conversion)} − tax withheld from the conversion ${money(plan.rows[0].withheld)}`, result: money(thisYear.netToRoth) },
+      ...(thisYear.irmaaApplies ? [{ label: `IRMAA triggered in ${TAX_YEAR + 2}`, formula: `surcharge at MAGI ${money(plan.rows[0].agi)} − surcharge at ${money(none.rows[0].agi)} (annual, household)`, result: money(thisYear.irmaaLater) }] : []),
+    ] : []),
+    { label: 'Lifetime IRMAA · plan vs. do nothing', formula: 'Medicare surcharge each year from 65, set by MAGI two years earlier; paid from the taxable account', result: `${money(plan.lifetimeIrmaa)} vs. ${money(none.lifetimeIrmaa)}` },
     { label: 'Lifetime tax · plan vs. do nothing', formula: 'sum of every year, federal + state', result: `${money(plan.lifetimeTax)} vs. ${money(none.lifetimeTax)}` },
     { label: `Balances at ${inputs.endAge} · plan`, formula: 'pre-tax · Roth · taxable', result: `${money(plan.endPretax)} · ${money(plan.endRoth)} · ${money(plan.endSide)}` },
     { label: `Balances at ${inputs.endAge} · do nothing`, formula: 'pre-tax · Roth · taxable', result: `${money(none.endPretax)} · ${money(none.endRoth)} · ${money(none.endSide)}` },
     { label: 'Heirs’ tax on what is still pre-tax', formula: `pre-tax balance × beneficiary rate ${percent(inputs.beneficiaryRate * 100, 0)} (10-year rule)`, result: `${money(plan.heirsTax)} plan · ${money(none.heirsTax)} do nothing` },
     { label: `After-tax family wealth at ${inputs.endAge}`, formula: 'pre-tax × (1 − heirs’ rate) + Roth + taxable', result: `${money(plan.familyWealth)} plan · ${money(none.familyWealth)} do nothing` },
     { label: 'Difference', formula: 'plan − do nothing', result: money(r.delta) },
-  ], [r, plan, none, inputs, form.mode, form.fillBracket, birthYear, startAge, rmdAge, hasPlan])
+  ], [r, plan, none, thisYear, inputs, form.mode, form.fillBracket, birthYear, startAge, rmdAge, hasPlan])
 
   const ready = inputs.pretax > 0 && toNumber(form.birthYear) > 0
   const chartRows = plan.rows
@@ -185,8 +194,8 @@ export default function MultiYearProjection() {
 
   return (
     <ToolShell
-      title="Multi-Year Tax Projection Planner"
-      subtitle="Year by year to the end of the plan: RMDs from the right age, Social Security, Roth conversions that fill a bracket or run at a set amount, and the picture the client's heirs inherit — what the family keeps if you do nothing versus if you act."
+      title="Roth Conversion & RMD Planner"
+      subtitle="This year's conversion and the whole plan in one place: what converting costs now in tax and IRMAA, then year by year to the end — RMDs from the right age, Social Security, conversions that fill a bracket or run at a set amount, and what the client's heirs keep if you do nothing versus if you act."
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
       steps={steps}
@@ -237,10 +246,10 @@ export default function MultiYearProjection() {
             ) : null}
             <PillField label="Heirs’ tax bracket" value={form.beneficiaryRate} onChange={set('beneficiaryRate')} options={BENEFICIARY} info="Non-spouse beneficiaries must empty an inherited pre-tax IRA within 10 years and pay tax at their own rate. Roth passes tax-free. This rate is applied to whatever is still pre-tax at the end of the plan." />
           </Panel>
-          <RefinePanel summary={`${form.ret}% return, ${form.index === 'no' ? 'no' : `${form.infl}%`} indexing, ${form.state}% state`}>
+          <RefinePanel summary={`${form.ret}% return, ${form.index === 'no' ? 'no' : `${form.infl}%`} indexing, ${st.name}`}>
             <div className="field-row">
               <NumberField label="Annual return, all accounts" value={form.ret} onChange={set('ret')} suffix="%" info={`The taxable account earns ${percent((1 - TAXABLE_DRAG) * 100, 0)} of this after tax drag.`} />
-              <NumberField label="State income tax rate" value={form.state} onChange={set('state')} suffix="%" />
+              <SelectField label="State of residence" value={form.state} onChange={set('state')} options={STATES.map((s) => ({ value: s.code, label: s.name }))} info="Simplified flat rate on taxable income." />
             </div>
             <div className="field-row">
               <SegmentedField label="Index brackets, deduction, and benefits" value={form.index} onChange={set('index')} options={YESNO} info="Yes moves the brackets, standard deduction, Social Security, and other income with inflation each year. No holds the 2026 tables flat, which overstates bracket creep." />
@@ -269,13 +278,23 @@ export default function MultiYearProjection() {
               ]}
             />
 
+            {hasPlan ? (
+              <div className="result-list">
+                <ResultRow label={`This year’s conversion (${TAX_YEAR})`} value={thisYear.conversion} />
+                <ResultRow label="Tax on this year’s conversion (federal + state)" value={thisYear.tax} negative sub />
+                <ResultRow label="Effective rate on the converted dollars" raw={percent(thisYear.rate * 100, 1)} sub />
+                <ResultRow label="Net into the Roth after tax withheld" value={thisYear.netToRoth} sub />
+                {thisYear.irmaaApplies ? <ResultRow label={`IRMAA it triggers in ${TAX_YEAR + 2} (per year, household)`} value={thisYear.irmaaLater} negative={thisYear.irmaaLater > 0} sub /> : null}
+              </div>
+            ) : null}
+
             <Narrative>
               {ready ? (
                 <>
                   Born in {birthYear}, the client is {startAge} and must start RMDs at {rmdAge}.
                   {' '}
                   {hasPlan
-                    ? `${form.mode === 'fill' ? `Filling the ${form.fillBracket}% bracket each year through age ${inputs.fillUntilAge}` : `Converting ${money(inputs.flatAmount)} a year for ${inputs.flatYears} years`} moves ${money(plan.totalConverted)} to Roth and ${r.taxDelta >= 0 ? 'raises' : 'lowers'} lifetime tax by ${money(Math.abs(r.taxDelta))}, from ${money(none.lifetimeTax)} to ${money(plan.lifetimeTax)}${r.taxDelta < 0 ? ' — paying at today’s rate beats the RMDs that would come later' : ''}. In return, the pre-tax balance at ${inputs.endAge} falls from ${money(none.endPretax)} to ${money(plan.endPretax)}, so the heirs’ tax bill at ${percent(inputs.beneficiaryRate * 100, 0)} drops from ${money(none.heirsTax)} to ${money(plan.heirsTax)}. After everyone’s tax, the family keeps ${money(plan.familyWealth)} with the plan against ${money(none.familyWealth)} doing nothing — ${better ? 'ahead' : 'behind'} by ${money(Math.abs(r.delta))}.`
+                    ? `${form.mode === 'fill' ? `Filling the ${form.fillBracket}% bracket each year through age ${inputs.fillUntilAge}` : `Converting ${money(inputs.flatAmount)} a year for ${inputs.flatYears} years`} moves ${money(plan.totalConverted)} to Roth and ${r.taxDelta >= 0 ? 'raises' : 'lowers'} lifetime tax by ${money(Math.abs(r.taxDelta))}, from ${money(none.lifetimeTax)} to ${money(plan.lifetimeTax)}${r.taxDelta < 0 ? ' — paying at today’s rate beats the RMDs that would come later' : ''}. In return, the pre-tax balance at ${inputs.endAge} falls from ${money(none.endPretax)} to ${money(plan.endPretax)}, so the heirs’ tax bill at ${percent(inputs.beneficiaryRate * 100, 0)} drops from ${money(none.heirsTax)} to ${money(plan.heirsTax)}. ${r.irmaaDelta > 0 ? `The plan also adds ${money(r.irmaaDelta)} of IRMAA over the years. ` : r.irmaaDelta < 0 ? `The plan also avoids ${money(-r.irmaaDelta)} of IRMAA over the years. ` : ''}After everyone’s tax, the family keeps ${money(plan.familyWealth)} with the plan against ${money(none.familyWealth)} doing nothing — ${better ? 'ahead' : 'behind'} by ${money(Math.abs(r.delta))}.`
                     : `Doing nothing, RMDs begin at ${rmdAge} and lifetime tax through ${inputs.endAge} is ${money(none.lifetimeTax)}. The ${money(none.endPretax)} still pre-tax at ${inputs.endAge} would cost the heirs ${money(none.heirsTax)} at ${percent(inputs.beneficiaryRate * 100, 0)}, leaving the family ${money(none.familyWealth)}.`}
                 </>
               ) : (
@@ -286,8 +305,8 @@ export default function MultiYearProjection() {
             <ScenarioCards
               sub={`at age ${inputs.endAge}, after all tax`}
               scenarios={[
-                { label: 'Do nothing', value: money(none.familyWealth), best: hasPlan && !better, rows: [{ label: 'Lifetime tax', value: money(none.lifetimeTax) }, { label: 'Still pre-tax', value: money(none.endPretax) }, { label: 'Heirs’ tax', value: money(none.heirsTax) }, { label: 'Roth', value: money(none.endRoth) }] },
-                { label: hasPlan ? label : 'With a plan', value: hasPlan ? money(plan.familyWealth) : '—', best: hasPlan && better, rows: [{ label: 'Lifetime tax', value: hasPlan ? money(plan.lifetimeTax) : '—' }, { label: 'Still pre-tax', value: hasPlan ? money(plan.endPretax) : '—' }, { label: 'Heirs’ tax', value: hasPlan ? money(plan.heirsTax) : '—' }, { label: 'Roth', value: hasPlan ? money(plan.endRoth) : '—' }] },
+                { label: 'Do nothing', value: money(none.familyWealth), best: hasPlan && !better, rows: [{ label: 'Lifetime tax', value: money(none.lifetimeTax) }, { label: 'Still pre-tax', value: money(none.endPretax) }, { label: 'Heirs’ tax', value: money(none.heirsTax) }, { label: 'IRMAA', value: money(none.lifetimeIrmaa) }, { label: 'Roth', value: money(none.endRoth) }] },
+                { label: hasPlan ? label : 'With a plan', value: hasPlan ? money(plan.familyWealth) : '—', best: hasPlan && better, rows: [{ label: 'Lifetime tax', value: hasPlan ? money(plan.lifetimeTax) : '—' }, { label: 'Still pre-tax', value: hasPlan ? money(plan.endPretax) : '—' }, { label: 'Heirs’ tax', value: hasPlan ? money(plan.heirsTax) : '—' }, { label: 'IRMAA', value: hasPlan ? money(plan.lifetimeIrmaa) : '—' }, { label: 'Roth', value: hasPlan ? money(plan.endRoth) : '—' }] },
               ]}
             />
 
@@ -310,7 +329,7 @@ export default function MultiYearProjection() {
 
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table" style={{ marginTop: 10 }}>
-                <thead><tr><th>Year</th><th>Age</th><th className="num">RMD</th><th className="num">Conversion</th><th className="num">Taxable income</th><th className="num">Bracket</th><th className="num">Tax</th><th className="num">Pre-tax</th><th className="num">Roth</th></tr></thead>
+                <thead><tr><th>Year</th><th>Age</th><th className="num">RMD</th><th className="num">Conversion</th><th className="num">Taxable income</th><th className="num">Bracket</th><th className="num">Tax</th><th className="num">IRMAA</th><th className="num">Pre-tax</th><th className="num">Roth</th></tr></thead>
                 <tbody>
                   {plan.rows.map((row) => (
                     <tr key={row.t} className={row.conversion > 0 ? 'is-conv' : undefined}>
@@ -320,6 +339,7 @@ export default function MultiYearProjection() {
                       <td className="num">{money(row.taxable)}</td>
                       <td className="num">{percent(row.marginal * 100, 0)}</td>
                       <td className="num">{money(row.tax)}</td>
+                      <td className="num">{row.irmaa ? money(row.irmaa) : '—'}</td>
                       <td className="num">{money(row.pretax)}</td>
                       <td className="num">{money(row.roth)}</td>
                     </tr>
@@ -344,7 +364,8 @@ export default function MultiYearProjection() {
           'Fill-a-bracket conversions are sized so taxable income reaches the top of the chosen bracket after Social Security taxation and the senior deduction phase-out, limited by the pre-tax balance.',
           `All accounts earn the same return; the taxable account is reduced by a ${percent(TAXABLE_DRAG * 100, 0)} tax drag. Tax is paid from the taxable account first, then withheld from the conversion (which reduces what reaches the Roth; the gross-up on withheld tax is not modeled).`,
           'The heirs’ tax applies the beneficiary rate to the pre-tax balance at the end of the plan, as if withdrawn under the 10-year rule; the growth during those ten years and the heirs’ own bracket creep are not modeled. Roth and taxable balances pass without income tax (the taxable account gets a basis step-up).',
-          'IRMAA, capital gains, itemized deductions, QCDs, and estate tax are not modeled. State tax is a flat rate on taxable income.',
+          'IRMAA is applied from age 65 using the 2026 Part B and D surcharge tiers (indexed with inflation when indexing is on) against MAGI from two years earlier; the first two projection years use the current year’s MAGI as a proxy. It is paid from the taxable account and counted in family wealth.',
+          'Capital gains, itemized deductions, QCDs, and estate tax are not modeled. State tax is a simplified flat rate on taxable income.',
           'Baseline model. Not reviewed by Grott Luker & Co.',
         ]}
       />

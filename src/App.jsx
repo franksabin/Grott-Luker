@@ -1,9 +1,8 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 
 // CPA Decision Support Toolkit
-import RothConversion from './pages/RothConversion.jsx'
 import OwnerComp from './pages/OwnerComp.jsx'
 import EstimatedTax from './pages/EstimatedTax.jsx'
 import MultiYearProjection from './pages/MultiYearProjection.jsx'
@@ -47,7 +46,8 @@ export default function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
         {/* CPA */}
-        <Route path="tools/roth-conversion" element={<RothConversion />} />
+        {/* The single-year Roth tool was folded into the planner (2026-09-24). */}
+        <Route path="tools/roth-conversion" element={<Navigate to="/tools/multi-year-projection" replace />} />
         <Route path="tools/owner-comp" element={<OwnerComp />} />
         <Route path="tools/estimated-tax" element={<EstimatedTax />} />
         <Route path="tools/multi-year-projection" element={<MultiYearProjection />} />

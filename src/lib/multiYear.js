@@ -11,6 +11,7 @@ import {
   SENIOR_DEDUCTION,
   rmdDivisor,
   rmdStartAge,
+  irmaaSurcharge,
 } from './tax.js'
 
 export const BRACKET_TOPS = { 12: 0.12, 22: 0.22, 24: 0.24 }
@@ -58,7 +59,9 @@ export function runScenario(i, withPlan) {
   let roth = i.roth
   let side = i.taxable
   let lifetimeTax = 0
+  let lifetimeIrmaa = 0
   let totalConverted = 0
+  const agiHistory = []
   const rows = []
   const wealth = [] // after-tax family wealth at the end of each year, year 0 first
 
@@ -119,11 +122,19 @@ export function runScenario(i, withPlan) {
     lifetimeTax += tax
     totalConverted += conversion
 
+    // IRMAA: Medicare surcharge at 65+, set by MAGI two years earlier (the
+    // first two years use the current year's MAGI as the best available proxy).
+    const magiRef = t >= 2 ? agiHistory[t - 2] : agi
+    const irmaa = age >= 65 ? irmaaSurcharge(magiRef / idx, filing).annualHousehold * idx : 0
+    lifetimeIrmaa += irmaa
+    agiHistory.push(agi)
+
     // Cash: RMD lands in the taxable account; tax is paid from the taxable
     // account first, then withheld from the conversion.
     pretax -= rmd + conversion
     side += rmd
-    const fromSide = Math.min(side, tax)
+    side -= irmaa
+    const fromSide = Math.min(Math.max(0, side), tax)
     side -= fromSide
     const withheld = tax - fromSide
     roth += Math.max(0, conversion - withheld)
@@ -132,13 +143,13 @@ export function runScenario(i, withPlan) {
     roth *= 1 + r
     side *= 1 + rTax
 
-    rows.push({ t, year, age, wages: wagesY, ss: ssY, taxableSS, pension: pensionY, other: otherY, rmd, conversion, agi, std, senior, taxable, fedTax, stateTax, tax, marginal, fill, pretax, roth, side })
+    rows.push({ t, year, age, wages: wagesY, ss: ssY, taxableSS, pension: pensionY, other: otherY, rmd, conversion, agi, std, senior, taxable, fedTax, stateTax, tax, marginal, fill, irmaa, withheld, pretax, roth, side })
     wealth.push(wealthNow(i.beneficiaryRate))
   }
   const last = rows[rows.length - 1]
   const heirsTax = last.pretax * i.beneficiaryRate
   return {
-    rows, wealth, lifetimeTax, totalConverted, rmdAge, startAge, years,
+    rows, wealth, lifetimeTax, lifetimeIrmaa, totalConverted, rmdAge, startAge, years,
     endPretax: last.pretax, endRoth: last.roth, endSide: last.side,
     heirsTax, familyWealth: last.pretax - heirsTax + last.roth + last.side,
   }
@@ -147,5 +158,19 @@ export function runScenario(i, withPlan) {
 export function computeMultiYear(i) {
   const plan = runScenario(i, true)
   const none = runScenario(i, false)
-  return { plan, none, delta: plan.familyWealth - none.familyWealth, taxDelta: plan.lifetimeTax - none.lifetimeTax }
+  // This year's conversion on its own: what it costs now and what it triggers.
+  const p0 = plan.rows[0]
+  const n0 = none.rows[0]
+  const filing = normalizeFiling(i.filing)
+  const irmaaWith = irmaaSurcharge(p0.agi, filing).annualHousehold
+  const irmaaWithout = irmaaSurcharge(n0.agi, filing).annualHousehold
+  const thisYear = {
+    conversion: p0.conversion,
+    tax: p0.tax - n0.tax,
+    rate: p0.conversion > 0 ? (p0.tax - n0.tax) / p0.conversion : 0,
+    netToRoth: Math.max(0, p0.conversion - p0.withheld),
+    irmaaLater: p0.age + 2 >= 65 ? Math.max(0, irmaaWith - irmaaWithout) : 0,
+    irmaaApplies: p0.age + 2 >= 65,
+  }
+  return { plan, none, thisYear, delta: plan.familyWealth - none.familyWealth, taxDelta: plan.lifetimeTax - none.lifetimeTax, irmaaDelta: plan.lifetimeIrmaa - none.lifetimeIrmaa }
 }

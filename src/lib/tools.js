@@ -83,21 +83,10 @@ export const TOOLS = [
     status: 'testing',
     path: '/tools/multi-year-projection',
     icon: LineChart,
-    title: 'Multi-Year Tax Projection Planner',
-    short: 'Multi-Year Tax Projection',
+    title: 'Roth Conversion & RMD Planner',
+    short: 'Roth & RMD Planner',
     description:
-      'Year by year to the end of the plan: RMDs from 73 or 75, Social Security, Roth conversions that fill a bracket or run at a set amount, and what the heirs keep — do nothing vs. act, side by side.',
-  },
-  {
-    id: 'roth-conversion',
-    group: 'cpa',
-    status: 'testing',
-    path: '/tools/roth-conversion',
-    icon: RefreshCw,
-    title: 'Roth Conversion Analyzer',
-    short: 'Roth Conversion Analyzer',
-    description:
-      'Model the tax cost of a Roth conversion against its long-term benefit — current-year tax, marginal brackets, IRMAA exposure, future RMD reduction, and lifetime wealth impact.',
+      'This year\'s conversion cost (tax and IRMAA) and the whole plan to the end: RMDs from 73 or 75, Social Security, conversions that fill a bracket or run at a set amount, and what the heirs keep — do nothing vs. act.',
   },
   {
     id: 'exchange-1031',

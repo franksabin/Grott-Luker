@@ -32,18 +32,11 @@ export const CPA_TOOL_SPECS = {
     outputs: ['Projected federal and state tax', 'Safe-harbor amount under each basis', 'Already covered vs. remaining required', 'Suggested payment per remaining quarter', 'Projected balance due at filing', 'Every step of the math'],
   },
   'multi-year-projection': {
-    quick: "Ten years of taxable income and tax, with and without annual Roth conversions.",
+    quick: "Roth conversions and RMDs to the end of the plan, this year's cost up front, and what the heirs keep — do nothing vs. act.",
     model:
-      'A ten-year projection of taxable income and federal tax. Wages stop at the retirement age, Social Security starts at the claim age, the IRA grows and pays RMDs, and an optional Roth conversion of a set amount runs for a set number of years. Shows the path with conversions against the path without.',
-    inputs: ['Current age and filing status', 'Wages or other income', 'Social Security (annual)', 'Traditional IRA / 401(k) balance', 'Annual Roth conversion and for how many years', 'Age to stop working', 'Age to claim Social Security'],
-    outputs: ['Total federal tax over ten years, with and without conversions', 'Ten-year tax difference', 'Ending IRA balance both ways', 'Taxable income by year, charted, with the bracket each year', 'Year-by-year table'],
-  },
-  'roth-conversion': {
-    quick: "What converting a set amount costs this year in tax and IRMAA, and what it saves later.",
-    model:
-      'The cost of converting a given amount this year: federal tax on the conversion stacked on top of other income, state tax, the IRMAA surcharge it triggers two years out, and the RMD and future tax it avoids.',
-    inputs: ['Traditional IRA / 401(k) balance', 'Amount to convert this year', 'Other taxable income this year', 'Filing status and age', 'State of residence'],
-    outputs: ['Federal and state tax on the conversion', 'Added IRMAA surcharge', 'Total cost and effective rate on the conversion', 'Net amount into the Roth', 'First-year RMD avoided at 73 and future tax avoided per year'],
+      'Projects year by year to a chosen end age. RMDs start at 73 or 75 by year of birth on the Uniform Lifetime table; Social Security is taxed by the provisional-income test; brackets and the deduction can be indexed. Conversions either fill a chosen bracket each year through a chosen age, or run at a set amount for a set number of years. IRMAA is applied from 65 on MAGI two years back. Whatever is still pre-tax at the end is taxed at the heirs’ bracket (10-year rule), giving after-tax family wealth for the plan and for doing nothing. The first year is also shown on its own: tax on the conversion, effective rate, net to Roth, IRMAA triggered.',
+    inputs: ['Year of birth, filing status, end age', 'Pre-tax, Roth, and taxable balances', 'Wages and retirement age; Social Security and claiming age; pension; other income', 'Conversion mode: none, fill to the top of the 12/22/24% bracket through an age, or a set amount for N years', 'Heirs’ tax bracket', 'Return, inflation indexing, state'],
+    outputs: ['After-tax family wealth at the end age, plan vs. do nothing', 'Lifetime tax and lifetime IRMAA both ways', 'Ending pre-tax, Roth, and taxable balances; heirs’ tax', 'This year’s conversion: tax, effective rate, net to Roth, IRMAA in two years', 'Year-by-year line chart, bracket-fill columns, and table'],
   },
   'exchange-1031': {
     quick: "A full or partial like-kind exchange: the gain deferred, the boot taxed now against an outright sale, the new basis, and the deadlines.",
