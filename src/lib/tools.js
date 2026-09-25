@@ -4,7 +4,8 @@
 //   group  — which dashboard section it lives in. The CPA group is Grott Luker's;
 //            every other group is BlueLine's. The section heading says which, so
 //            there is no per-tool owner label.
-//   status — 'live' | 'testing'. As of 2026-09-16 every tool is 'testing':
+//   status — 'live' | 'cpa-testing' | 'testing'. 'cpa-testing' = being refined 1:1
+//            with a Grott Luker CPA. As of 2026-09-16 every tool is 'testing':
 //            the whole toolkit was rebuilt on the result-stack pattern that day
 //            and no tool has been re-reviewed by Grott Luker & Co. yet. Flip a
 //            tool back to 'live' only after a CPA has signed off on it.
@@ -80,7 +81,7 @@ export const TOOLS = [
   {
     id: 'multi-year-projection',
     group: 'cpa',
-    status: 'testing',
+    status: 'cpa-testing',
     path: '/tools/multi-year-projection',
     icon: LineChart,
     title: 'Roth Conversion & RMD Planner',
@@ -91,7 +92,7 @@ export const TOOLS = [
   {
     id: 'exchange-1031',
     group: 'cpa',
-    status: 'testing',
+    status: 'cpa-testing',
     path: '/tools/1031-exchange',
     icon: Building2,
     title: '1031 Exchange Analyzer',

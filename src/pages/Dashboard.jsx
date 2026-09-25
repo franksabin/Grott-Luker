@@ -9,10 +9,11 @@ import { GROUPS, GROUP_ORDER, TOOLS } from '../lib/tools.js'
 function ToolCard({ tool }) {
   const Icon = tool.icon
   const testing = tool.status === 'testing'
+  const cpa = tool.status === 'cpa-testing'
   return (
     <Link
       to={tool.path}
-      className={`tcard${testing ? ' is-testing' : ''}`}
+      className={`tcard${testing ? ' is-testing' : ''}${cpa ? ' is-cpa' : ''}`}
     >
       <div className="tcard-top">
         <span className="tcard-icon">
@@ -24,7 +25,7 @@ function ToolCard({ tool }) {
               <Link2 size={11} /> Client Shareable
             </span>
           ) : null}
-          {testing ? <span className="status-chip" title="Beta: works, but not reviewed with Grott Luker & Co. Not client ready.">Beta</span> : <span className="live-chip" title="Live: reviewed with Grott Luker & Co. Client ready.">Live</span>}
+          {testing ? <span className="status-chip" title="Beta: works, but not reviewed with Grott Luker & Co. Not client ready.">Beta</span> : cpa ? <span className="cpa-chip" title="CPA Testing: being refined with a Grott Luker CPA. Not client ready yet.">CPA Testing</span> : <span className="live-chip" title="Live: reviewed with Grott Luker & Co. Client ready.">Live</span>}
         </span>
       </div>
       <h3>{tool.title}</h3>
@@ -146,6 +147,7 @@ export default function Dashboard() {
         <div className="dash-bar-right">
           <span className="dev-note">
             <span className="status-chip">Beta</span> not client ready
+            <span className="cpa-chip">CPA Testing</span> being refined with a CPA
             <span className="live-chip">Live</span> client ready
           </span>
         </div>

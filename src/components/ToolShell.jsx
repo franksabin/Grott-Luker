@@ -101,6 +101,11 @@ export default function ToolShell({
         Estimate generated {generatedAt}
       </div>
 
+      {tool?.status === 'cpa-testing' ? (
+        <div className="baseline-banner is-cpa">
+          <strong>CPA Testing.</strong> Being refined with a Grott Luker &amp; Co. CPA — not client ready yet.
+        </div>
+      ) : null}
       {tool?.status === 'testing' && !planned ? (
         <div className="baseline-banner">
           <strong>Beta.</strong> Not yet reviewed with Grott Luker &amp; Co. — not client ready.
