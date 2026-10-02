@@ -17,6 +17,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.page import PageMargins
+from openpyxl.formatting.rule import FormulaRule
 from PIL import Image as PILImage
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -32,6 +33,8 @@ GOLD = "C4A054"
 CREAM = "F4F0E6"
 LINE = "E6E0D2"
 INPUT = "FFFBEA"
+PICK = "EAF1FA"  # dropdown cells
+DIM = "F3F1EC"   # cells that do not apply to this row
 INK = "26262B"
 INK_SOFT = "454650"
 MUTED = "726D63"
@@ -56,6 +59,9 @@ f_total = Font(name=SERIF, size=11, bold=True, color=NAVY)
 fill_navy = PatternFill("solid", fgColor=NAVY)
 fill_cream = PatternFill("solid", fgColor=CREAM)
 fill_input = PatternFill("solid", fgColor=INPUT)
+fill_pick = PatternFill("solid", fgColor=PICK)
+fill_dim = PatternFill("solid", fgColor=DIM)
+fill_flag = PatternFill("solid", fgColor="FBF1EC")
 
 hair = Side(style="thin", color=LINE)
 gold = Side(style="medium", color=GOLD)
@@ -121,6 +127,9 @@ def logo(height_px):
 def setup(ws, widths, landscape=True, title=""):
     """Common sheet chrome: no gridlines, column widths, print setup."""
     ws.sheet_view.showGridLines = False
+    ws.sheet_view.showRowColHeaders = False
+    ws.sheet_view.zoomScale = 110
+    ws.sheet_properties.tabColor = NAVY
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.page_setup.orientation = "landscape" if landscape else "portrait"
@@ -187,6 +196,23 @@ def inp(cell, fmt=None, align="left"):
     cell.alignment = Alignment(horizontal=align, vertical="center", indent=1 if align == "left" else 0)
     if fmt:
         cell.number_format = fmt
+
+
+def pick(cell, align="left"):
+    """A dropdown cell: light blue so it reads differently from a typed cell."""
+    cell.fill = fill_pick
+    cell.font = f_body
+    cell.border = b_row
+    cell.alignment = Alignment(horizontal=align, vertical="center", indent=1 if align == "left" else 0)
+
+
+def legend_line(ws, row, cols):
+    """One line under a section band explaining the three kinds of cell."""
+    c = ws.cell(row=row, column=1, value="Light yellow — type it in     Light blue ▾ — pick from the list     White — calculated for you")
+    c.font = f_note
+    c.alignment = Alignment(indent=1, vertical="center")
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=cols)
+    ws.row_dimensions[row].height = 16
 
 
 def calc(cell, fmt=None, align="right"):
@@ -455,7 +481,8 @@ def build_mileage():
     section(wl, 5, lcols, "Tax year")
     label(wl.cell(row=6, column=1), "Tax year")
     yr = wl.cell(row=6, column=2, value=YEAR)
-    inp(yr, "0", "left")
+    pick(yr)
+    yr.number_format = "0"
     dvy = DataValidation(type="list", formula1='"' + ",".join(str(y) for y in years) + '"', allow_blank=False)
     wl.add_data_validation(dvy)
     dvy.add(yr)
@@ -464,7 +491,7 @@ def build_mileage():
     section(wl, 8, lcols, "Your line of work")
     label(wl.cell(row=9, column=1), "What kind of work is this log for?")
     ind_cell = wl.cell(row=9, column=2, value=inds[-1]["label"])
-    inp(ind_cell)
+    pick(ind_cell)
     wl.merge_cells(start_row=9, start_column=2, end_row=9, end_column=lcols)
     dvi = DataValidation(type="list", formula1=f"=Guide!$A${IND_LIST0}:$A${IND_LISTN}", allow_blank=False, errorTitle="Line of work", error="Pick a line of work from the list.")
     wl.add_data_validation(dvi)
@@ -520,7 +547,7 @@ def build_mileage():
     setup(wt, [13, 22, 40, 10, 13, 10, 14], title=T)
     band(wt, tcols, "Travel", f'="Tax year "&Log!$B$6&"   ·   Powered by BlueLine Advisors"')
     section(wt, 5, tcols, "Trips", "the rate and total fill in from the date and purpose")
-    colheads(wt, 6, ["Date", "Client", "Description & destination", "Miles", "Purpose", "Rate", "Total"], {4: "right", 6: "right", 7: "right"})
+    colheads(wt, 6, ["Date", "Client", "Description & destination", "Miles", "Purpose  ▾", "Rate", "Total"], {4: "right", 6: "right", 7: "right"})
     dvp = DataValidation(type="list", formula1='"Business,Charity,Medical"', allow_blank=True, error="Choose Business, Charity, or Medical.", errorTitle="Purpose")
     wt.add_data_validation(dvp)
     first, last = 7, 6 + ROWS
@@ -529,7 +556,7 @@ def build_mileage():
         inp(wt.cell(row=r, column=2))
         inp(wt.cell(row=r, column=3))
         inp(wt.cell(row=r, column=4), INT, "right")
-        inp(wt.cell(row=r, column=5))
+        pick(wt.cell(row=r, column=5))
         calc(wt.cell(row=r, column=6, value=f'=IF(OR(A{r}="",E{r}=""),"",INDEX(Guide!$B${RATE0}:$D${RATEN},MATCH(A{r},Guide!$A${RATE0}:$A${RATEN},1),MATCH(E{r},Guide!$B${RATE_HDR}:$D${RATE_HDR},0)))'), RATE)
         calc(wt.cell(row=r, column=7, value=f'=IF(F{r}="","",D{r}*F{r})'), MONEY)
         dvp.add(wt.cell(row=r, column=5))
@@ -545,7 +572,7 @@ def build_mileage():
     setup(we, [13, 22, 36, 13, 34, 18, 13, 9, 46], title=T)
     band(we, ecols, "Expenses", f'="Tax year "&Log!$B$6&"   ·   Powered by BlueLine Advisors"')
     section(we, 5, ecols, "Business expenses", "treatment, counted amount, and watch-outs fill in from the category and your line of work")
-    colheads(we, 6, ["Date", "Client / vendor", "What and why", "Amount", "Category", "Treatment", "Counted", "Typical", "Watch out for your line of work"], {4: "right", 7: "right", 8: "center"})
+    colheads(we, 6, ["Date", "Client / vendor", "What and why", "Amount", "Category  ▾", "Treatment", "Counted", "Typical", "Watch out for your line of work"], {4: "right", 7: "right", 8: "center"})
     dvc = DataValidation(type="list", formula1=f"={CAT_LABELS}", allow_blank=True, error="Pick a category from the list (see the Guide sheet).", errorTitle="Category")
     we.add_data_validation(dvc)
     for r in range(first, last + 1):
@@ -553,7 +580,7 @@ def build_mileage():
         inp(we.cell(row=r, column=2))
         inp(we.cell(row=r, column=3))
         inp(we.cell(row=r, column=4), MONEY, "right")
-        inp(we.cell(row=r, column=5))
+        pick(we.cell(row=r, column=5))
         calc(we.cell(row=r, column=6, value=f'=IF(E{r}="","",INDEX({CAT_TREAT},MATCH(E{r},{CAT_LABELS},0)))'), None, "left")
         calc(we.cell(row=r, column=7, value=f'=IF(OR(E{r}="",D{r}=""),"",D{r}*INDEX({CAT_SHARE},MATCH(E{r},{CAT_LABELS},0)))'), MONEY)
         ty = we.cell(row=r, column=8, value=f'=IF(E{r}="","",IF(COUNTIF(INDEX({ATT_CATS},0,{IDX}),E{r})>0,"✓",""))')
@@ -639,104 +666,145 @@ def build_donations():
     T = f"Charitable Donation Log {YEAR}"
     readme(wb, T, "How to use this workbook", [
         ("Two sheets, kept through the year", f_section),
-        ("Gifts — one row per gift: date, organization, what it was, type (Cash, Non-cash, or Securities), and the amount or fair market value. For securities add the cost basis and whether you held them more than a year.", f_body),
-        ("Summary — totals by type and the documentation checklist, ready to send.", f_body),
+        ("Gifts — one row per gift: date, organization, what it was, the type, and the amount or fair market value. For securities add the cost basis and whether you held them more than a year. Mark the receipt letter once you have it.", f_body),
+        ("Summary — the year-end report: estimated deductible contributions, totals by type, and the documentation checklist.", f_body),
+        ("", f_body),
+        ("How the Gifts sheet works", f_section),
+        ("Light-yellow cells are typed. Light-blue cells with ▾ are picked from a list. White cells calculate for you. Cost basis and holding period only matter for securities; for other gifts those two cells go grey.", f_body),
+        ("The Documentation column tells you what each gift still needs: a receipt letter, an appraisal, or a note that a short-term security is limited to its cost basis. When a $250+ gift has its letter, it says so.", f_body),
         ("", f_body),
         ("Documentation rules", f_section),
-        ("Any single gift of $250 or more needs a written acknowledgment from the charity before you file. Mark the Receipt column Y once you have it.", f_body),
-        ("Non-cash gifts over $500 in total require Form 8283 with the return.", f_body),
-        ("Any non-cash item, or group of similar items, over $5,000 needs a qualified appraisal. Publicly traded securities are the exception.", f_body),
+        ("Any single gift of $250 or more needs a written acknowledgment from the charity before you file.", f_body),
+        ("Non-cash gifts over $500 in total require Form 8283 with the return. Any non-cash item, or group of similar items, over $5,000 needs a qualified appraisal; publicly traded securities are the exception.", f_body),
         ("Appreciated securities held more than a year are deductible at fair market value and the gain is never taxed. Held a year or less, the deduction is limited to cost basis.", f_body),
         ("Qualified charitable distributions from an IRA (70½ and older) are excluded from income instead of deducted. Log them with a note so your CPA sees them.", f_body),
         ("", f_body),
         ("When you are done", f_section),
         ("In January, email this file to your Grott Luker CPA with your receipt letters, or enter the gifts in the online log at the link we sent you.", f_body),
-        ("Light-yellow cells are yours. Everything else calculates itself.", f_note),
     ])
 
+    # ------------------------------------------------------------------ Gifts
     wg = wb.create_sheet("Gifts", 1)
     cols = 10
-    setup(wg, [13, 28, 28, 13, 14, 15, 11, 11, 14, 40], title=T)
-    band(wg, cols, "Gift log", f"Tax year {YEAR}")
-    section(wg, 5, cols, "Gifts", "deductible amount and flags fill in from the type, amount, basis, and holding period")
-    colheads(wg, 6, ["Date", "Organization", "Description", "Type", "Amount / FMV", "Cost basis", "Held > 1 yr", "Receipt letter", "Deductible", "Flags"], {5: "right", 6: "right", 7: "center", 8: "center", 9: "right"})
-    dvt = DataValidation(type="list", formula1='"Cash,Non-cash,Securities"', allow_blank=True, errorTitle="Type", error="Cash, Non-cash, or Securities.")
-    dvy = DataValidation(type="list", formula1='"Y,N"', allow_blank=True, errorTitle="Y or N", error="Enter Y or N.")
+    setup(wg, [12, 26, 28, 15, 14, 14, 11, 13, 14, 44], title=T)
+    band(wg, cols, "Gifts", f"Tax year {YEAR}")
+    section(wg, 5, cols, "Gifts this year", "deductible amount and documentation fill in as you go")
+    legend_line(wg, 6, cols)
+    colheads(wg, 7, ["Date", "Organization", "Description", "Type  ▾", "Amount / FMV", "Cost basis", "Held > 1 yr  ▾", "Receipt letter  ▾", "Deductible", "Documentation"], {5: "right", 6: "right", 7: "center", 8: "center", 9: "right"})
+    sub = ["", "", "", "cash · non-cash · securities", "", "securities only", "securities only", "Y once you have it", "", "what this gift still needs"]
+    for i, t in enumerate(sub, start=1):
+        c = wg.cell(row=8, column=i, value=t)
+        c.font = Font(name=SANS, size=8, italic=True, color=MUTED)
+        c.alignment = Alignment(horizontal={5: "right", 6: "right", 7: "center", 8: "center", 9: "right"}.get(i, "left"), vertical="top", indent=1 if i == 1 else 0)
+    wg.row_dimensions[8].height = 14
+    dvt = DataValidation(type="list", formula1='"Cash,Non-cash,Securities"', allow_blank=True, errorTitle="Type", error="Pick Cash, Non-cash, or Securities.")
+    dvy = DataValidation(type="list", formula1='"Y,N"', allow_blank=True, errorTitle="Y or N", error="Pick Y or N.")
     wg.add_data_validation(dvt)
     wg.add_data_validation(dvy)
-    first, last = 7, 6 + ROWS
+    first, last = 9, 8 + ROWS
     for r in range(first, last + 1):
         inp(wg.cell(row=r, column=1), DATE)
         inp(wg.cell(row=r, column=2))
         inp(wg.cell(row=r, column=3))
-        inp(wg.cell(row=r, column=4))
+        pick(wg.cell(row=r, column=4))
         inp(wg.cell(row=r, column=5), MONEY, "right")
         inp(wg.cell(row=r, column=6), MONEY, "right")
-        inp(wg.cell(row=r, column=7), None, "center")
-        inp(wg.cell(row=r, column=8), None, "center")
+        pick(wg.cell(row=r, column=7), "center")
+        pick(wg.cell(row=r, column=8), "center")
         calc(wg.cell(row=r, column=9, value=f'=IF(OR(D{r}="",E{r}=""),"",IF(D{r}="Securities",IF(G{r}="N",MIN(E{r},IF(F{r}="",E{r},F{r})),E{r}),E{r}))'), MONEY)
-        fl = wg.cell(row=r, column=10, value=(
-            f'=IF(E{r}="","",TRIM('
+        doc = wg.cell(row=r, column=10, value=(
+            f'=IF(E{r}="","",IF(TRIM('
             f'IF(AND(E{r}>=250,H{r}<>"Y"),"Get written acknowledgment (≥ $250). ","")&'
             f'IF(AND(D{r}="Non-cash",E{r}>5000),"Qualified appraisal required (> $5,000 non-cash). ","")&'
-            f'IF(AND(D{r}="Securities",G{r}="N"),"Held ≤ 1 year — deduction limited to cost basis. ","")))'))
-        calc(fl, None, "left")
-        fl.font = f_flag
+            f'IF(AND(D{r}="Securities",G{r}="N"),"Held ≤ 1 year — deduction limited to cost basis. ",""))="",'
+            f'IF(AND(E{r}>=250,H{r}="Y"),"Acknowledgment on file","—"),TRIM('
+            f'IF(AND(E{r}>=250,H{r}<>"Y"),"Get written acknowledgment (≥ $250). ","")&'
+            f'IF(AND(D{r}="Non-cash",E{r}>5000),"Qualified appraisal required (> $5,000 non-cash). ","")&'
+            f'IF(AND(D{r}="Securities",G{r}="N"),"Held ≤ 1 year — deduction limited to cost basis. ",""))))'))
+        calc(doc, None, "left")
         dvt.add(wg.cell(row=r, column=4))
         dvy.add(wg.cell(row=r, column=7))
         dvy.add(wg.cell(row=r, column=8))
-        wg.row_dimensions[r].height = 17
-    wg.freeze_panes = "A7"
+        wg.row_dimensions[r].height = 18
+    rng = f"A{first}:J{last}"
+    # securities-only cells go grey when the gift is not securities
+    wg.conditional_formatting.add(f"F{first}:G{last}", FormulaRule(formula=[f'AND($D{first}<>"",$D{first}<>"Securities")'], fill=fill_dim, font=Font(name=SANS, size=10, color="B9B2A3")))
+    # documentation needed → rust text on a faint rust tint; on file → green
+    wg.conditional_formatting.add(f"J{first}:J{last}", FormulaRule(formula=[f'AND($J{first}<>"",$J{first}<>"—",$J{first}<>"Acknowledgment on file")'], fill=fill_flag, font=Font(name=SANS, size=9, color="A5533C", bold=True)))
+    wg.conditional_formatting.add(f"J{first}:J{last}", FormulaRule(formula=[f'$J{first}="Acknowledgment on file"'], font=Font(name=SANS, size=9, color="2E7D5B")))
+    wg.freeze_panes = "A9"
     tr = last + 1
     total_row(wg, tr, 1, cols, 4, "Totals", {5: (f"=SUM(E{first}:E{last})", MONEY), 9: (f"=SUM(I{first}:I{last})", MONEY)})
     footer(wg, tr + 2, cols)
 
+    # ------------------------------------------------------------------ Summary (the report)
     wsu = wb.create_sheet("Summary", 2)
-    scols = 6
-    setup(wsu, [34, 14, 14, 3, 14, 14], landscape=False, title=T)
+    scols = 7
+    setup(wsu, [12, 26, 26, 14, 14, 14, 36], landscape=False, title=T)
     band(wsu, scols, "Year-end summary", f"Tax year {YEAR}")
-    tile(wsu, 5, 1, 2, "Total gifts", f"=Gifts!E{tr}", MONEY0, "all types")
-    tile(wsu, 5, 3, 4, "Estimated deductible", f"=Gifts!I{tr}", MONEY0, "before AGI limits")
-    tile(wsu, 5, 5, 6, "Receipts still needed", f'=COUNTIFS(Gifts!$E${first}:$E${last},">=250",Gifts!$H${first}:$H${last},"<>Y")', INT, "gifts of $250 or more")
-    r = 9
-    section(wsu, r, scols, "Gifts by type")
+    meta = wsu.cell(row=5, column=1, value="Charitable Donation Log · year-to-date summary · prepared for discussion with Grott Luker & Co.")
+    meta.font = f_sub
+    wsu.merge_cells(start_row=5, start_column=1, end_row=5, end_column=scols)
+    E = f"Gifts!$E${first}:$E${last}"
+    D = f"Gifts!$D${first}:$D${last}"
+    F = f"Gifts!$F${first}:$F${last}"
+    Gc = f"Gifts!$G${first}:$G${last}"
+    Hc = f"Gifts!$H${first}:$H${last}"
+    I = f"Gifts!$I${first}:$I${last}"
+    gain = f'SUMPRODUCT(({D}="Securities")*({Gc}="Y")*({E}-{F}))'
+    tile(wsu, 7, 1, 7, "Estimated deductible contributions", f"=Gifts!I{tr}", MONEY0,
+         f'=COUNTIF({E},">0")&IF(COUNTIF({E},">0")=1," gift · "," gifts · ")&TEXT(Gifts!E{tr},"$#,##0")&" given"&IF({gain}>0," · "&TEXT({gain},"$#,##0")&" of capital gain avoided","")')
+    wsu.row_dimensions[8].height = 38
+    wsu.cell(row=8, column=1).font = Font(name=SERIF, size=24, bold=True, color=NAVY)
+    r = 11
+    tile(wsu, r, 1, 2, "Cash / check / card", f'=SUMIFS({E},{D},"Cash")', MONEY0, f'=COUNTIFS({D},"Cash",{E},">0")&" gifts"')
+    tile(wsu, r, 3, 4, "Non-cash (goods)", f'=SUMIFS({E},{D},"Non-cash")', MONEY0, f'=COUNTIFS({D},"Non-cash",{E},">0")&" gifts"')
+    tile(wsu, r, 5, 7, "Appreciated securities", f'=SUMIFS({E},{D},"Securities")', MONEY0, f'=COUNTIFS({D},"Securities",{E},">0")&" gifts"')
+    r = 15
+    noncash = f'SUMIFS({E},{D},"<>Cash")'
+    tile(wsu, r, 1, 2, "Form 8283", f'=IF({noncash}>500,"Required","Not required")', "@", f'="Non-cash total "&TEXT({noncash},"$#,##0")')
+    tile(wsu, r, 3, 4, "Appraisals", f'=COUNTIFS({D},"Non-cash",{E},">5000")', INT, "non-cash items over $5,000")
+    tile(wsu, r, 5, 7, "Receipts missing", f'=COUNTIFS({E},">=250",{Hc},"<>Y")', INT, "gifts of $250+ without acknowledgment")
+    for c in (1, 3, 5):
+        wsu.cell(row=r + 1, column=c).font = Font(name=SERIF, size=16, bold=True, color=NAVY)
+    # the gift list, as on the web report
+    r = 19
+    section(wsu, r, scols, "Gifts")
     r += 1
-    colheads(wsu, r, ["Type", "Gifts", "Deductible", "", "Count"], {2: "right", 3: "right", 5: "right"})
+    colheads(wsu, r, ["Date", "Organization", "Description", "Type", "Amount / FMV", "Deductible", "Documentation"], {5: "right", 6: "right"})
     r += 1
-    g0 = r
-    for t in ("Cash", "Non-cash", "Securities"):
-        label(wsu.cell(row=r, column=1), t)
-        calc(wsu.cell(row=r, column=2, value=f'=SUMIFS(Gifts!$E${first}:$E${last},Gifts!$D${first}:$D${last},"{t}")'), MONEY)
-        calc(wsu.cell(row=r, column=3, value=f'=SUMIFS(Gifts!$I${first}:$I${last},Gifts!$D${first}:$D${last},"{t}")'), MONEY)
-        calc(wsu.cell(row=r, column=5, value=f'=COUNTIFS(Gifts!$D${first}:$D${last},"{t}",Gifts!$E${first}:$E${last},">0")'), INT)
-        r += 1
-    total_row(wsu, r, 1, 5, 1, "All gifts", {2: (f"=SUM(B{g0}:B{r - 1})", MONEY), 3: (f"=SUM(C{g0}:C{r - 1})", MONEY), 5: (f"=SUM(E{g0}:E{r - 1})", INT)})
+    l0 = r
+    for k in range(ROWS):
+        src = first + k
+        row = l0 + k
+        calc(wsu.cell(row=row, column=1, value=f'=IF(Gifts!A{src}="","",Gifts!A{src})'), DATE, "left")
+        calc(wsu.cell(row=row, column=2, value=f'=IF(Gifts!B{src}="","",Gifts!B{src})'), None, "left")
+        calc(wsu.cell(row=row, column=3, value=f'=IF(Gifts!C{src}="","",Gifts!C{src})'), None, "left")
+        calc(wsu.cell(row=row, column=4, value=f'=IF(Gifts!D{src}="","",Gifts!D{src})'), None, "left")
+        calc(wsu.cell(row=row, column=5, value=f'=IF(Gifts!E{src}="","",Gifts!E{src})'), MONEY)
+        calc(wsu.cell(row=row, column=6, value=f'=IF(Gifts!I{src}="","",Gifts!I{src})'), MONEY)
+        dc = wsu.cell(row=row, column=7, value=f'=IF(Gifts!J{src}="","",Gifts!J{src})')
+        calc(dc, None, "left")
+        dc.font = Font(name=SANS, size=9, color=INK_SOFT)
+        for c in range(1, scols + 1):
+            wsu.cell(row=row, column=c).border = Border()
+        wsu.row_dimensions[row].height = 16
+    ln = l0 + ROWS - 1
+    # rows only get their hairline when a gift is there; empty rows stay invisible
+    wsu.conditional_formatting.add(f"A{l0}:G{ln}", FormulaRule(formula=[f'$E{l0}<>""'], border=Border(bottom=hair)))
+    wsu.conditional_formatting.add(f"G{l0}:G{ln}", FormulaRule(formula=[f'AND($G{l0}<>"",$G{l0}<>"—",$G{l0}<>"Acknowledgment on file")'], font=Font(name=SANS, size=9, color="A5533C")))
+    r = ln + 1
+    total_row(wsu, r, 1, scols, 4, "Totals", {5: (f"=Gifts!E{tr}", MONEY), 6: (f"=Gifts!I{tr}", MONEY)})
     r += 2
-    section(wsu, r, scols, "Documentation checklist")
-    r += 1
-    colheads(wsu, r, ["Item", "", "Result"], {3: "right"})
-    r += 1
-    noncash_row = r + 1
-    items = [
-        ("Gifts of $250+ still missing a receipt letter", f'=COUNTIFS(Gifts!$E${first}:$E${last},">=250",Gifts!$H${first}:$H${last},"<>Y")', INT),
-        ("Non-cash gifts in total (Form 8283 over $500)", f'=SUMIFS(Gifts!$E${first}:$E${last},Gifts!$D${first}:$D${last},"<>Cash")', MONEY),
-        ("Form 8283 needed", f'=IF(C{noncash_row}>500,"Yes","No")', None),
-        ("Non-cash items over $5,000 (appraisal)", f'=COUNTIFS(Gifts!$D${first}:$D${last},"Non-cash",Gifts!$E${first}:$E${last},">5000")', INT),
-        ("Capital gain avoided on long-term securities", f'=SUMPRODUCT((Gifts!$D${first}:$D${last}="Securities")*(Gifts!$G${first}:$G${last}="Y")*(Gifts!$E${first}:$E${last}-Gifts!$F${first}:$F${last}))', MONEY),
-    ]
-    for lab, formula, fmt in items:
-        label(wsu.cell(row=r, column=1), lab)
-        v = wsu.cell(row=r, column=3, value=formula); calc(v, fmt); v.font = f_bold
-        wsu.cell(row=r, column=2).border = b_row
-        r += 1
-    r += 1
     r = note_block(wsu, r, scols, "Reading this", [
         "Thresholds: written acknowledgment for any gift of $250 or more; Form 8283 above $500 of non-cash gifts; qualified appraisal above $5,000 per item or group.",
         "Deductible amounts are before the AGI limits (60% of AGI for cash, 30% for appreciated property) and the 0.5%-of-AGI floor that applies from 2026. Your CPA applies those.",
     ])
     footer(wsu, r + 1, scols)
     about(wsu, r + 3, scols)
+    wsu.print_area = f"A1:G{r + 10}"
 
+    wb.active = 1
     wb.properties.creator = "Grott Luker & Co."
     wb.properties.title = T
     wb.calculation.fullCalcOnLoad = True
