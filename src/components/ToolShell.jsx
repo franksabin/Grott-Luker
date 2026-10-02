@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ArrowLeft, RotateCcw, Database, FileDown, Mail, Link2, Check, Eye } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Database, FileDown, Mail, Link2, Check, Eye, FileSpreadsheet } from 'lucide-react'
 import { timestampNow } from '../lib/format.js'
 import { TOOLS } from '../lib/tools.js'
 import { EMAIL_REQUESTS } from '../lib/emailRequests.js'
@@ -79,6 +79,11 @@ export default function ToolShell({
             <a className="btn btn-ghost btn-sm" href={tool.clientPath} target="_blank" rel="noopener noreferrer">
               <Eye size={15} /> Preview client form
             </a>
+            {tool?.template ? (
+              <a className="btn btn-ghost btn-sm" href={tool.template} download>
+                <FileSpreadsheet size={15} /> Excel template
+              </a>
+            ) : null}
           </>
         ) : null}
         {onSample ? (
@@ -117,7 +122,7 @@ export default function ToolShell({
           <div className="share-how-title">How this Client Shareable works</div>
           <ol>
             <li><strong>Send the link.</strong> Use “Email client the form” (a ready-made email with the link) or “Copy client link” and paste it into your own message or text.</li>
-            <li><strong>The client fills it in.</strong> The form opens in any browser — no login, no account. It saves on their device as they go.</li>
+            <li><strong>The client fills it in.</strong> The form opens in any browser — no login, no account. It saves on their device as they go. Clients who prefer a spreadsheet can download the Excel template instead and send you the file.</li>
             <li><strong>It lands in Client results.</strong> When they click Send, the submission appears under Client results (staff passcode) with their name and email, ready to print or review before the meeting.</li>
           </ol>
           <div className="share-how-note">The link is the same for every client; you tell submissions apart by the name and email the client enters. You can also fill this page in yourself during a meeting — that stays on this device only.</div>

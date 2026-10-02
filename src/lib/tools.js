@@ -342,6 +342,7 @@ export const TOOLS = [
     icon: ClipboardList,
     shareable: true,
     clientPath: '/client/know-your-numbers',
+    template: '/templates/GrottLuker-Know-Your-Numbers.xlsx',
     title: 'Know Your Numbers',
     short: 'Know Your Numbers',
     description:
@@ -355,6 +356,7 @@ export const TOOLS = [
     icon: Car,
     shareable: true,
     clientPath: '/client/mileage-log',
+    template: '/templates/GrottLuker-Mileage-Expense-Log-2026.xlsx',
     title: 'Mileage & Expense Log',
     short: 'Mileage & Expense Log',
     description:
@@ -366,6 +368,7 @@ export const TOOLS = [
     status: 'testing',
     shareable: true,
     clientPath: '/client/charitable-donation-log',
+    template: '/templates/GrottLuker-Charitable-Donation-Log-2026.xlsx',
     path: '/tools/charitable-donation-log',
     icon: Gift,
     title: 'Charitable Donation Log',

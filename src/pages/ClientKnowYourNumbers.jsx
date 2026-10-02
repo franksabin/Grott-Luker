@@ -113,6 +113,9 @@ export default function ClientKnowYourNumbers() {
           where your finances stand today. It takes about five minutes, and
           approximate figures are perfectly fine.
         </p>
+        <p className="template-link">
+          Prefer a spreadsheet? <a href="/templates/GrottLuker-Know-Your-Numbers.xlsx" download>Download the Excel template</a> and email it to your CPA when it's done.
+        </p>
       </div>
 
       <Stepper current={step} />

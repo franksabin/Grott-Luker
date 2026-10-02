@@ -96,6 +96,9 @@ export default function ClientDonationLog() {
       <div className="tool-header">
         <h1>Charitable Donation Log</h1>
         <p className="tool-sub">Record cash, goods, and stock gifts through the year. It flags when you need a receipt letter or an appraisal, saves on this device as you type, and sends to Grott Luker &amp; Co. with one click — usually in January.</p>
+        <p className="template-link">
+          Prefer a spreadsheet? <a href="/templates/GrottLuker-Charitable-Donation-Log-2026.xlsx" download>Download the Excel template</a> and email it to your CPA when it's done.
+        </p>
       </div>
       <div className="toolbar no-print" style={{ marginTop: 0 }}>
         <span className="timestamp" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{savedTick ? <Check size={13} /> : <Save size={13} />} Saved on this device</span>

@@ -116,6 +116,9 @@ export default function ClientMileageLog() {
         <p className="tool-sub">
           Keep track of business, charity, and medical miles plus meals and other business expenses through the year. Pick your line of work and the log shows which costs are usually deductible, which are limited, and which to leave for your CPA. Everything is saved on this device as you type; when you’re ready — usually in January — send it to Grott Luker &amp; Co. with one click.
         </p>
+        <p className="template-link">
+          Prefer a spreadsheet? <a href="/templates/GrottLuker-Mileage-Expense-Log-2026.xlsx" download>Download the Excel template</a> and email it to your CPA when it's done.
+        </p>
       </div>
 
       <div className="toolbar no-print" style={{ marginTop: 0 }}>
