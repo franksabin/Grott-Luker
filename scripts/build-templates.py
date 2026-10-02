@@ -361,7 +361,7 @@ def build_mileage():
     wg.row_dimensions[IND_HDR].height = 42
     first_ind_col = get_column_letter(5)
     last_ind_col = get_column_letter(4 + len(inds))
-    idx = wg.cell(row=6, column=2, value=f'=IFERROR(MATCH('Start here'!$B$15,Data!${first_ind_col}${IND_HDR}:${last_ind_col}${IND_HDR},0),{len(inds)})')
+    idx = wg.cell(row=6, column=2, value=f"=IFERROR(MATCH('Start here'!$B$15,Data!${first_ind_col}${IND_HDR}:${last_ind_col}${IND_HDR},0),{len(inds)})")
     idx.font = f_body
     IDX = "Data!$B$6"
 
@@ -541,7 +541,7 @@ def build_mileage():
     wt = wb.create_sheet("Travel", 1)
     tcols = 7
     setup(wt, [13, 22, 40, 10, 13, 10, 14], title=T)
-    band(wt, tcols, "Travel", f'="Tax year "&'Start here'!$B$12&"   ·   Powered by BlueLine Advisors"')
+    band(wt, tcols, "Travel", f"=\"Tax year \"&'Start here'!$B$12&\"   ·   Powered by BlueLine Advisors\"")
     section(wt, 5, tcols, "Trips", "the rate and total fill in from the date and purpose")
     colheads(wt, 6, ["Date", "Client", "Description & destination", "Miles", "Purpose  ▾", "Rate", "Total"], {4: "right", 6: "right", 7: "right"})
     dvp = DataValidation(type="list", formula1='"Business,Charity,Medical"', allow_blank=True, error="Choose Business, Charity, or Medical.", errorTitle="Purpose")
@@ -566,7 +566,7 @@ def build_mileage():
     we = wb.create_sheet("Expenses", 2)
     ecols = 9
     setup(we, [13, 22, 36, 13, 34, 18, 13, 9, 46], title=T)
-    band(we, ecols, "Expenses", f'="Tax year "&'Start here'!$B$12&"   ·   Powered by BlueLine Advisors"')
+    band(we, ecols, "Expenses", f"=\"Tax year \"&'Start here'!$B$12&\"   ·   Powered by BlueLine Advisors\"")
     section(we, 5, ecols, "Business expenses", "treatment, counted amount, and watch-outs fill in from the category and your line of work")
     colheads(we, 6, ["Date", "Client / vendor", "What and why", "Amount", "Category  ▾", "Treatment", "Counted", "Typical", "Watch out for your line of work"], {4: "right", 7: "right", 8: "center"})
     dvc = DataValidation(type="list", formula1=f"={CAT_LABELS}", allow_blank=True, error="Pick a category from the list.", errorTitle="Category")
@@ -597,8 +597,8 @@ def build_mileage():
     wsu = wb.create_sheet("Summary", 3)
     scols = 6
     setup(wsu, [30, 14, 14, 3, 14, 14], landscape=False, title=T)
-    band(wsu, scols, "Year-end summary", f'="Tax year "&'Start here'!$B$12&"   ·   Powered by BlueLine Advisors"')
-    meta = wsu.cell(row=5, column=1, value='="Prepared for discussion with Grott Luker & Co. · "&'Start here'!$B$15')
+    band(wsu, scols, "Year-end summary", f"=\"Tax year \"&'Start here'!$B$12&\"   ·   Powered by BlueLine Advisors\"")
+"   meta = wsu.cell(row=5, column=1, value='=\"Prepared for discussion with Grott Luker & Co. · \"&'Start here'!$B$15")
     meta.font = f_sub
     wsu.merge_cells(start_row=5, start_column=1, end_row=5, end_column=scols)
     # feature tile: estimated deductions
@@ -630,7 +630,7 @@ def build_mileage():
         r += 1
     total_row(wsu, r, 1, 5, 1, "All expenses", {2: (f"=SUM(B{e0}:B{r - 1})", MONEY), 3: (f"=SUM(C{e0}:C{r - 1})", MONEY), 5: (f"=SUM(E{e0}:E{r - 1})", INT)})
     r += 2
-    section(wsu, r, scols, '="Notes for "&LOWER(LEFT('Start here'!$B$15,1))&MID('Start here'!$B$15,2,200)')
+    section(wsu, r, scols, "=\"Notes for \"&LOWER(LEFT('Start here'!$B$15,1))&MID('Start here'!$B$15,2,200)")
     r += 1
     for k in range(MAXV):
         c = wsu.cell(row=r, column=1, value=f'=T(INDEX({AV_CATS},{k + 1},{IDX}))')
