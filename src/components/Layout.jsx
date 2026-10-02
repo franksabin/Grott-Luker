@@ -69,14 +69,6 @@ export default function Layout({ client = false }) {
         </div>
       </header>
 
-      {/* Print-only lightweight brand line so printouts/PDFs are identified. */}
-      <div className="print-only" style={{ padding: '0 12px', marginBottom: 8 }}>
-        <strong style={{ color: '#14335c', fontSize: 16 }}>Grott Luker &amp; Co.</strong>
-        <span style={{ color: '#66707e', marginLeft: 8, fontSize: 12 }}>
-          Client Decision Support Toolkit
-        </span>
-      </div>
-
       <main className="main">
         <div className="container">
           <Outlet />

@@ -157,6 +157,17 @@ export default function CharitableGiving() {
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
       steps={steps}
+      inputsSummary={[
+        ['Filing status', form.filing === 'single' ? 'Single' : 'Married filing jointly'],
+        ['Adjusted gross income (before gifts)', money(r.income)],
+        ['Charitable giving per year', money(r.giving)],
+        ['Age', form.age || '—'],
+        ['Annual IRA required distribution', money(r.rmd)],
+        ['State & local taxes paid', money(toNumber(form.saltPaid))],
+        ['Mortgage interest', money(toNumber(form.mortgageInterest))],
+        ['Other itemized deductions', money(toNumber(form.otherItemized))],
+        ['Bunching window', `${r.N} years`],
+      ]}
     >
       <div className="tool-grid">
         <div>

@@ -20,6 +20,7 @@ export default function ToolShell({
   children,
   disclosure = STANDARD_DISCLOSURE,
   steps,
+  inputsSummary, // [[label, value], ...] printed as "Inputs used in this estimate"
   planned = false, // a roadmap entry with no calculator yet: no "baseline model" banner
 }) {
   const [modalOpen, setModalOpen] = useState(false)
@@ -50,6 +51,11 @@ export default function ToolShell({
   }
 
   const handlePrint = () => window.print()
+  // ?sample=1 loads the sample on any tool (review links, screenshots, print checks).
+  useEffect(() => {
+    if (onSample && new URLSearchParams(window.location.search).get('sample')) onSample()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const generatedAt = timestampNow()
   const usage = useUsage()
   const u = tool ? usage[tool.id] : null
@@ -133,6 +139,20 @@ export default function ToolShell({
       ) : null}
 
       {children}
+
+      {inputsSummary?.length ? (
+        <section className="print-inputs print-only">
+          <div className="print-inputs-title">Inputs used in this estimate</div>
+          <dl>
+            {inputsSummary.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
 
       <MathTrace steps={steps} />
 

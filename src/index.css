@@ -2517,3 +2517,55 @@ html, body { overflow-x: hidden; }
 .usage-note { color: var(--muted); }
 
 .staff-note { color: var(--muted); font-size: 12px; }
+
+/* ------- Print: self-contained client report ------- */
+.print-inputs { display: none; }
+@media print {
+  @page { margin: 14mm 14mm 16mm; }
+  /* Inputs live on screen; the printout shows them as a compact list at the end instead. */
+  .tool-grid > div:first-child, .refine, .timestamp, .signoff, .tool-tech-attrib { display: none !important; }
+  .tool-header { margin: 0 0 10px; }
+  .tool-header h1 { font-size: 18px; margin: 0 0 4px; }
+  .tool-sub { font-size: 10.5px; line-height: 1.45; color: #5b6472; max-width: none; }
+  .main { padding: 0; }
+  .container { padding: 0; }
+  .report { border: 0; padding: 0; margin: 0; }
+  .report-letterhead { margin-top: 4px; }
+  .feature-block { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .stat-tiles, .scenario-cards, .scenario-card, .stat-tile, .result-list, .report-narrative, .narrative, .tool-header, .chart-block { break-inside: avoid; page-break-inside: avoid; }
+  .stat-tile, .scenario-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .panel { break-inside: avoid; page-break-inside: avoid; margin-bottom: 10px; }
+  .panel-title, .note-title { break-after: avoid; }
+  .assumptions, .note { font-size: 10px; }
+  .assumptions li { margin-bottom: 3px; }
+  .print-inputs { display: block; margin: 14px 0 0; padding: 10px 14px 6px; border: 1px solid #d8d1bf; border-radius: 8px; break-inside: avoid; page-break-inside: avoid; }
+  .print-inputs-title { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #726d63; font-weight: 600; margin-bottom: 6px; }
+  .print-inputs dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 18px; margin: 0; }
+  .print-inputs dl > div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid #efeae0; padding: 3px 0; font-size: 10px; }
+  .print-inputs dt { color: #5b6472; }
+  .print-inputs dd { margin: 0; font-weight: 600; color: #14335c; white-space: nowrap; }
+  .disclosure-box { font-size: 9px; margin-top: 12px; }
+  .print-footer { break-before: avoid; margin-top: 16px; }
+}
+@media print {
+  /* Let long text and tables flow across pages; only the small units stay whole. */
+  .report-narrative, .panel, .note, .data-table { break-inside: auto; page-break-inside: auto; }
+  .report-narrative p, .note p, .assumptions li, tr { break-inside: avoid; }
+  .feature-block { padding: 12px 16px; margin-bottom: 10px; }
+  .feature-block .feature-value, .feature-value { font-size: 26px; }
+  .stat-tiles { gap: 8px; margin-bottom: 10px; }
+  .stat-tile { padding: 8px 8px 10px; }
+  .stat-tile-value { font-size: 16px; }
+  .result-row { padding: 5px 0; }
+  .result-list { margin-bottom: 8px; }
+  .report-narrative { margin: 8px 0; font-size: 10.5px; line-height: 1.5; }
+  .scenario-cards { gap: 8px; margin: 8px 0; }
+  .scenario-card { padding: 10px 12px; }
+  .scenario-amt { font-size: 16px; }
+  .chart-block { margin: 6px 0; }
+  .chart-block svg, .chart-bars { max-height: 150px; }
+  .data-table th, .data-table td { padding: 4px 6px; font-size: 10px; }
+  .panel { padding: 10px 14px; margin-bottom: 8px; }
+  .report-footer { margin-top: 6px; }
+  .note { padding: 8px 12px; }
+}
