@@ -132,7 +132,7 @@ export const TOOLS = [
   },
   {
     id: 'capital-gains-harvesting',
-    group: 'cpa',
+    group: 'individual-family',
     status: 'testing',
     path: '/tools/capital-gains-harvesting',
     icon: TrendingUp,
