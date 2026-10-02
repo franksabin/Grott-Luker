@@ -222,7 +222,7 @@ export default function CharitableGiving() {
           />
         </PrintSection>
         <PrintSection title="Tax saved by route" className="pr-chart">
-          <BarCompare height={120} legend={false} groups={r.options.map((o) => ({ label: o.label, bars: [{ label: 'Tax saved', value: Math.max(0, o.saved), color: o.tone }] }))} />
+          <BarCompare height={200} legend={false} groups={r.options.map((o) => ({ label: o.label, bars: [{ label: 'Tax saved', value: Math.max(0, o.saved), color: o.tone }] }))} />
         </PrintSection>
         <PrintFooter page={1} pages={2} />
       </PrintPage>
