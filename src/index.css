@@ -2602,20 +2602,20 @@ html, body { overflow-x: hidden; }
   .pr-tile.is-best .pr-tile-value { color: #2e7d5b; }
   .pr-tile-note { font-size: 8.5px; color: #726d63; }
   .pr-section { margin-bottom: 10px; }
-  .pr-section-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1.5px solid #c4a054; padding: 0 14px 3px; margin-bottom: 6px; }
+  .pr-section-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1.5px solid #c4a054; padding: 0 36px 3px; margin-bottom: 6px; }
   .pr-section-head h2 { font-family: var(--font-serif); font-size: 12.5px; font-weight: 700; color: #0f2440; margin: 0; }
   .pr-section-head span { font-size: 9px; color: #726d63; font-style: italic; }
   .pr-rows { display: flex; flex-direction: column; }
-  .pr-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 14px; border-bottom: 1px solid #efeae0; font-size: 10.5px; }
-  .pr-row b { font-variant-numeric: lining-nums tabular-nums; color: #0f2440; }
+  .pr-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 4px 36px; border-bottom: 1px solid #efeae0; font-size: 10.5px; }
+  .pr-row b { font-variant-numeric: lining-nums tabular-nums; color: #0f2440; font-size: 13px; }
   .pr-row.is-sub { font-size: 9.5px; color: #726d63; }
-  .pr-row.is-sub b { color: #726d63; font-weight: 500; }
+  .pr-row.is-sub b { color: #726d63; font-weight: 500; font-size: 11px; }
   .pr-row.is-total { border-top: 1px solid #0f2440; border-bottom: 0; font-weight: 700; }
   .pr-table { width: 100%; border-collapse: collapse; font-size: 9.5px; margin: 6px 0; }
   .pr-table th { text-align: left; font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: #726d63; border-bottom: 1px solid #0f2440; padding: 3px 6px 4px; }
   .pr-table td { padding: 4px 6px; border-bottom: 1px solid #efeae0; vertical-align: top; line-height: 1.35; }
   .pr-table td:first-child { font-weight: 600; color: #0f2440; }
-  .pr-prose { font-size: 10.5px; line-height: 1.5; color: #26262b; margin: 0 0 6px; padding: 0 14px; }
+  .pr-prose { font-size: 10.5px; line-height: 1.5; color: #26262b; margin: 0 0 6px; padding: 0 36px; }
   .pr-note { background: #f4f0e6; border-left: 3px solid #c4a054; padding: 8px 12px; margin: 8px 0 10px; font-size: 10px; line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pr-note-title { font-weight: 700; color: #0f2440; margin-bottom: 2px; }
   .pr-inputs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 16px; margin: 0; }
