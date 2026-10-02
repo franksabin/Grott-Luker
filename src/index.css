@@ -2144,7 +2144,7 @@ button.backlink {
   .hero-e-visual { display: none; }
 }
 
-.dash .dash-bar { justify-content: space-between; }
+.dash .dash-bar { justify-content: flex-end; }
 
 .dash .disclosure-box { margin-top: 40px; }
 

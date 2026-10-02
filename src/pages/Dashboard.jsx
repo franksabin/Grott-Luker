@@ -144,11 +144,6 @@ export default function Dashboard() {
       </section>
 
       <div className="dash-bar">
-        <Link to="/feedback" className="poll-cta">
-          <span className="poll-cta-tag">Review</span>
-          Review the CPA tools — what to add, change, or include
-          <ArrowRight size={14} />
-        </Link>
         <div className="dash-bar-right">
           <span className="dev-note">
             <span className="status-chip">Not reviewed</span> not client ready
