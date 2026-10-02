@@ -516,9 +516,9 @@ def build_mileage():
     section(wl, r, lcols, "Usually not deductible", "for your line of work")
     r += 1
     for k in range(MAXV):
-        c = wl.cell(row=r, column=1, value=f'=IFERROR(INDEX({AV_CATS},{k + 1},{IDX}),"")')
+        c = wl.cell(row=r, column=1, value=f'=T(INDEX({AV_CATS},{k + 1},{IDX}))')
         c.font = f_bold; c.alignment = Alignment(indent=1, vertical="top", wrap_text=True); c.border = b_row
-        w = wl.cell(row=r, column=2, value=f'=IFERROR(INDEX({AV_WHYS},{k + 1},{IDX}),"")')
+        w = wl.cell(row=r, column=2, value=f'=T(INDEX({AV_WHYS},{k + 1},{IDX}))')
         w.font = f_body; w.alignment = Alignment(wrap_text=True, vertical="top"); w.border = b_row
         wl.merge_cells(start_row=r, start_column=2, end_row=r, end_column=lcols)
         wl.row_dimensions[r].height = 32
@@ -529,14 +529,14 @@ def build_mileage():
     colheads(wl, r + 1, ["Item", "Category", "Treatment"], {})
     r += 2
     for k in range(MAXA):
-        it = wl.cell(row=r, column=1, value=f'=IFERROR(INDEX({ATT_ITEMS},{k + 1},{IDX}),"")')
+        it = wl.cell(row=r, column=1, value=f'=T(INDEX({ATT_ITEMS},{k + 1},{IDX}))')
         it.font = f_body; it.alignment = Alignment(indent=1, vertical="center", wrap_text=True); it.border = b_row
-        ct = wl.cell(row=r, column=2, value=f'=IFERROR(INDEX({ATT_CATS},{k + 1},{IDX}),"")')
+        ct = wl.cell(row=r, column=2, value=f'=T(INDEX({ATT_CATS},{k + 1},{IDX}))')
         ct.font = f_body; ct.alignment = Alignment(vertical="center"); ct.border = b_row
         tr_ = wl.cell(row=r, column=3, value=f'=IF(B{r}="","",INDEX({CAT_TREAT},MATCH(B{r},{CAT_LABELS},0)))')
         tr_.font = f_note; tr_.alignment = Alignment(vertical="center"); tr_.border = b_row
         wl.merge_cells(start_row=r, start_column=3, end_row=r, end_column=lcols)
-        wl.row_dimensions[r].height = 18
+        wl.row_dimensions[r].height = 28
         r += 1
     footer(wl, r + 1, lcols)
     wl.freeze_panes = "A5"
@@ -637,9 +637,9 @@ def build_mileage():
     section(wsu, r, scols, '="Notes for "&LOWER(LEFT(Log!$B$9,1))&MID(Log!$B$9,2,200)')
     r += 1
     for k in range(MAXV):
-        c = wsu.cell(row=r, column=1, value=f'=IFERROR(INDEX({AV_CATS},{k + 1},{IDX}),"")')
+        c = wsu.cell(row=r, column=1, value=f'=T(INDEX({AV_CATS},{k + 1},{IDX}))')
         c.font = f_bold; c.alignment = Alignment(indent=1, vertical="top", wrap_text=True); c.border = b_row
-        w = wsu.cell(row=r, column=2, value=f'=IFERROR(INDEX({AV_WHYS},{k + 1},{IDX}),"")')
+        w = wsu.cell(row=r, column=2, value=f'=T(INDEX({AV_WHYS},{k + 1},{IDX}))')
         w.font = f_body; w.alignment = Alignment(wrap_text=True, vertical="top"); w.border = b_row
         wsu.merge_cells(start_row=r, start_column=2, end_row=r, end_column=scols)
         wsu.row_dimensions[r].height = 32
