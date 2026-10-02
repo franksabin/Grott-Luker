@@ -81,8 +81,6 @@ ABOUT = [
     ("Grott Luker & Co.", f_section),
     ("Certified Public Accountants · Portsmouth, New Hampshire · Accounting | Tax Planning | Advisory", f_body),
     ("Questions about this workbook go to your Grott Luker CPA.", f_body),
-    ("", f_body),
-    (DISCLAIMER, f_note),
 ]
 
 
@@ -301,7 +299,8 @@ def readme(wb, title, sub, lines):
             ws.row_dimensions[r].height = 24
         r += 1
     r += 1
-    about(ws, r, 1)
+    footer(ws, r, 1)
+    about(ws, r + 2, 1)
     return ws
 
 
