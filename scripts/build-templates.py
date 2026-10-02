@@ -157,7 +157,8 @@ def band(ws, cols, title, sub):
     t = ws.cell(row=2, column=cols, value=title)
     t.font = f_band_title
     t.alignment = Alignment(horizontal="right", vertical="center")
-    s = ws.cell(row=3, column=cols, value=f"{sub}   ·   Powered by BlueLine Advisors")
+    # a formula sub-line (starts with "=") already carries the credit; plain text gets it appended
+    s = ws.cell(row=3, column=cols, value=sub if str(sub).startswith("=") else f"{sub}   ·   Powered by BlueLine Advisors")
     s.font = f_band_sub
     s.alignment = Alignment(horizontal="right", vertical="top")
     ws.row_dimensions[4].height = 10
