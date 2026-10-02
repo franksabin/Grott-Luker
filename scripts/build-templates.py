@@ -661,30 +661,91 @@ def build_mileage():
 def build_donations():
     wb = Workbook()
     T = f"Charitable Donation Log {YEAR}"
-    readme(wb, T, "How to use this workbook", [
-        ("Two sheets, kept through the year", f_section),
-        ("Gifts — one row per gift: date, organization, what it was, the type, and the amount or fair market value. For securities add the cost basis and whether you held them more than a year. Mark the receipt letter once you have it.", f_body),
-        ("Summary — the year-end report: estimated deductible contributions, totals by type, and the documentation checklist.", f_body),
-        ("", f_body),
-        ("How the Gifts sheet works", f_section),
-        ("Light-yellow cells are typed. Light-blue cells with ▾ are picked from a list. White cells calculate for you. Cost basis and holding period only matter for securities; for other gifts those two cells go grey.", f_body),
-        ("The Documentation column tells you what each gift still needs: a receipt letter, an appraisal, or a note that a short-term security is limited to its cost basis. When a $250+ gift has its letter, it says so.", f_body),
-        ("", f_body),
-        ("Documentation rules", f_section),
-        ("Any single gift of $250 or more needs a written acknowledgment from the charity before you file.", f_body),
-        ("Non-cash gifts over $500 in total require Form 8283 with the return. Any non-cash item, or group of similar items, over $5,000 needs a qualified appraisal; publicly traded securities are the exception.", f_body),
-        ("Appreciated securities held more than a year are deductible at fair market value and the gain is never taxed. Held a year or less, the deduction is limited to cost basis.", f_body),
-        ("Qualified charitable distributions from an IRA (70½ and older) are excluded from income instead of deducted. Log them with a note so your CPA sees them.", f_body),
-        ("", f_body),
-        ("When you are done", f_section),
-        ("In January, email this file to your Grott Luker CPA with your receipt letters, or enter the gifts in the online log at the link we sent you.", f_body),
-    ])
+    G = guide()
+    years = G["TAX_YEARS"]
+    wl = wb.active
+    wl.title = "Start here"
+    lcols = 6
+    setup(wl, [30, 48, 14, 14, 14, 16], landscape=False, title=T)
+    band(wl, lcols, "Start here", "Charitable Donation Log")
+    section(wl, 5, lcols, "How this works", "three steps")
+    for k, line in enumerate([
+        "1.  Pick the tax year below and read the two short lists: what counts, and what each gift needs for documentation.",
+        "2.  Log every gift on the Gifts sheet as the year goes: cash, goods, or stock. The deductible amount and the documentation column fill in by themselves.",
+        "3.  In January, open Summary and email this file to your Grott Luker CPA with your receipt letters.",
+    ]):
+        c = wl.cell(row=6 + k, column=1, value=line)
+        c.font = f_body
+        c.alignment = Alignment(indent=1, vertical="center", wrap_text=True)
+        wl.merge_cells(start_row=6 + k, start_column=1, end_row=6 + k, end_column=lcols)
+        wl.row_dimensions[6 + k].height = 20
+    legend_line(wl, 9, lcols)
+    wl.row_dimensions[10].height = 8
+    section(wl, 11, lcols, "Tax year")
+    label(wl.cell(row=12, column=1), "Tax year")
+    yr = wl.cell(row=12, column=2, value=YEAR)
+    pick(yr)
+    yr.number_format = "0"
+    dvy0 = DataValidation(type="list", formula1='"' + ",".join(str(y) for y in years) + '"', allow_blank=False)
+    wl.add_data_validation(dvy0)
+    dvy0.add(yr)
+    wl.cell(row=13, column=1, value="Gifts count in the year they are paid or delivered, not pledged. A check mailed in December counts this year; a credit-card charge counts when charged.").font = f_note
+    wl.merge_cells(start_row=13, start_column=1, end_row=13, end_column=lcols)
+    wl.row_dimensions[13].height = 28
+    wl.cell(row=13, column=1).alignment = Alignment(wrap_text=True, vertical="top", indent=1)
+    r = 15
+    section(wl, r, lcols, "What counts", "and how the deductible amount is figured")
+    colheads(wl, r + 1, ["Gift type", "What to enter", "How it is counted"], {})
+    r += 2
+    for t, what, how in [
+        ("Cash / check / card", "The amount given. Include payroll deductions and donor-advised fund contributions.", "Counted in full."),
+        ("Non-cash (goods)", "Fair market value of clothing, furniture, vehicles, and household items in good used condition.", "Counted at fair market value. Over $500 in total needs Form 8283; any item over $5,000 needs an appraisal."),
+        ("Appreciated securities", "Fair market value on the gift date, the cost basis, and whether you held it more than a year.", "Held more than a year: counted at fair market value and the gain is never taxed. A year or less: limited to cost basis."),
+    ]:
+        c = wl.cell(row=r, column=1, value=t); c.font = f_bold; c.alignment = Alignment(indent=1, vertical="top"); c.border = b_row
+        w = wl.cell(row=r, column=2, value=what); w.font = f_body; w.alignment = Alignment(wrap_text=True, vertical="top"); w.border = b_row
+        h = wl.cell(row=r, column=3, value=how); h.font = f_body; h.alignment = Alignment(wrap_text=True, vertical="top"); h.border = b_row
+        wl.merge_cells(start_row=r, start_column=3, end_row=r, end_column=lcols)
+        wl.row_dimensions[r].height = 44
+        r += 1
+    r += 1
+    section(wl, r, lcols, "What each gift needs", "the Documentation column on the Gifts sheet checks these for you")
+    colheads(wl, r + 1, ["Threshold", "What is required"], {})
+    r += 2
+    for t, req in [
+        ("Any single gift of $250 or more", "A written acknowledgment from the charity, in hand before you file. Mark the Receipt letter column Y once you have it; a bank record alone is not enough."),
+        ("Non-cash gifts over $500 in total", "Form 8283 with the return. Keep a list of what was given, to whom, when, and how you valued it."),
+        ("Any non-cash item over $5,000", "A qualified appraisal, with the appraiser signing Form 8283. Publicly traded securities are the exception."),
+        ("Securities held a year or less", "The deduction is limited to your cost basis. Consider holding past the one-year mark if the gift can wait."),
+    ]:
+        c = wl.cell(row=r, column=1, value=t); c.font = f_bold; c.alignment = Alignment(indent=1, vertical="top", wrap_text=True); c.border = b_row
+        w = wl.cell(row=r, column=2, value=req); w.font = f_body; w.alignment = Alignment(wrap_text=True, vertical="top"); w.border = b_row
+        wl.merge_cells(start_row=r, start_column=2, end_row=r, end_column=lcols)
+        wl.row_dimensions[r].height = 32
+        r += 1
+    r += 1
+    section(wl, r, lcols, "Usually overlooked", "worth a note on the Gifts sheet so your CPA sees it")
+    r += 1
+    for t, why in [
+        ("Qualified charitable distributions", "Gifts straight from an IRA at 70½ or older are excluded from income rather than deducted, and they count toward a required minimum distribution. Log them with a note; do not also deduct them."),
+        ("Benefits received", "A gala ticket or auction purchase is deductible only above the value of the dinner or item. The charity's letter states the amount."),
+        ("Volunteer costs", "Supplies you bought for the charity are gifts; your time is not. Miles driven for charity go in the Mileage & Expense Log at 14 cents a mile."),
+        ("Clothing and household goods", "Must be in good used condition or better to count. Photos and a list at drop-off make the value defensible."),
+    ]:
+        c = wl.cell(row=r, column=1, value=t); c.font = f_bold; c.alignment = Alignment(indent=1, vertical="top", wrap_text=True); c.border = b_row
+        w = wl.cell(row=r, column=2, value=why); w.font = f_body; w.alignment = Alignment(wrap_text=True, vertical="top"); w.border = b_row
+        wl.merge_cells(start_row=r, start_column=2, end_row=r, end_column=lcols)
+        wl.row_dimensions[r].height = 32
+        r += 1
+    footer(wl, r + 1, lcols)
+    about(wl, r + 3, lcols)
+    wl.freeze_panes = "A5"
 
     # ------------------------------------------------------------------ Gifts
     wg = wb.create_sheet("Gifts", 1)
     cols = 10
     setup(wg, [12, 26, 28, 15, 14, 14, 11, 13, 14, 44], title=T)
-    band(wg, cols, "Gifts", f"Tax year {YEAR}")
+    band(wg, cols, "Gifts", "=\"Tax year \"&'Start here'!$B$12&\"   ·   Powered by BlueLine Advisors\"")
     section(wg, 5, cols, "Gifts this year", "deductible amount and documentation fill in as you go")
     legend_line(wg, 6, cols)
     colheads(wg, 7, ["Date", "Organization", "Description", "Type  ▾", "Amount / FMV", "Cost basis", "Held > 1 yr  ▾", "Receipt letter  ▾", "Deductible", "Documentation"], {5: "right", 6: "right", 7: "center", 8: "center", 9: "right"})
@@ -738,8 +799,8 @@ def build_donations():
     wsu = wb.create_sheet("Summary", 2)
     scols = 7
     setup(wsu, [12, 26, 26, 14, 14, 14, 36], landscape=False, title=T)
-    band(wsu, scols, "Year-end summary", f"Tax year {YEAR}")
-    meta = wsu.cell(row=5, column=1, value="Charitable Donation Log · year-to-date summary · prepared for discussion with Grott Luker & Co.")
+    band(wsu, scols, "Year-end summary", "=\"Tax year \"&'Start here'!$B$12&\"   ·   Powered by BlueLine Advisors\"")
+    meta = wsu.cell(row=5, column=1, value="=\"Charitable Donation Log \"&'Start here'!$B$12&\" · prepared for discussion with Grott Luker & Co.\"")
     meta.font = f_sub
     wsu.merge_cells(start_row=5, start_column=1, end_row=5, end_column=scols)
     E = f"Gifts!$E${first}:$E${last}"
@@ -801,7 +862,7 @@ def build_donations():
     about(wsu, r + 3, scols)
     wsu.print_area = f"A1:G{r + 10}"
 
-    wb.active = 1
+    wb.active = 0
     wb.properties.creator = "Grott Luker & Co."
     wb.properties.title = T
     wb.calculation.fullCalcOnLoad = True
