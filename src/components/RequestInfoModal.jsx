@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { X, Copy, Mail, Check } from 'lucide-react'
-import { buildEmail } from '../lib/emailRequests.js'
+import { buildEmail, buildTemplateEmail } from '../lib/emailRequests.js'
 
-export default function RequestInfoModal({ open, onClose, spec, link }) {
+export default function RequestInfoModal({ open, onClose, spec, link, templateLink, toolTitle, mode = 'form' }) {
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [copied, setCopied] = useState(false)
@@ -10,12 +10,12 @@ export default function RequestInfoModal({ open, onClose, spec, link }) {
   // (Re)initialize the editable email whenever the modal is opened for a tool.
   useEffect(() => {
     if (open) {
-      const email = buildEmail(spec, link)
+      const email = mode === 'template' ? buildTemplateEmail(spec, toolTitle, templateLink, link) : buildEmail(spec, link, templateLink)
       setSubject(email.subject)
       setBody(email.body)
       setCopied(false)
     }
-  }, [open, spec, link])
+  }, [open, spec, link, templateLink, toolTitle, mode])
 
   // Close on Escape.
   useEffect(() => {
@@ -62,8 +62,8 @@ export default function RequestInfoModal({ open, onClose, spec, link }) {
       >
         <div className="modal-head">
           <div>
-            <div className="modal-eyebrow">Request Client Information</div>
-            <h2 className="modal-title">Draft a client information request</h2>
+            <div className="modal-eyebrow">{mode === 'template' ? 'Send the Excel template' : 'Request Client Information'}</div>
+            <h2 className="modal-title">{mode === 'template' ? 'Draft the email to your client' : 'Draft a client information request'}</h2>
           </div>
           <button className="iconbtn modal-close" onClick={onClose} aria-label="Close">
             <X size={20} />
@@ -71,7 +71,9 @@ export default function RequestInfoModal({ open, onClose, spec, link }) {
         </div>
 
         <p className="modal-intro">
-          {link
+          {mode === 'template'
+            ? 'This email gives your client the download link for the Excel workbook with short instructions, and offers the online form as an alternative. Personalize the client name and your signature, then copy it or open it in your email app. Email programs cannot attach a file from a web link, so the client downloads it from the link.'
+            : link
             ? 'This email sends your client to the form for this tool — they fill it in themselves and it arrives in Client results. Personalize the client name and your signature, then copy it or open it in your email app.'
             : 'This email lists exactly the information this tool needs. Personalize the client name and your signature, then copy it or open it in your email app. Your client can simply reply with their answers.'}
         </p>

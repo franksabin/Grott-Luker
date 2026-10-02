@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ArrowLeft, RotateCcw, Database, FileDown, Mail, Link2, Check, Eye, FileSpreadsheet } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Database, FileDown, Mail, Link2, Check, Eye, FileSpreadsheet, Download } from 'lucide-react'
 import { timestampNow } from '../lib/format.js'
 import { TOOLS } from '../lib/tools.js'
 import { EMAIL_REQUESTS } from '../lib/emailRequests.js'
@@ -33,6 +33,8 @@ export default function ToolShell({
   const tool = TOOLS.find((t) => t.path === pathname)
   const emailSpec = tool ? EMAIL_REQUESTS[tool.id] : null
   const clientLink = tool?.clientPath ? `${window.location.origin}${tool.clientPath}` : null
+  const templateLink = tool?.template ? `${window.location.origin}${tool.template}` : null
+  const [emailMode, setEmailMode] = useState('form')
 
   function copyClientLink() {
     if (!clientLink) return
@@ -66,7 +68,7 @@ export default function ToolShell({
 
       <div className="toolbar no-print">
         {emailSpec ? (
-          <button className="btn btn-primary btn-sm" onClick={() => setModalOpen(true)}>
+          <button className="btn btn-primary btn-sm" onClick={() => { setEmailMode('form'); setModalOpen(true) }}>
             <Mail size={15} /> {clientLink ? 'Email client the form' : 'Request client information'}
           </button>
         ) : null}
@@ -80,9 +82,14 @@ export default function ToolShell({
               <Eye size={15} /> Preview client form
             </a>
             {tool?.template ? (
-              <a className="btn btn-ghost btn-sm" href={tool.template} download>
-                <FileSpreadsheet size={15} /> Excel template
-              </a>
+              <>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setEmailMode('template'); setModalOpen(true) }}>
+                  <FileSpreadsheet size={15} /> Email the Excel template
+                </button>
+                <a className="btn btn-ghost btn-sm" href={tool.template} download title="Download the workbook to this computer">
+                  <Download size={15} /> Download
+                </a>
+              </>
             ) : null}
           </>
         ) : null}
@@ -121,7 +128,7 @@ export default function ToolShell({
         <div className="share-how no-print">
           <div className="share-how-title">How this Client Shareable works</div>
           <ol>
-            <li><strong>Send the link.</strong> Use “Email client the form” (a ready-made email with the link) or “Copy client link” and paste it into your own message or text.</li>
+            <li><strong>Send the link.</strong> Use “Email client the form” (a ready-made email with the link) or “Copy client link” and paste it into your own message or text. For clients who prefer Excel, “Email the Excel template” drafts a note with the download link and simple instructions.</li>
             <li><strong>The client fills it in.</strong> The form opens in any browser — no login, no account. It saves on their device as they go. Clients who prefer a spreadsheet can download the Excel template instead and send you the file.</li>
             <li><strong>It lands in Client results.</strong> When they click Send, the submission appears under Client results (staff passcode) with their name and email, ready to print or review before the meeting.</li>
           </ol>
@@ -135,7 +142,7 @@ export default function ToolShell({
 
       <p className="disclosure">{disclosure}</p>
 
-      <RequestInfoModal open={modalOpen} onClose={() => setModalOpen(false)} spec={emailSpec} link={clientLink} />
+      <RequestInfoModal open={modalOpen} onClose={() => setModalOpen(false)} spec={emailSpec} link={clientLink} templateLink={templateLink} toolTitle={title} mode={emailMode} />
     </div>
   )
 }

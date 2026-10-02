@@ -5,6 +5,13 @@
 
 export const EMAIL_REQUESTS = {
   'charitable-donation-log': {
+    templateIntro: 'To make sure every charitable gift you make this year is counted and properly documented, we have put together a simple Excel log for you.',
+    templateSteps: [
+      'Log each gift on the Gifts sheet: date, organization, type (cash, goods, or securities), and the amount or value.',
+      'For stock or fund shares, add the cost basis and whether you held them more than a year. The sheet calculates the deductible amount.',
+      'Watch the Flags column: it tells you when a gift of $250 or more needs a receipt letter from the charity, and when an appraisal may be required.',
+    ],
+    templateClose: 'In January, email the file back to us along with your receipt letters.',
     subject: 'Your charitable donation log for this year',
     intro:
       'To make sure every gift is documented the way the IRS requires, please keep this log through the year and send it to us in January. It flags when a receipt letter or appraisal is needed as you enter each gift.',
@@ -81,6 +88,13 @@ export const EMAIL_REQUESTS = {
   },
 
   'mileage-log': {
+    templateIntro: 'To make the mileage and business-expense records easy for both of us this year, we have put together a simple Excel log for you.',
+    templateSteps: [
+      'Log each trip on the Mileage sheet: date, purpose, where you went, and the miles. The IRS rate for that date fills in by itself.',
+      'Log business costs on the Expenses sheet: date, category, and amount. The sheet shows which costs are usually deductible, partly deductible, or ones we should talk about.',
+      'Keep it up through the year. A log kept as you go is far stronger than one rebuilt from memory.',
+    ],
+    templateClose: 'In January, just email the file back to us. We will take it from there.',
     subject: 'Your mileage and expense log for this year',
     intro:
       'To make sure you capture every deductible mile and business expense, please keep this log through the year and send it to us in January. Pick your line of work at the top and the log will tell you which expenses are usually deductible, which are limited, and which to leave for us. It saves on your device as you go and takes one click to submit.',
@@ -257,6 +271,13 @@ export const EMAIL_REQUESTS = {
   },
 
   'know-your-numbers': {
+    templateIntro: 'Before we meet, it helps to have a simple one-page picture of where things stand. We have put together a short Excel worksheet for that.',
+    templateSteps: [
+      'Fill in the yellow cells: what you own, what you owe, what comes in, and what goes out. Round numbers are fine.',
+      'Net worth, cash flow, savings rate, and debt-to-income calculate at the bottom.',
+      'It should take about fifteen minutes.',
+    ],
+    templateClose: 'Email the file back to us when it is done, or bring it to our meeting.',
     subject: 'Your financial snapshot — a short form to fill in',
     intro:
       'We are putting together a clean, one-page snapshot of where things stand today — net worth, cash flow, savings rate, and asset allocation. Approximate figures are fine.',
@@ -283,11 +304,38 @@ const SIGNATURE = [
   'Portsmouth, New Hampshire',
 ].join('\n')
 
+// Email that sends the client the downloadable Excel template for a Client
+// Shareable. `templateLink` is the absolute URL of the .xlsx; `link` is the
+// online form, offered as the alternative.
+export function buildTemplateEmail(spec, toolTitle, templateLink, link) {
+  if (!spec || !templateLink) return { subject: '', body: '' }
+  const steps = (spec.templateSteps || []).map((q, i) => `${i + 1}. ${q}`).join('\n')
+  const body = [
+    'Dear [Client Name],',
+    '',
+    spec.templateIntro || `We have put together a simple Excel workbook for the ${toolTitle}.`,
+    '',
+    'Download it here (opens in Excel; the formulas calculate on their own):',
+    templateLink,
+    '',
+    'How it works:',
+    steps,
+    '',
+    spec.templateClose || 'Email the file back to us when it is done.',
+    '',
+    ...(link ? ['If you would rather work online, the same log is available as a web form that saves as you go and sends to us with one click:', link, ''] : []),
+    SENSITIVE_REMINDER,
+    '',
+    SIGNATURE,
+  ].join('\n')
+  return { subject: `${toolTitle} \u2014 a simple Excel log from Grott Luker & Co.`, body }
+}
+
 // Assemble the full plain-text email body for a given tool spec.
 // `link` is the client-facing form URL for Shareable tools. When present the
 // email sends the client to the form instead of asking them to reply with
 // figures, and the numbered list becomes "what you'll be asked for".
-export function buildEmail(spec, link) {
+export function buildEmail(spec, link, templateLink) {
   if (!spec) return { subject: '', body: '' }
   const numbered = spec.questions.map((q, i) => `${i + 1}. ${q}`).join('\n')
   const body = link
@@ -304,6 +352,7 @@ export function buildEmail(spec, link) {
         '',
         'When you click Send at the bottom, it comes straight to us. No login or account is needed.',
         '',
+        ...(templateLink ? ['Prefer a spreadsheet? The same log is available as an Excel workbook you can keep on your computer and email back to us:', templateLink, ''] : []),
         SENSITIVE_REMINDER,
         '',
         SIGNATURE,
