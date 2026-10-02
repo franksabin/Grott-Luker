@@ -33,12 +33,22 @@ const FREQ = [
   { value: '12', label: 'Monthly (12)' },
 ]
 
+const MODE = [
+  { value: 'paystub', label: 'A recent pay stub' },
+  { value: 'plug', label: 'Known tax — just the plug' },
+]
+
 const DEDUCTION = [
   { value: 'standard', label: 'Standard deduction' },
   { value: 'itemized', label: 'Itemized' },
 ]
 
 const BLANK = {
+  mode: 'paystub',
+  knownTax: '',
+  withheldToDate: '',
+  perCheckNow: '0',
+  remainingChecks: '0',
   filing: 'married',
   frequency: '26',
   periodsPaid: '',
@@ -55,6 +65,11 @@ const BLANK = {
 }
 
 const SAMPLE = {
+  mode: 'paystub',
+  knownTax: '',
+  withheldToDate: '',
+  perCheckNow: '0',
+  remainingChecks: '0',
   filing: 'married',
   frequency: '26',
   periodsPaid: '18',
@@ -70,45 +85,99 @@ const SAMPLE = {
   estimatedPayments: '0',
 }
 
+// Standalone plug: the preparer already knows the year's tax and just needs the
+// one number that lands the return at $0.
+const SAMPLE_PLUG = {
+  ...BLANK,
+  mode: 'plug',
+  filing: 'married',
+  knownTax: '41300',
+  withheldToDate: '22600',
+  perCheckNow: '1150',
+  remainingChecks: '6',
+  estimatedPayments: '0',
+}
+
 function compute(form) {
   const filing = form.filing === 'single' ? 'single' : 'married'
-  const periodsTotal = Math.max(1, Math.round(toNumber(form.frequency) || 26))
-  const periodsPaid = Math.min(periodsTotal, Math.max(0, Math.round(toNumber(form.periodsPaid))))
-  const remaining = Math.max(0, periodsTotal - periodsPaid)
-
-  const ytdWages = toNumber(form.ytdWages)
-  const ytdWH = toNumber(form.ytdWithholding)
-  const spWages = filing === 'married' ? toNumber(form.spouseYtdWages) : 0
-  const spWH = filing === 'married' ? toNumber(form.spouseYtdWithholding) : 0
-  const bonus = toNumber(form.bonus)
-  const other = toNumber(form.otherIncome)
-  const credits = toNumber(form.credits)
+  const plugMode = form.mode === 'plug'
   const estPayments = toNumber(form.estimatedPayments)
-
-  const pace = (ytd) => (periodsPaid > 0 ? ytd / periodsPaid : 0)
-  const perWages = pace(ytdWages)
-  const perWH = pace(ytdWH)
-  const spPerWages = pace(spWages)
-  const spPerWH = pace(spWH)
-
-  const projWages = ytdWages + perWages * remaining + bonus
-  const projSpouseWages = spWages + spPerWages * remaining
-  const projIncome = projWages + projSpouseWages + other
-
   const stdDed = STANDARD_DEDUCTION[filing]
-  const itemized = toNumber(form.itemized)
-  const deduction = form.deductionType === 'itemized' ? Math.max(itemized, 0) : stdDed
-  const usingStandardAnyway = form.deductionType === 'itemized' && itemized < stdDed
-  const effectiveDeduction = Math.max(deduction, form.deductionType === 'itemized' ? 0 : stdDed)
 
-  const taxable = Math.max(0, projIncome - effectiveDeduction)
-  const grossTax = ordinaryTax(taxable, filing)
-  const projTax = Math.max(0, grossTax - credits)
-  const marginal = marginalOrdinaryRate(taxable, filing)
+  let periodsTotal, periodsPaid, remaining
+  let ytdWages, ytdWH, spWages, spWH, bonus, other, credits
+  let perWages, perWH, spPerWages, spPerWH
+  let projWages, projSpouseWages, projIncome
+  let effectiveDeduction, usingStandardAnyway, taxable, grossTax, projTax, marginal
+
+  if (plugMode) {
+    // Standalone plug: the year's federal tax is known; only the withholding side is projected.
+    remaining = Math.max(0, Math.round(toNumber(form.remainingChecks)))
+    periodsTotal = remaining
+    periodsPaid = 0
+    ytdWages = 0
+    ytdWH = toNumber(form.withheldToDate)
+    spWages = 0
+    spWH = 0
+    bonus = 0
+    other = 0
+    credits = 0
+    perWages = 0
+    perWH = toNumber(form.perCheckNow)
+    spPerWages = 0
+    spPerWH = 0
+    projWages = 0
+    projSpouseWages = 0
+    projIncome = 0
+    effectiveDeduction = 0
+    usingStandardAnyway = false
+    taxable = 0
+    grossTax = Math.max(0, toNumber(form.knownTax))
+    projTax = grossTax
+    marginal = 0
+  } else {
+    periodsTotal = Math.max(1, Math.round(toNumber(form.frequency) || 26))
+    periodsPaid = Math.min(periodsTotal, Math.max(0, Math.round(toNumber(form.periodsPaid))))
+    remaining = Math.max(0, periodsTotal - periodsPaid)
+
+    ytdWages = toNumber(form.ytdWages)
+    ytdWH = toNumber(form.ytdWithholding)
+    spWages = filing === 'married' ? toNumber(form.spouseYtdWages) : 0
+    spWH = filing === 'married' ? toNumber(form.spouseYtdWithholding) : 0
+    bonus = toNumber(form.bonus)
+    other = toNumber(form.otherIncome)
+    credits = toNumber(form.credits)
+
+    const pace = (ytd) => (periodsPaid > 0 ? ytd / periodsPaid : 0)
+    perWages = pace(ytdWages)
+    perWH = pace(ytdWH)
+    spPerWages = pace(spWages)
+    spPerWH = pace(spWH)
+
+    projWages = ytdWages + perWages * remaining + bonus
+    projSpouseWages = spWages + spPerWages * remaining
+    projIncome = projWages + projSpouseWages + other
+
+    const itemized = toNumber(form.itemized)
+    const deduction = form.deductionType === 'itemized' ? Math.max(itemized, 0) : stdDed
+    usingStandardAnyway = form.deductionType === 'itemized' && itemized < stdDed
+    effectiveDeduction = Math.max(deduction, form.deductionType === 'itemized' ? 0 : stdDed)
+
+    taxable = Math.max(0, projIncome - effectiveDeduction)
+    grossTax = ordinaryTax(taxable, filing)
+    projTax = Math.max(0, grossTax - credits)
+    marginal = marginalOrdinaryRate(taxable, filing)
+  }
 
   const projWithholding = ytdWH + perWH * remaining + spWH + spPerWH * remaining
   const projPaid = projWithholding + estPayments
   const gap = projTax - projPaid // + = balance due, - = refund
+
+  // The plug: one-time extra federal withholding (bonus, RSU vest, retirement
+  // distribution) before year-end that lands the return at $0 with everything
+  // else on pace. Withholding is deemed paid evenly through the year (§6654(g)),
+  // so a December plug counts for all four quarters.
+  const plug = Math.max(0, gap)
 
   // One number for the W-4: total federal withholding per remaining primary
   // paycheck that lands the return at $0, given everything else on pace.
@@ -139,6 +208,7 @@ function compute(form) {
   const coverage = projTax > 0 ? projPaid / projTax : 1
 
   return {
+    plugMode, plug,
     filing, periodsTotal, periodsPaid, remaining,
     ytdWages, ytdWH, spWages, spWH, bonus, other, credits, estPayments,
     perWages, perWH, perWHRounded, projWages, projSpouseWages, projIncome,
@@ -154,6 +224,10 @@ export default function WithholdingCheckup() {
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const r = useMemo(() => compute(form), [form])
   const steps = useMemo(() => [
+    ...(r.plugMode ? [
+      { label: 'Federal tax for the year', formula: 'as entered (from the projection or the preparer’s software)', result: money(r.projTax, 2) },
+      { label: 'Withholding through year-end', formula: `${money(r.ytdWH, 2)} to date + ${r.remaining} × ${money(r.perWH, 2)} per remaining paycheck${r.estPayments > 0 ? ` + estimated payments ${money(r.estPayments, 2)}` : ''}`, result: money(r.projPaid, 2) },
+    ] : [
     { label: 'Pay periods', formula: `${r.periodsTotal} per year − ${r.periodsPaid} paid`, result: `${r.remaining} remaining` },
     { label: 'Per-period pace', formula: `wages ${money(r.ytdWages, 2)} ÷ ${r.periodsPaid} · withholding ${money(r.ytdWH, 2)} ÷ ${r.periodsPaid}`, result: `${money(r.perWages, 2)} · ${money(r.perWH, 2)}` },
     { label: 'Projected wages (primary)', formula: `${money(r.ytdWages, 2)} + ${r.remaining} × ${money(r.perWages, 2)} + bonus ${money(r.bonus, 2)}`, result: money(r.projWages, 2) },
@@ -163,7 +237,9 @@ export default function WithholdingCheckup() {
     { label: 'Federal tax by bracket', formula: `${TAX_YEAR} ${r.filing === 'single' ? 'single' : 'MFJ'} brackets applied to ${money(r.taxable, 2)} (marginal ${percent(r.marginal * 100, 0)})`, result: money(r.grossTax, 2) },
     { label: 'Less credits', formula: `${money(r.grossTax, 2)} − ${money(r.credits, 2)}`, result: money(r.projTax, 2) },
     { label: 'Projected withholding', formula: `${money(r.ytdWH + r.spWH, 2)} to date + ${r.remaining} × ${money(r.perWH + r.spWH / Math.max(1, r.periodsPaid), 2)}${r.estPayments > 0 ? ` + estimated payments ${money(r.estPayments, 2)}` : ''}`, result: money(r.projPaid, 2) },
+    ]),
     { label: r.gap > 0 ? 'Shortfall' : 'Overpayment', formula: `${money(r.projTax, 2)} − ${money(r.projPaid, 2)}`, result: money(Math.abs(r.gap), 2) },
+    ...(r.gap > 0 ? [{ label: 'Plug withholding to land at $0', formula: 'the shortfall, withheld once before December 31 (bonus, RSU vest, or a retirement distribution with federal tax withheld); withholding is deemed paid evenly through the year, so the timing does not matter for the penalty', result: money(r.plug) }] : []),
     ...(r.remaining > 0 ? [{ label: 'Withholding per paycheck to land at $0', formula: `(${money(r.projTax, 2)} − estimates ${money(r.estPayments, 2)} − withheld so far ${money(r.ytdWH + r.spWH, 2)}${r.spWages > 0 ? ` − spouse on pace ${money(r.spWH / Math.max(1, r.periodsPaid) * r.remaining, 2)}` : ''}) ÷ ${r.remaining} = ${money(r.neededFromPrimary / r.remaining, 2)}`, result: money(r.targetPerCheck), note: `Whole dollars: current ${money(r.perWH, 2)} per paycheck ${r.gap > 0 ? `+ ${money(r.extraPerCheck)} extra` : `− ${money(r.reducePerCheck)} reduction${r.reduceCapped ? ' (capped at current withholding)' : ''}`}.` }] : []),
     ...(r.remaining > 0 && r.gap > 0 ? [
       { label: 'Extra per paycheck to close the gap', formula: `${money(r.gap, 2)} ÷ ${r.remaining}, rounded up to the next dollar`, result: money(r.extraPerCheck) },
@@ -173,18 +249,19 @@ export default function WithholdingCheckup() {
       { label: 'Reduction per paycheck', formula: `${money(Math.abs(r.gap), 2)} ÷ ${r.remaining} = ${money(Math.abs(r.gap) / r.remaining, 2)}, rounded down${r.reduceCapped ? `, capped at the ${money(r.perWHRounded)} being withheld` : ''}`, result: money(r.reducePerCheck), note: r.reduceCapped ? `${money(r.refundLocked, 2)} of the refund is locked in even at $0 withholding.` : undefined },
     ] : []),
   ], [r])
-  const married = form.filing === 'married'
+  // Plug mode has no spouse split: the figures are the household's totals.
+  const married = form.filing === 'married' && !r.plugMode
   const owes = r.gap > 0
 
   // Refund with nothing withheld on this paycheck: the money came from the spouse's withholding or
   // from estimated payments, so no W-4 change on this paycheck can shrink it.
-  const refundNoPrimary = !owes && r.gap < 0 && r.remaining > 0 && r.reducePerCheck === 0
+  const refundNoPrimary = !r.plugMode && !owes && r.gap < 0 && r.remaining > 0 && r.reducePerCheck === 0
   const refundSource = r.spWH > 0 && r.estPayments > 0 ? 'spouse withholding and estimated payments' : r.spWH > 0 ? 'spouse withholding' : 'estimated payments'
   // The third tile is the action figure: what changes on the W-4, or what an estimated payment must cover.
   const actionTile = owes
     ? r.remaining > 0
       ? { label: 'Extra per paycheck', value: money(r.extraPerCheck), note: `W-4 Step 4(c) · ${r.remaining} paychecks left` }
-      : { label: 'Estimated payment needed', value: money(r.gap), tone: 'bad', note: 'no paychecks remain' }
+      : { label: 'Plug withholding or estimated payment', value: money(r.plug), tone: 'bad', note: 'one-time, before December 31 — no paychecks remain' }
     : r.remaining > 0 && r.reducePerCheck > 0
       ? {
           label: 'Could reduce per paycheck',
@@ -196,17 +273,19 @@ export default function WithholdingCheckup() {
         ? { label: r.gap < 0 ? 'Refund expected at filing' : 'Nothing due at filing', value: money(Math.abs(r.gap)), tone: r.gap < 0 ? 'good' : undefined, note: 'no paychecks remain' }
         : refundNoPrimary
           ? { label: 'Change per paycheck', value: '$0', tone: 'good', note: `nothing withheld here · refund comes from ${refundSource}` }
-          : { label: 'Change per paycheck', value: '$0', note: 'withholding is on target' }
+          : r.plugMode
+            ? { label: 'Plug needed', value: '$0', tone: 'good', note: r.gap < 0 ? `withholding already covers the tax, with ${money(Math.abs(r.gap))} to spare` : 'withholding exactly covers the tax' }
+            : { label: 'Change per paycheck', value: '$0', note: 'withholding is on target' }
 
   // Shared copy — the screen Narrative / Note and the print prose / note render the same JSX.
   const narrative = (
     <>
-      On the current pace, {married ? 'the household' : 'the client'} ends the year with about{' '}
-      {money(r.projIncome)} of income and {money(r.projTax)} of federal tax
-      {r.credits > 0 ? ` after ${money(r.credits)} in credits` : ''}. Withholding is running at{' '}
-      {money(r.projWithholding)} for the year
+      {r.plugMode
+        ? `Against ${money(r.projTax)} of federal tax for the year, withholding comes to ${money(r.projWithholding)} (${money(r.ytdWH)} to date${r.remaining > 0 ? ` plus ${money(r.perWH)} on each of the ${r.remaining} remaining paychecks` : ''})`
+        : `On the current pace, ${married ? 'the household' : 'the client'} ends the year with about ${money(r.projIncome)} of income and ${money(r.projTax)} of federal tax${r.credits > 0 ? ` after ${money(r.credits)} in credits` : ''}. Withholding is running at ${money(r.projWithholding)} for the year`}
       {r.estPayments > 0 ? ` plus ${money(r.estPayments)} in estimated payments` : ''}, which{' '}
       {owes ? `leaves a shortfall of ${money(r.gap)}` : r.gap < 0 ? `produces a refund of ${money(Math.abs(r.gap))}` : 'lands the return at $0'}.
+      {owes ? ` The plug is ${money(r.plug)}: withhold that much once before December 31 — from a bonus, an RSU vest, or a retirement distribution — and the return lands at $0.` : ''}
       {owes && r.remaining > 0
         ? ` Adding ${money(r.extraPerCheck)} of extra withholding on each of the remaining ${r.remaining} paychecks closes the gap${
             r.penaltyShortfall > 0
@@ -228,7 +307,7 @@ export default function WithholdingCheckup() {
   const howToNote = owes && r.remaining > 0
     ? (
         <>
-          On a new Form W-4, enter the extra per-paycheck amount on <strong>Step 4(c)</strong>. It takes effect with the next payroll cycle, so if there are only a few paychecks left, an estimated payment may be the surer route — see the Estimated Tax &amp; Safe Harbor Planner for the prior-year safe harbor.
+          Two ways to close the gap. <strong>The plug:</strong> have {money(r.plug)} of federal tax withheld once before December 31 — ask payroll to take it from a bonus or the final paychecks, or take a retirement distribution with that much withheld. Withholding counts as paid evenly across the year, so even a December plug avoids the underpayment penalty. <strong>Per paycheck:</strong> on a new Form W-4, enter {money(r.extraPerCheck)} on <strong>Step 4(c)</strong>; it takes effect with the next payroll cycle. With only a few paychecks left, the plug or an estimated payment is the surer route — see the Estimated Tax &amp; Safe Harbor Planner for the prior-year safe harbor.
         </>
       )
     : !owes && r.remaining > 0 && r.reducePerCheck > 0
@@ -246,6 +325,12 @@ export default function WithholdingCheckup() {
                 : `The ${money(Math.abs(r.gap))} refund arrives when the return is filed; file a new W-4 in January if the over-withholding should not repeat next year.`}
             </>
           )
+        : r.plugMode && !owes
+          ? (
+              <>
+                No plug is needed: withholding to date plus what is still coming out already covers the year’s tax{r.gap < 0 ? `, with ${money(Math.abs(r.gap))} to spare` : ''}. The excess comes back as a refund at filing; if that is more than the client wants to lend the IRS, reduce the remaining per-paycheck withholding.
+              </>
+            )
         : refundNoPrimary
           ? (
               <>
@@ -262,7 +347,14 @@ export default function WithholdingCheckup() {
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const filingLabel = married ? 'Married filing jointly' : 'Single'
   const freqLabel = (FREQ.find((f) => f.value === form.frequency) || FREQ[1]).label
-  const inputs = [
+  const inputs = r.plugMode ? [
+    ['Start from', 'Known tax — just the plug'],
+    ['Federal tax for the year', money(r.projTax)],
+    ['Federal withholding to date', money(r.ytdWH)],
+    ['Withholding per remaining paycheck', money(r.perWH)],
+    ['Paychecks remaining', `${r.remaining}`],
+    ['Estimated payments made', money(r.estPayments)],
+  ] : [
     ['Filing status', filingLabel],
     ['Pay frequency', freqLabel],
     ['Pay periods paid so far', `${r.periodsPaid} of ${r.periodsTotal}`],
@@ -289,6 +381,7 @@ export default function WithholdingCheckup() {
     `Uses ${TAX_YEAR} federal ordinary brackets and the standard deduction. Capital gains, QBI, AMT, the additional Medicare tax, and phaseouts are not modeled.`,
     'The 2026 senior deduction ($6,000 per person 65+, phased out above $75,000 / $150,000) is not applied because age is not collected. An itemized total is used exactly as entered; the SALT cap and other itemized limits are not applied to it.',
     'Remaining wages and withholding are projected at the year-to-date pace per pay period; a bonus is added on top with no assumed withholding — enter any bonus withholding as part of YTD once it is paid.',
+    'The plug is the one-time extra federal withholding that lands the return at $0 with everything else on pace. Withholding is treated as paid evenly through the year for penalty purposes (§6654(g)), so a plug taken in December counts for all four quarters; an estimated payment of the same amount would not.',
     'Per-paycheck figures are whole dollars (an extra rounds up, a reduction rounds down); a reduction is capped at the withholding actually coming out of each paycheck.',
     'The 90% safe-harbor test uses this year’s projected tax; no penalty applies when tax after withholding (estimated payments excluded) is under $1,000. The 100%/110% prior-year test is in the Estimated Tax tool.',
     'State withholding is not modeled. New Hampshire has no wage tax; for MA/ME clients a separate state check applies.',
@@ -307,7 +400,8 @@ export default function WithholdingCheckup() {
         { label: `Current federal withholding per paycheck${married ? ' (primary)' : ''}`, value: money(r.perWHRounded), sub: true },
         ...(owes
           ? [
-              { label: 'Extra withholding per paycheck — Form W-4, Step 4(c)', value: money(r.extraPerCheck), total: true },
+              { label: 'Plug — one-time federal withholding before December 31 to land at $0', value: money(r.plug), total: true },
+              { label: 'Or extra withholding per paycheck — Form W-4, Step 4(c)', value: money(r.extraPerCheck) },
               { label: 'Minimum extra per paycheck to avoid an underpayment penalty (90% test)', value: r.penaltyDeMinimis ? 'None — under $1,000' : money(r.extraToSafeHarbor), sub: true },
             ]
           : r.reducePerCheck > 0
@@ -323,14 +417,14 @@ export default function WithholdingCheckup() {
               : []),
       ]
     : [
-        { label: owes ? 'Estimated payment needed — no paychecks remain' : 'No paychecks remain — refund expected at filing', value: money(Math.abs(r.gap)), total: true },
+        { label: owes ? 'Plug — one-time withholding (bonus or retirement distribution) or estimated payment; no paychecks remain' : 'No paychecks remain — refund expected at filing', value: money(Math.abs(r.gap)), total: true },
         ...(owes ? [{ label: 'Shortfall against the 90% safe harbor', value: money(r.penaltyShortfall), sub: true }] : []),
       ]
   const compareGroups = [
     { label: 'Projected tax', bars: [{ label: 'Projected tax', value: r.projTax, color: TONE.navy }] },
     { label: 'Withholding on pace', bars: [{ label: 'Withholding', value: r.projWithholding, color: TONE.accent }] },
     ...(r.estPayments > 0 ? [{ label: 'Estimated payments', bars: [{ label: 'Estimated payments', value: r.estPayments, color: TONE.debt }] }] : []),
-    { label: owes ? 'Balance due' : 'Refund', bars: [{ label: owes ? 'Balance due' : 'Refund', value: Math.abs(r.gap), color: owes ? TONE.tax : TONE.net }] },
+    { label: owes ? 'Plug (balance due)' : 'Refund', bars: [{ label: owes ? 'Plug (balance due)' : 'Refund', value: Math.abs(r.gap), color: owes ? TONE.tax : TONE.net }] },
   ]
   const coverageData = [
     { label: 'Withheld to date', value: r.ytdWH + r.spWH, color: TONE.navy },
@@ -347,18 +441,20 @@ export default function WithholdingCheckup() {
       <PrintPage compact>
         <PrintBand
           title="Withholding Checkup"
-          subtitle="Full-year federal tax projected from a recent pay stub, compared with withholding on the current pace, and the W-4 change that closes the gap."
-          meta={`Tax year ${TAX_YEAR} projection · ${filingLabel} · ${r.remaining} of ${r.periodsTotal} paychecks remaining`}
+          subtitle={r.plugMode ? 'The year’s federal tax against withholding to date — the one-time plug, or the per-paycheck change, that lands the return at $0.' : 'Full-year federal tax projected from a recent pay stub, compared with withholding on the current pace, and the W-4 change that closes the gap.'}
+          meta={r.plugMode ? `Tax year ${TAX_YEAR} · plug from known tax · ${r.remaining} paychecks remaining` : `Tax year ${TAX_YEAR} projection · ${filingLabel} · ${r.remaining} of ${r.periodsTotal} paychecks remaining`}
           metaRight={today}
         />
         <PrintFeature
-          label={owes ? 'Projected balance due at filing' : 'Projected refund at filing'}
+          label={owes ? 'Plug withholding to land at $0' : 'Projected refund at filing'}
           value={money(Math.abs(r.gap))}
-          note={`${money(r.projTax)} projected tax · ${money(r.projPaid)} projected withholding & payments · ${percent(r.coverage * 100, 0)} covered`}
+          note={owes
+            ? `= projected balance due · ${money(r.projTax)} tax · ${money(r.projPaid)} withholding & payments on pace · withhold once before December 31${r.remaining > 0 ? `, or ${money(r.extraPerCheck)} on each of the ${r.remaining} remaining paychecks` : ''}`
+            : `${money(r.projTax)} projected tax · ${money(r.projPaid)} projected withholding & payments · ${percent(r.coverage * 100, 0)} covered`}
         />
         <PrintTiles
           items={[
-            { label: 'Projected tax', value: money(r.projTax), note: `marginal ${percent(r.marginal * 100, 0)}` },
+            { label: r.plugMode ? 'Federal tax for the year' : 'Projected tax', value: money(r.projTax), note: r.plugMode ? 'as entered' : `marginal ${percent(r.marginal * 100, 0)}` },
             { label: 'Withholding & payments on pace', value: money(r.projPaid), note: `${percent(r.coverage * 100, 0)} of tax covered` },
             { label: actionTile.label, value: actionTile.value, note: actionTile.note, best: !owes && r.reducePerCheck > 0 },
           ]}
@@ -371,7 +467,7 @@ export default function WithholdingCheckup() {
         </PrintSection>
         <PrintSection title="Projected tax vs. what is being paid" className="pr-chart">
           {r.projTax > 0 || r.projPaid > 0 ? (
-            <BarCompare height={230} legend={false} groups={compareGroups} />
+            <BarCompare height={190} legend={false} groups={compareGroups} />
           ) : (
             <PrintProse>Enter the pay-stub figures — pay periods paid, year-to-date wages and withholding — to compare the projected tax with what is being paid.</PrintProse>
           )}
@@ -392,9 +488,15 @@ export default function WithholdingCheckup() {
           )}
         </PrintSection>
         <PrintCols>
-          <PrintSection title="From income to the balance" note="full-year projection">
+          <PrintSection title={r.plugMode ? 'From the known tax to the balance' : 'From income to the balance'} note={r.plugMode ? 'tax as entered' : 'full-year projection'}>
             <PrintRows
-              rows={[
+              rows={r.plugMode ? [
+                { label: 'Federal tax for the year (as entered)', value: money(r.projTax), total: true },
+                { label: 'Federal withholding to date', value: money(r.ytdWH) },
+                ...(r.remaining > 0 ? [{ label: `Remaining paychecks — ${r.remaining} × ${money(r.perWH)}`, value: money(r.perWH * r.remaining) }] : []),
+                ...(r.estPayments > 0 ? [{ label: 'Estimated payments', value: money(r.estPayments), sub: true }] : []),
+                { label: owes ? 'Balance due — the plug' : 'Refund', value: money(Math.abs(r.gap)), total: true },
+              ] : [
                 { label: r.bonus > 0 ? 'Projected wages at the current pace (primary)' : 'Projected wages (primary)', value: money(r.projWages - r.bonus) },
                 ...(r.bonus > 0 ? [{ label: 'Bonus or other wages still expected', value: money(r.bonus) }] : []),
                 ...(married && r.projSpouseWages > 0 ? [{ label: 'Projected wages (spouse)', value: money(r.projSpouseWages) }] : []),
@@ -426,10 +528,10 @@ export default function WithholdingCheckup() {
                 }))}
               />
             </PrintSection>
-            <PrintSection title="Pace and safe harbor" note={`${r.periodsPaid} of ${r.periodsTotal} paychecks in`}>
+            <PrintSection title="Pace and safe harbor" note={r.plugMode ? `${r.remaining} paychecks remaining` : `${r.periodsPaid} of ${r.periodsTotal} paychecks in`}>
               <PrintRows
                 rows={[
-                  { label: 'Wages per paycheck (primary)', value: money(r.perWages) },
+                  ...(r.plugMode ? [] : [{ label: 'Wages per paycheck (primary)', value: money(r.perWages) }]),
                   { label: 'Federal withholding per paycheck (primary)', value: money(r.perWHRounded) },
                   ...(married && r.spWH > 0 ? [{ label: 'Federal withholding per paycheck (spouse)', value: money(r.spWH / Math.max(1, r.periodsPaid)) }] : []),
                   { label: '90% of projected tax (safe-harbor floor)', value: money(r.ninety) },
@@ -457,12 +559,28 @@ export default function WithholdingCheckup() {
       title="Withholding Checkup (W-4)"
       subtitle="Will this client owe in April? Project full-year tax from a recent pay stub, compare it to withholding on the current pace, and get the W-4 adjustment that closes the gap over the remaining paychecks."
       onReset={() => setForm(BLANK)}
-      onSample={() => setForm(SAMPLE)}
+      onSample={() => setForm(form.mode === 'plug' ? SAMPLE_PLUG : SAMPLE)}
       steps={steps}
       printReport={printReport}
     >
       <div className="tool-grid">
         <div>
+          <Panel title="Start from">
+            <SegmentedField label="" value={form.mode} onChange={set('mode')} options={MODE} />
+          </Panel>
+          {r.plugMode ? (
+            <Panel title="The plug">
+              <MoneyField label="Federal tax for the year" value={form.knownTax} onChange={set('knownTax')} info="The year’s total federal tax from the projection or the preparer’s software — the number the withholding has to cover." />
+              <MoneyField label="Federal withholding to date" value={form.withheldToDate} onChange={set('withheldToDate')} info="Everything withheld so far this year across all W-2s, 1099-Rs, and Social Security." />
+              <div className="field-row">
+                <MoneyField label="Withholding per remaining paycheck" value={form.perCheckNow} onChange={set('perCheckNow')} hint="Leave 0 to size the plug on its own." />
+                <NumberField label="Paychecks remaining" value={form.remainingChecks} onChange={set('remainingChecks')} />
+              </div>
+              <MoneyField label="Estimated payments made" value={form.estimatedPayments} onChange={set('estimatedPayments')} />
+            </Panel>
+          ) : null}
+          {r.plugMode ? null : (
+          <>
           <Panel title="From the most recent pay stub">
             <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
             <PillField label="Pay frequency" value={form.frequency} onChange={set('frequency')} options={FREQ} />
@@ -503,6 +621,8 @@ export default function WithholdingCheckup() {
               <MoneyField label="Estimated payments made" value={form.estimatedPayments} onChange={set('estimatedPayments')} />
             </div>
           </RefinePanel>
+          </>
+          )}
         </div>
 
         <div>
@@ -513,13 +633,15 @@ export default function WithholdingCheckup() {
               metaRight={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             />
             <FeatureBlock
-              label={owes ? 'Projected balance due at filing' : 'Projected refund at filing'}
+              label={owes ? 'Plug withholding to land at $0' : 'Projected refund at filing'}
               value={money(Math.abs(r.gap))}
-              note={`${money(r.projTax)} projected tax · ${money(r.projPaid)} projected withholding & payments · ${percent(r.coverage * 100, 0)} covered`}
+              note={owes
+                ? `= projected balance due · ${money(r.projTax)} tax · ${money(r.projPaid)} withholding & payments on pace · withhold once before December 31${r.remaining > 0 ? `, or ${money(r.extraPerCheck)} on each of the ${r.remaining} remaining paychecks` : ''}`
+                : `${money(r.projTax)} projected tax · ${money(r.projPaid)} projected withholding & payments · ${percent(r.coverage * 100, 0)} covered`}
             />
             <StatTiles
               items={[
-                { label: 'Projected tax', value: money(r.projTax), note: `marginal ${percent(r.marginal * 100, 0)}` },
+                { label: r.plugMode ? 'Federal tax for the year' : 'Projected tax', value: money(r.projTax), note: r.plugMode ? 'as entered' : `marginal ${percent(r.marginal * 100, 0)}` },
                 { label: 'Withholding & payments on pace', value: money(r.projPaid), note: `${percent(r.coverage * 100, 0)} of tax covered` },
                 actionTile,
               ]}
@@ -556,18 +678,28 @@ export default function WithholdingCheckup() {
             ) : null}
 
             <div className="result-list">
-              <ResultRow label={r.bonus > 0 ? 'Projected wages at the current pace (primary)' : 'Projected wages (primary)'} value={r.projWages - r.bonus} />
-              {r.bonus > 0 ? <ResultRow label="Bonus or other wages still expected" value={r.bonus} /> : null}
-              {married && r.projSpouseWages > 0 ? <ResultRow label="Projected wages (spouse)" value={r.projSpouseWages} /> : null}
-              {r.other > 0 ? <ResultRow label="Other income" value={r.other} /> : null}
-              <ResultRow label="Deduction" value={-r.deduction} sub />
-              <ResultRow label="Taxable income" value={r.taxable} />
-              <ResultRow label={`Federal tax (marginal ${percent(r.marginal * 100, 0)})`} value={r.grossTax} />
-              {r.credits > 0 ? <ResultRow label="Credits" value={-r.credits} sub /> : null}
-              <ResultRow label="Projected tax" value={r.projTax} total />
-              <ResultRow label="Projected withholding (current pace)" value={r.projWithholding} />
+              {r.plugMode ? (
+                <>
+                  <ResultRow label="Federal tax for the year (as entered)" value={r.projTax} total />
+                  <ResultRow label="Federal withholding to date" value={r.ytdWH} />
+                  {r.remaining > 0 ? <ResultRow label={`Remaining paychecks — ${r.remaining} × ${money(r.perWH)}`} value={r.perWH * r.remaining} /> : null}
+                </>
+              ) : (
+                <>
+                  <ResultRow label={r.bonus > 0 ? 'Projected wages at the current pace (primary)' : 'Projected wages (primary)'} value={r.projWages - r.bonus} />
+                  {r.bonus > 0 ? <ResultRow label="Bonus or other wages still expected" value={r.bonus} /> : null}
+                  {married && r.projSpouseWages > 0 ? <ResultRow label="Projected wages (spouse)" value={r.projSpouseWages} /> : null}
+                  {r.other > 0 ? <ResultRow label="Other income" value={r.other} /> : null}
+                  <ResultRow label="Deduction" value={-r.deduction} sub />
+                  <ResultRow label="Taxable income" value={r.taxable} />
+                  <ResultRow label={`Federal tax (marginal ${percent(r.marginal * 100, 0)})`} value={r.grossTax} />
+                  {r.credits > 0 ? <ResultRow label="Credits" value={-r.credits} sub /> : null}
+                  <ResultRow label="Projected tax" value={r.projTax} total />
+                  <ResultRow label="Projected withholding (current pace)" value={r.projWithholding} />
+                </>
+              )}
               {r.estPayments > 0 ? <ResultRow label="Estimated payments" value={r.estPayments} sub /> : null}
-              <ResultRow label={owes ? 'Balance due' : 'Refund'} value={Math.abs(r.gap)} total negative={owes} positive={!owes} />
+              <ResultRow label={owes ? 'Balance due — the plug' : 'Refund'} value={Math.abs(r.gap)} total negative={owes} positive={!owes} />
             </div>
 
             <Narrative>{narrative}</Narrative>
