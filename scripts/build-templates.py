@@ -342,32 +342,13 @@ def build_mileage():
     T = f"Mileage & Expense Log {YEAR}"
     wb = Workbook()
 
-    readme(wb, T, "How to use this workbook", [
-        ("Start on the Log sheet", f_section),
-        ("Pick the tax year and your line of work. The sheet then lists what people in your work usually forget to log, and what they tend to claim that is not deductible.", f_body),
-        ("Travel — one row per trip: date, client, where and why, miles, purpose. The IRS rate for that date and the total fill in by themselves.", f_body),
-        ("Expenses — one row per cost: date, client or vendor, what and why, amount, category. The sheet shows how the category is usually treated, whether it is typical for your work, and any watch-out for your line of work.", f_body),
-        ("Summary — the year-end report: estimated deductions, miles by purpose, expenses by treatment, and the notes for your line of work.", f_body),
-        ("", f_body),
-        ("How expenses are counted", f_section),
-        ("Deductible — counted in full.  Partly deductible — counted at the allowed share (business meals at 50%).  For your CPA — recorded and totaled separately, not counted, because the answer depends on facts the log cannot see (business-use %, cost per item, exclusive use).  Not deductible — recorded so your CPA sees it, counted at zero.", f_body),
-        ("", f_body),
-        ("Rules of thumb", f_section),
-        ("Keep the log as you go. A reconstructed log is the first thing an auditor challenges.", f_body),
-        ("Commuting from home to your regular workplace is not deductible, whatever you carry or discuss on the way.", f_body),
-        ("Parking and tolls are deductible on top of the mileage rate. Gas, repairs, and car insurance are not; they are already inside the rate.", f_body),
-        ("", f_body),
-        ("When you are done", f_section),
-        ("In January, email this file to your Grott Luker CPA, or enter the totals in the online log at the link we sent you.", f_body),
-        ("Light-yellow cells are yours. Everything else calculates itself. The rules are general 2026 federal treatment; your CPA decides.", f_note),
-    ])
-
     # ------------------------------------------------------------------ Guide (data the formulas read)
-    wg = wb.create_sheet("Guide")
+    wg = wb.create_sheet("Data")
+    wg.sheet_state = "hidden"
     setup(wg, [44, 18, 10, 80] + [30] * len(inds), landscape=False, title=T)
-    band(wg, 4, "Guide", "Categories, lines of work, and rates")
-    wg.cell(row=5, column=1, value="Selected line of work (from the Log sheet)").font = f_colhead
-    sel = wg.cell(row=5, column=2, value="=Log!$B$9")
+    band(wg, 4, "Data", "Categories, lines of work, and rates — read by the formulas")
+    wg.cell(row=5, column=1, value="Selected line of work (from Start here)").font = f_colhead
+    sel = wg.cell(row=5, column=2, value="='Start here'!$B$15")
     sel.font = f_body
     wg.cell(row=6, column=1, value="Column of that line of work in the grids below").font = f_colhead
     # industry header row for the grids
@@ -380,9 +361,9 @@ def build_mileage():
     wg.row_dimensions[IND_HDR].height = 42
     first_ind_col = get_column_letter(5)
     last_ind_col = get_column_letter(4 + len(inds))
-    idx = wg.cell(row=6, column=2, value=f'=IFERROR(MATCH(Log!$B$9,Guide!${first_ind_col}${IND_HDR}:${last_ind_col}${IND_HDR},0),{len(inds)})')
+    idx = wg.cell(row=6, column=2, value=f'=IFERROR(MATCH('Start here'!$B$15,Data!${first_ind_col}${IND_HDR}:${last_ind_col}${IND_HDR},0),{len(inds)})')
     idx.font = f_body
-    IDX = "Guide!$B$6"
+    IDX = "Data!$B$6"
 
     # attention grid: items (rows A1..A12) and their category labels (rows C1..C12)
     MAXA = max(len(i["attention"]) for i in inds)
@@ -465,51 +446,65 @@ def build_mileage():
     wg.freeze_panes = "A5"
 
     # ranges used by the other sheets
-    CAT_LABELS = f"Guide!$A${CAT0}:$A${CATN}"
-    CAT_TREAT = f"Guide!$B${CAT0}:$B${CATN}"
-    CAT_SHARE = f"Guide!$C${CAT0}:$C${CATN}"
-    ATT_ITEMS = f"Guide!${first_ind_col}${ATT_ITEM0}:${last_ind_col}${ATT_ITEMN}"
-    ATT_CATS = f"Guide!${first_ind_col}${ATT_CAT0}:${last_ind_col}${ATT_CATN}"
-    AV_CATS = f"Guide!${first_ind_col}${AV_CAT0}:${last_ind_col}${AV_CATN}"
-    AV_WHYS = f"Guide!${first_ind_col}${AV_WHY0}:${last_ind_col}${AV_WHYN}"
+    CAT_LABELS = f"Data!$A${CAT0}:$A${CATN}"
+    CAT_TREAT = f"Data!$B${CAT0}:$B${CATN}"
+    CAT_SHARE = f"Data!$C${CAT0}:$C${CATN}"
+    ATT_ITEMS = f"Data!${first_ind_col}${ATT_ITEM0}:${last_ind_col}${ATT_ITEMN}"
+    ATT_CATS = f"Data!${first_ind_col}${ATT_CAT0}:${last_ind_col}${ATT_CATN}"
+    AV_CATS = f"Data!${first_ind_col}${AV_CAT0}:${last_ind_col}${AV_CATN}"
+    AV_WHYS = f"Data!${first_ind_col}${AV_WHY0}:${last_ind_col}${AV_WHYN}"
 
     # ------------------------------------------------------------------ Log (settings + line-of-work guidance)
-    wl = wb.create_sheet("Log", 1)
+    wl = wb.active
+    wl.title = "Start here"
     lcols = 6
     setup(wl, [34, 44, 14, 14, 14, 16], landscape=False, title=T)
-    band(wl, lcols, "Log", "Tax year and your line of work")
-    section(wl, 5, lcols, "Tax year")
-    label(wl.cell(row=6, column=1), "Tax year")
-    yr = wl.cell(row=6, column=2, value=YEAR)
+    band(wl, lcols, "Start here", "Mileage & Expense Log")
+    section(wl, 5, lcols, "How this works", "three steps")
+    for k, line in enumerate([
+        "1.  Pick the tax year and your line of work below. The two lists update for your work.",
+        "2.  Log trips on the Travel sheet and costs on the Expenses sheet as the year goes. Rates, treatment, and totals fill in by themselves.",
+        "3.  In January, open Summary and email this file to your Grott Luker CPA.",
+    ]):
+        c = wl.cell(row=6 + k, column=1, value=line)
+        c.font = f_body
+        c.alignment = Alignment(indent=1, vertical="center", wrap_text=True)
+        wl.merge_cells(start_row=6 + k, start_column=1, end_row=6 + k, end_column=lcols)
+        wl.row_dimensions[6 + k].height = 20
+    legend_line(wl, 9, lcols)
+    wl.row_dimensions[10].height = 8
+    section(wl, 11, lcols, "Tax year")
+    label(wl.cell(row=12, column=1), "Tax year")
+    yr = wl.cell(row=12, column=2, value=YEAR)
     pick(yr)
     yr.number_format = "0"
     dvy = DataValidation(type="list", formula1='"' + ",".join(str(y) for y in years) + '"', allow_blank=False)
     wl.add_data_validation(dvy)
     dvy.add(yr)
-    wl.cell(row=7, column=1, value="IRS standard rates apply automatically by each trip's date. Verify against irs.gov every January.").font = f_note
-    wl.merge_cells(start_row=7, start_column=1, end_row=7, end_column=lcols)
-    section(wl, 8, lcols, "Your line of work")
-    label(wl.cell(row=9, column=1), "What kind of work is this log for?")
-    ind_cell = wl.cell(row=9, column=2, value=inds[-1]["label"])
+    wl.cell(row=13, column=1, value="IRS standard rates apply automatically by each trip's date. Verify against irs.gov every January.").font = f_note
+    wl.merge_cells(start_row=13, start_column=1, end_row=13, end_column=lcols)
+    section(wl, 14, lcols, "Your line of work")
+    label(wl.cell(row=15, column=1), "What kind of work is this log for?")
+    ind_cell = wl.cell(row=15, column=2, value=inds[-1]["label"])
     pick(ind_cell)
-    wl.merge_cells(start_row=9, start_column=2, end_row=9, end_column=lcols)
-    dvi = DataValidation(type="list", formula1=f"=Guide!$A${IND_LIST0}:$A${IND_LISTN}", allow_blank=False, errorTitle="Line of work", error="Pick a line of work from the list.")
+    wl.merge_cells(start_row=15, start_column=2, end_row=15, end_column=lcols)
+    dvi = DataValidation(type="list", formula1=f"=Data!$A${IND_LIST0}:$A${IND_LISTN}", allow_blank=False, errorTitle="Line of work", error="Pick a line of work from the list.")
     wl.add_data_validation(dvi)
     dvi.add(ind_cell)
-    wl.cell(row=10, column=1, value="Picking your line of work changes the two lists below and marks your usual categories on the Expenses sheet. The rules are general; your CPA decides.").font = f_note
-    wl.merge_cells(start_row=10, start_column=1, end_row=10, end_column=lcols)
-    wl.row_dimensions[10].height = 28
-    wl.cell(row=10, column=1).alignment = Alignment(wrap_text=True, vertical="top")
+    wl.cell(row=16, column=1, value="Picking your line of work changes the two lists below and marks your usual categories on the Expenses sheet. The rules are general; your CPA decides.").font = f_note
+    wl.merge_cells(start_row=16, start_column=1, end_row=16, end_column=lcols)
+    wl.row_dimensions[16].height = 28
+    wl.cell(row=16, column=1).alignment = Alignment(wrap_text=True, vertical="top")
     # rates in use
-    r = 12
+    r = 18
     section(wl, r, lcols, "Rates in use", "dollars per mile")
     colheads(wl, r + 1, ["From", "", "Business", "Charity", "Medical"], {3: "right", 4: "right", 5: "right"})
     r += 2
     for i in range(len(rates)):
-        calc(wl.cell(row=r, column=1, value=f"=Guide!A{RATE0 + i}"), DATE, "left")
-        calc(wl.cell(row=r, column=3, value=f"=Guide!B{RATE0 + i}"), RATE)
-        calc(wl.cell(row=r, column=4, value=f"=Guide!C{RATE0 + i}"), RATE)
-        calc(wl.cell(row=r, column=5, value=f"=Guide!D{RATE0 + i}"), RATE)
+        calc(wl.cell(row=r, column=1, value=f"=Data!A{RATE0 + i}"), DATE, "left")
+        calc(wl.cell(row=r, column=3, value=f"=Data!B{RATE0 + i}"), RATE)
+        calc(wl.cell(row=r, column=4, value=f"=Data!C{RATE0 + i}"), RATE)
+        calc(wl.cell(row=r, column=5, value=f"=Data!D{RATE0 + i}"), RATE)
         r += 1
     r += 1
     # usually not deductible
@@ -539,13 +534,14 @@ def build_mileage():
         wl.row_dimensions[r].height = 28
         r += 1
     footer(wl, r + 1, lcols)
+    about(wl, r + 3, lcols)
     wl.freeze_panes = "A5"
 
     # ------------------------------------------------------------------ Travel
-    wt = wb.create_sheet("Travel", 2)
+    wt = wb.create_sheet("Travel", 1)
     tcols = 7
     setup(wt, [13, 22, 40, 10, 13, 10, 14], title=T)
-    band(wt, tcols, "Travel", f'="Tax year "&Log!$B$6&"   ·   Powered by BlueLine Advisors"')
+    band(wt, tcols, "Travel", f'="Tax year "&'Start here'!$B$12&"   ·   Powered by BlueLine Advisors"')
     section(wt, 5, tcols, "Trips", "the rate and total fill in from the date and purpose")
     colheads(wt, 6, ["Date", "Client", "Description & destination", "Miles", "Purpose  ▾", "Rate", "Total"], {4: "right", 6: "right", 7: "right"})
     dvp = DataValidation(type="list", formula1='"Business,Charity,Medical"', allow_blank=True, error="Choose Business, Charity, or Medical.", errorTitle="Purpose")
@@ -557,7 +553,7 @@ def build_mileage():
         inp(wt.cell(row=r, column=3))
         inp(wt.cell(row=r, column=4), INT, "right")
         pick(wt.cell(row=r, column=5))
-        calc(wt.cell(row=r, column=6, value=f'=IF(OR(A{r}="",E{r}=""),"",INDEX(Guide!$B${RATE0}:$D${RATEN},MATCH(A{r},Guide!$A${RATE0}:$A${RATEN},1),MATCH(E{r},Guide!$B${RATE_HDR}:$D${RATE_HDR},0)))'), RATE)
+        calc(wt.cell(row=r, column=6, value=f'=IF(OR(A{r}="",E{r}=""),"",INDEX(Data!$B${RATE0}:$D${RATEN},MATCH(A{r},Data!$A${RATE0}:$A${RATEN},1),MATCH(E{r},Data!$B${RATE_HDR}:$D${RATE_HDR},0)))'), RATE)
         calc(wt.cell(row=r, column=7, value=f'=IF(F{r}="","",D{r}*F{r})'), MONEY)
         dvp.add(wt.cell(row=r, column=5))
         wt.row_dimensions[r].height = 17
@@ -567,13 +563,13 @@ def build_mileage():
     footer(wt, ttr + 2, tcols)
 
     # ------------------------------------------------------------------ Expenses
-    we = wb.create_sheet("Expenses", 3)
+    we = wb.create_sheet("Expenses", 2)
     ecols = 9
     setup(we, [13, 22, 36, 13, 34, 18, 13, 9, 46], title=T)
-    band(we, ecols, "Expenses", f'="Tax year "&Log!$B$6&"   ·   Powered by BlueLine Advisors"')
+    band(we, ecols, "Expenses", f'="Tax year "&'Start here'!$B$12&"   ·   Powered by BlueLine Advisors"')
     section(we, 5, ecols, "Business expenses", "treatment, counted amount, and watch-outs fill in from the category and your line of work")
     colheads(we, 6, ["Date", "Client / vendor", "What and why", "Amount", "Category  ▾", "Treatment", "Counted", "Typical", "Watch out for your line of work"], {4: "right", 7: "right", 8: "center"})
-    dvc = DataValidation(type="list", formula1=f"={CAT_LABELS}", allow_blank=True, error="Pick a category from the list (see the Guide sheet).", errorTitle="Category")
+    dvc = DataValidation(type="list", formula1=f"={CAT_LABELS}", allow_blank=True, error="Pick a category from the list.", errorTitle="Category")
     we.add_data_validation(dvc)
     for r in range(first, last + 1):
         inp(we.cell(row=r, column=1), DATE)
@@ -598,11 +594,11 @@ def build_mileage():
     footer(we, etr + 2, ecols)
 
     # ------------------------------------------------------------------ Summary (the report)
-    wsu = wb.create_sheet("Summary", 4)
+    wsu = wb.create_sheet("Summary", 3)
     scols = 6
     setup(wsu, [30, 14, 14, 3, 14, 14], landscape=False, title=T)
-    band(wsu, scols, "Year-end summary", f'="Tax year "&Log!$B$6&"   ·   Powered by BlueLine Advisors"')
-    meta = wsu.cell(row=5, column=1, value='="Prepared for discussion with Grott Luker & Co. · "&Log!$B$9')
+    band(wsu, scols, "Year-end summary", f'="Tax year "&'Start here'!$B$12&"   ·   Powered by BlueLine Advisors"')
+    meta = wsu.cell(row=5, column=1, value='="Prepared for discussion with Grott Luker & Co. · "&'Start here'!$B$15')
     meta.font = f_sub
     wsu.merge_cells(start_row=5, start_column=1, end_row=5, end_column=scols)
     # feature tile: estimated deductions
@@ -634,7 +630,7 @@ def build_mileage():
         r += 1
     total_row(wsu, r, 1, 5, 1, "All expenses", {2: (f"=SUM(B{e0}:B{r - 1})", MONEY), 3: (f"=SUM(C{e0}:C{r - 1})", MONEY), 5: (f"=SUM(E{e0}:E{r - 1})", INT)})
     r += 2
-    section(wsu, r, scols, '="Notes for "&LOWER(LEFT(Log!$B$9,1))&MID(Log!$B$9,2,200)')
+    section(wsu, r, scols, '="Notes for "&LOWER(LEFT('Start here'!$B$15,1))&MID('Start here'!$B$15,2,200)')
     r += 1
     for k in range(MAXV):
         c = wsu.cell(row=r, column=1, value=f'=T(INDEX({AV_CATS},{k + 1},{IDX}))')
