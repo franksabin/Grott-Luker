@@ -232,6 +232,37 @@ export function seniorDeduction(magi, filing, seniors = 1) {
   return Math.max(0, SENIOR_DEDUCTION.amount * seniors - SENIOR_DEDUCTION.phaseRate * over)
 }
 
+// §24 child tax credit (2026): $2,200 per qualifying child under 17, reduced by
+// $50 for each $1,000 (or part) of MAGI over $200,000 ($400,000 MFJ).
+export const CHILD_TAX_CREDIT = { amount: 2200, phaseStart: { single: 200000, married: 400000 }, per1000: 50 }
+export function childTaxCredit(children, magi, filing) {
+  const f = normalizeFiling(filing)
+  const n = Math.max(0, Math.round(children || 0))
+  if (!n) return 0
+  const over = Math.max(0, Math.max(0, magi) - CHILD_TAX_CREDIT.phaseStart[f])
+  return Math.max(0, n * CHILD_TAX_CREDIT.amount - Math.ceil(over / 1000) * CHILD_TAX_CREDIT.per1000)
+}
+
+// §21 child and dependent care credit (2026): up to $3,000 of expenses for one
+// qualifying person, $6,000 for two or more. The rate starts at 50%, falls one
+// point per $2,000 of AGI over $15,000 until it reaches 35%, then one point per
+// $2,000 ($4,000 MFJ) of AGI over $75,000 ($150,000 MFJ) until it reaches 20%.
+export const DEPENDENT_CARE = { capOne: 3000, capTwo: 6000, topRate: 0.5, midRate: 0.35, floorRate: 0.2, phase1Start: 15000, phase2Start: { single: 75000, married: 150000 }, phase2Step: { single: 2000, married: 4000 } }
+export function dependentCareCredit(expenses, persons, agi, filing) {
+  const f = normalizeFiling(filing)
+  const n = Math.max(0, Math.round(persons || 0))
+  if (!n || !(expenses > 0)) return { credit: 0, rate: 0, eligible: 0 }
+  const eligible = Math.min(expenses, n >= 2 ? DEPENDENT_CARE.capTwo : DEPENDENT_CARE.capOne)
+  const a = Math.max(0, agi)
+  let rate = DEPENDENT_CARE.topRate - Math.ceil(Math.max(0, a - DEPENDENT_CARE.phase1Start) / 2000) * 0.01
+  rate = Math.max(rate, DEPENDENT_CARE.midRate)
+  if (a > DEPENDENT_CARE.phase2Start[f]) {
+    rate = Math.max(DEPENDENT_CARE.floorRate, DEPENDENT_CARE.midRate - Math.ceil((a - DEPENDENT_CARE.phase2Start[f]) / DEPENDENT_CARE.phase2Step[f]) * 0.01)
+  }
+  rate = Math.round(rate * 100) / 100
+  return { credit: eligible * rate, rate, eligible }
+}
+
 // §199A(i) minimum deduction: $400 when active QBI is at least $1,000.
 export const QBI_MINIMUM = { deduction: 400, activeQbi: 1000 }
 
@@ -255,6 +286,25 @@ export function rmdDivisor(age, startAge = 73) {
   if (age < startAge) return null
   if (age > 105) return UNIFORM_LIFETIME[105]
   return UNIFORM_LIFETIME[age] || UNIFORM_LIFETIME[105]
+}
+
+// Breakeven view of IRMAA: how much more MAGI the household can show before the
+// surcharge steps up, and what that step costs per year.
+export function irmaaHeadroom(magi, filing) {
+  const f = normalizeFiling(filing)
+  const tiers = IRMAA_TIERS[f]
+  const people = f === 'married' ? 2 : 1
+  const m = Math.max(0, magi)
+  for (let i = 0; i < tiers.length; i++) {
+    if (m <= tiers[i].upTo) {
+      const next = tiers[i + 1]
+      if (!next) return { atTop: true, headroom: null, threshold: null, stepUp: 0, currentAnnual: (tiers[i].partB + tiers[i].partD) * 12 * people }
+      const cur = (tiers[i].partB + tiers[i].partD) * 12 * people
+      const nxt = (next.partB + next.partD) * 12 * people
+      return { atTop: false, headroom: tiers[i].upTo - m, threshold: tiers[i].upTo, stepUp: nxt - cur, currentAnnual: cur, nextAnnual: nxt }
+    }
+  }
+  return { atTop: true, headroom: null, threshold: null, stepUp: 0, currentAnnual: 0 }
 }
 
 export function irmaaSurcharge(magi, filing) {

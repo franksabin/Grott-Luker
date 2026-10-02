@@ -191,6 +191,14 @@ export default function MultiYearProjection() {
   const ready = inputs.pretax > 0 && toNumber(form.birthYear) > 0
   const chartRows = plan.rows
   const label = hasPlan ? (form.mode === 'fill' ? `Fill to ${form.fillBracket}%` : 'Convert each year') : 'As entered'
+  // Breakeven: the first year the plan's after-tax family wealth is at least the do-nothing line.
+  const breakevenAge = useMemo(() => {
+    if (!hasPlan) return null
+    for (let i = 1; i < plan.wealth.length; i++) {
+      if (plan.wealth[i] >= none.wealth[i]) return plan.rows[i - 1].age
+    }
+    return null
+  }, [hasPlan, plan, none])
 
   return (
     <ToolShell
@@ -275,6 +283,7 @@ export default function MultiYearProjection() {
                 { label: 'Lifetime tax paid', value: money(plan.lifetimeTax), note: hasPlan ? `vs. ${money(none.lifetimeTax)} doing nothing` : 'through the end of the plan' },
                 { label: `Heirs’ tax at ${inputs.endAge}`, value: money(plan.heirsTax), tone: plan.heirsTax < none.heirsTax ? 'good' : undefined, note: hasPlan ? `vs. ${money(none.heirsTax)} doing nothing` : `${percent(inputs.beneficiaryRate * 100, 0)} on what is pre-tax` },
                 { label: 'Converted in total', value: money(plan.totalConverted), note: hasPlan ? `Roth at ${inputs.endAge}: ${money(plan.endRoth)}` : 'no conversions' },
+                ...(hasPlan ? [{ label: 'Breakeven', value: breakevenAge ? `Age ${breakevenAge}` : 'Not reached', tone: breakevenAge ? 'good' : 'bad', note: breakevenAge ? `plan pulls ahead of doing nothing${breakevenAge - plan.startAge > 0 ? ` after ${breakevenAge - plan.startAge} years` : ' immediately'}` : `do nothing stays ahead through ${inputs.endAge}` }] : []),
               ]}
             />
 

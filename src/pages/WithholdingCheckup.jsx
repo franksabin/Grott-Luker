@@ -109,6 +109,10 @@ function compute(form) {
   const projPaid = projWithholding + estPayments
   const gap = projTax - projPaid // + = balance due, - = refund
 
+  // One number for the W-4: total federal withholding per remaining primary
+  // paycheck that lands the return at $0, given everything else on pace.
+  const neededFromPrimary = Math.max(0, projTax - estPayments - ytdWH - spWH - spPerWH * remaining)
+  const targetPerCheck = remaining > 0 ? neededFromPrimary / remaining : 0
   const extraPerCheck = remaining > 0 && gap > 0 ? gap / remaining : 0
   const reducePerCheck = remaining > 0 && gap < 0 ? Math.abs(gap) / remaining : 0
 
@@ -126,7 +130,7 @@ function compute(form) {
     perWages, perWH, projWages, projSpouseWages, projIncome,
     deduction: effectiveDeduction, usingStandardAnyway, stdDed,
     taxable, grossTax, projTax, marginal,
-    projWithholding, projPaid, gap, extraPerCheck, reducePerCheck,
+    projWithholding, projPaid, gap, extraPerCheck, reducePerCheck, targetPerCheck, neededFromPrimary,
     ninety, penaltyShortfall, extraToSafeHarbor, coverage,
   }
 }
@@ -146,6 +150,7 @@ export default function WithholdingCheckup() {
     { label: 'Less credits', formula: `${money(r.grossTax, 2)} − ${money(r.credits, 2)}`, result: money(r.projTax, 2) },
     { label: 'Projected withholding', formula: `${money(r.ytdWH + r.spWH, 2)} to date + ${r.remaining} × ${money(r.perWH + r.spWH / Math.max(1, r.periodsPaid), 2)}${r.estPayments > 0 ? ` + estimated payments ${money(r.estPayments, 2)}` : ''}`, result: money(r.projPaid, 2) },
     { label: r.gap > 0 ? 'Shortfall' : 'Overpayment', formula: `${money(r.projTax, 2)} − ${money(r.projPaid, 2)}`, result: money(Math.abs(r.gap), 2) },
+    ...(r.remaining > 0 ? [{ label: 'Withholding per paycheck to land at $0', formula: `(${money(r.projTax, 2)} − estimates ${money(r.estPayments, 2)} − withheld so far ${money(r.ytdWH + r.spWH, 2)}${r.spWages > 0 ? ` − spouse on pace ${money(r.spWH / Math.max(1, r.periodsPaid) * r.remaining, 2)}` : ''}) ÷ ${r.remaining}`, result: money(r.targetPerCheck, 2), note: `Currently ${money(r.perWH, 2)} per paycheck.` }] : []),
     ...(r.remaining > 0 && r.gap > 0 ? [
       { label: 'Extra per paycheck to close the gap', formula: `${money(r.gap, 2)} ÷ ${r.remaining}`, result: money(r.extraPerCheck, 2) },
       { label: 'Minimum for the 90% test', formula: `max(0, 90% × ${money(r.projTax, 2)} − ${money(r.projPaid, 2)}) ÷ ${r.remaining}`, result: money(r.extraToSafeHarbor, 2) },
@@ -233,6 +238,15 @@ export default function WithholdingCheckup() {
               ]}
             />
 
+            {r.remaining > 0 ? (
+              <Callout
+                label={`Set total federal withholding to this per paycheck (${r.remaining} left) to land at $0`}
+                value={money(r.targetPerCheck)}
+                rightLabel="Current per paycheck"
+                rightValue={money(r.perWH)}
+                tone={r.targetPerCheck > r.perWH ? 'warn' : 'good'}
+              />
+            ) : null}
             {r.remaining > 0 && owes ? (
               <Callout
                 label="W-4 adjustment — Step 4(c), extra withholding per paycheck"

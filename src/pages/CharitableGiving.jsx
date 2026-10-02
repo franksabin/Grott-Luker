@@ -372,6 +372,14 @@ export default function CharitableGiving() {
         </div>
       </div>
 
+      <Note title="What to do">
+        {r.best.id === 'qcd'
+          ? `Have the IRA custodian send ${money(r.qcdAmt)} a year directly to the charities (never through the client's own account) and tell the preparer the 1099-R includes a QCD. Any giving beyond the QCD can still be bunched through a donor-advised fund.`
+          : r.best.id === 'bunch'
+            ? `Open a donor-advised fund and fund it with ${money(r.N * r.giving)} before year-end — ideally with appreciated stock held over a year, which also avoids the capital gain — then grant ${money(r.giving)} a year to the charities on the usual schedule. Take the standard deduction in the off years.`
+            : `Keep giving ${money(r.giving)} a year; the client itemizes every year, so bunching adds little. Revisit when the client reaches 70½, when a QCD becomes the stronger route.`}
+        {' '}Paperwork: an acknowledgment letter for any gift of $250 or more, Form 8283 for non-cash gifts over $500, and a qualified appraisal above $5,000.
+      </Note>
       <Note title="Reading the result">
         Bunching helps when itemized deductions hover near the standard deduction. A donor-advised fund lets the client take the deduction in the bunching year and still grant to charities on their usual schedule. A QCD counts toward the RMD, never touches AGI (which also helps IRMAA and Social Security taxation), and does not require itemizing — for most clients past 70½ it beats both other routes.
       </Note>

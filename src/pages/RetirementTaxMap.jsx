@@ -23,6 +23,7 @@ import {
   niitTax,
   taxableSocialSecurity,
   irmaaSurcharge,
+  irmaaHeadroom,
   STANDARD_DEDUCTION,
   TAX_YEAR,
 } from '../lib/tax.js'
@@ -36,6 +37,7 @@ const INCOME_FIELDS = [
   { key: 'taxableInvestments', label: 'Taxable investments', info: 'Annual income from a taxable brokerage account. Modeled here as qualified dividends / long-term capital gains taxed at preferential rates.' },
   { key: 'rental', label: 'Rental income', info: 'Net annual rental income. Taxed as ordinary income here.' },
   { key: 'business', label: 'Business income', info: 'Net annual business income. Taxed as ordinary income here.' },
+  { key: 'k1', label: 'K-1 income (partnership / S-corp)', info: 'Ordinary income passed through on Schedule K-1 from a partnership or S corporation. Taxed as ordinary income here; passive-loss limits and the QBI deduction are not modeled.' },
 ]
 
 const FILING_OPTIONS = [
@@ -54,6 +56,7 @@ const SAMPLE_A = {
   taxableInvestments: '20000',
   rental: '24000',
   business: '0',
+  k1: '0',
 }
 const SAMPLE_B = {
   socialSecurity: '48000',
@@ -63,6 +66,7 @@ const SAMPLE_B = {
   taxableInvestments: '20000',
   rental: '24000',
   business: '0',
+  k1: '0',
 }
 
 function computeScenario(s, filing, stateCode) {
@@ -72,7 +76,7 @@ function computeScenario(s, filing, stateCode) {
   const ss = g('socialSecurity')
   const roth = g('rothIra')
   const ltcg = g('taxableInvestments')
-  const ordinaryNonSS = g('pension') + g('traditionalIra') + g('rental') + g('business')
+  const ordinaryNonSS = g('pension') + g('traditionalIra') + g('rental') + g('business') + g('k1')
 
   const gross =
     ss + roth + ltcg + ordinaryNonSS // all seven sources
@@ -101,6 +105,7 @@ function computeScenario(s, filing, stateCode) {
 
   const totalTax = federalTax + stateTax
   const irmaa = irmaaSurcharge(agi, filing)
+  const irmaaNext = irmaaHeadroom(agi, filing)
   const afterTaxCashFlow = gross - totalTax
 
   return {
@@ -114,6 +119,7 @@ function computeScenario(s, filing, stateCode) {
     totalTax,
     effectiveRate: gross > 0 ? totalTax / gross : 0,
     irmaa,
+    irmaaNext,
     afterTaxCashFlow,
     stateName: st.name,
   }
@@ -283,7 +289,7 @@ export default function RetirementTaxMap() {
               items={[
                 { label: 'Estimated total tax', value: money(ra.totalTax), tone: ra.totalTax > 0 ? 'bad' : undefined, note: 'federal + state' },
                 { label: 'Taxable Social Security', value: percent(ra.ssTaxablePct, 0), note: `${money(ra.taxableSS)} of benefit` },
-                { label: 'IRMAA exposure', value: ra.irmaa.tierApplies ? money(ra.irmaa.annualHousehold) : 'None', tone: ra.irmaa.tierApplies ? 'bad' : undefined, note: 'annual, household' },
+                { label: 'IRMAA exposure', value: ra.irmaa.tierApplies ? money(ra.irmaa.annualHousehold) : 'None', tone: ra.irmaa.tierApplies ? 'bad' : undefined, note: ra.irmaaNext.atTop ? 'top tier · annual, household' : `${money(ra.irmaaNext.headroom)} of income room before +${money(ra.irmaaNext.stepUp)}/yr` },
               ]}
             />
 
@@ -296,6 +302,9 @@ export default function RetirementTaxMap() {
               <ResultRow label="Estimated state tax" raw={`(${money(ra.stateTax)})`} negative />
               <ResultRow label="Estimated total tax" raw={`(${money(ra.totalTax)})`} negative />
               <ResultRow label="Estimated after-tax cash flow" value={ra.afterTaxCashFlow} total />
+              {!ra.irmaaNext.atTop ? (
+                <ResultRow label={`IRMAA breakeven — next tier starts at ${money(ra.irmaaNext.threshold)} of income`} raw={`${money(ra.irmaaNext.headroom)} of room · +${money(ra.irmaaNext.stepUp)}/yr if crossed`} sub info="Medicare premiums two years from now are set by this year's income. Keep a Roth conversion or capital gain inside the room, or expect the household surcharge to step up by the amount shown." />
+              ) : null}
             </div>
 
             <Narrative>
@@ -397,6 +406,7 @@ export default function RetirementTaxMap() {
           'IRMAA exposure uses the 2026 income-related surcharge schedule and, for married filers, reflects two enrolled individuals. It shows the surcharge above the base premium.',
           'State tax applies simplified rates for the selected state and does not reflect state-specific retirement-income exclusions.',
           'The standard deduction is assumed; itemized deductions, credits, and QBI are not modeled.',
+          'The IRMAA breakeven shows the income room left under the current Medicare surcharge tier (2026 Part B and D schedule) and the annual household cost of crossing into the next one. Premiums are set by the return filed two years earlier.',
         ]}
       />
     </ToolShell>
