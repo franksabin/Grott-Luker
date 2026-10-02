@@ -7,3 +7,4 @@ dev.err.log
 .wrangler
 *.local
 .DS_Store
+scripts/print-out/
