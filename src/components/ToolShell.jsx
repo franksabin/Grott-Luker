@@ -6,7 +6,6 @@ import { TOOLS } from '../lib/tools.js'
 import { EMAIL_REQUESTS } from '../lib/emailRequests.js'
 import RequestInfoModal from './RequestInfoModal.jsx'
 import SignoffPanel from './SignoffPanel.jsx'
-import { recordUsage } from '../lib/api.js'
 import { useUsage } from '../lib/useUsage.js'
 import MathTrace from './MathTrace.jsx'
 
@@ -53,9 +52,6 @@ export default function ToolShell({
   const handlePrint = () => window.print()
   const generatedAt = timestampNow()
   const usage = useUsage()
-  useEffect(() => {
-    if (tool?.id) recordUsage(tool.id)
-  }, [tool?.id])
   const u = tool ? usage[tool.id] : null
 
   return (
