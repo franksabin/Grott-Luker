@@ -598,7 +598,7 @@ def build_mileage():
     scols = 6
     setup(wsu, [30, 14, 14, 3, 14, 14], landscape=False, title=T)
     band(wsu, scols, "Year-end summary", f"=\"Tax year \"&'Start here'!$B$12&\"   ·   Powered by BlueLine Advisors\"")
-"   meta = wsu.cell(row=5, column=1, value='=\"Prepared for discussion with Grott Luker & Co. · \"&'Start here'!$B$15")
+    meta = wsu.cell(row=5, column=1, value="=\"Prepared for discussion with Grott Luker & Co. · \"&'Start here'!$B$15")
     meta.font = f_sub
     wsu.merge_cells(start_row=5, start_column=1, end_row=5, end_column=scols)
     # feature tile: estimated deductions
