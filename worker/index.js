@@ -20,6 +20,7 @@ import { normalizeSubmission, LIMITS } from '../src/lib/submission.js'
 import { normalizeMileageSubmission, MILEAGE_LIMITS } from '../src/lib/mileage.js'
 import { normalizeDonationSubmission, DONATION_LIMITS } from '../src/lib/donations.js'
 import { normalizeFeedback, FEEDBACK_LIMITS } from '../src/lib/feedback.js'
+import { normalizeSignoff } from '../src/lib/signoffs.js'
 
 const LIST_LIMIT = 200
 
@@ -36,6 +37,7 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS donation_logs (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT, notes TEXT, tax_year INTEGER NOT NULL, log TEXT NOT NULL, total_gifts REAL, estimated_deduction REAL)`,
   `CREATE INDEX IF NOT EXISTS idx_donation_logs_created_at ON donation_logs (created_at DESC)`,
   `CREATE TABLE IF NOT EXISTS feedback (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT, email TEXT, firm TEXT, answers TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS tool_signoffs (tool_id TEXT NOT NULL, cpa TEXT NOT NULL, created_at TEXT NOT NULL, note TEXT, PRIMARY KEY (tool_id, cpa))`,
 ]
 let schemaReady = null
 function ensureSchema(env) {
@@ -338,6 +340,30 @@ export default {
         if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405)
         if (!isStaff(request, env)) return json({ error: 'Unauthorized.' }, 401)
         return await handleDonationDetail(env, decodeURIComponent(ddetail[1]))
+      }
+
+      // Tool sign-offs (open during the beta, like Client results).
+      if (pathname === '/api/signoffs') {
+        if (request.method === 'GET') {
+          const { results } = await env.DB.prepare(`SELECT tool_id, cpa, created_at, note FROM tool_signoffs ORDER BY created_at`).all()
+          return json({ signoffs: results || [] })
+        }
+        if (request.method === 'POST') {
+          let body
+          try { body = JSON.parse(await request.text()) } catch { return json({ error: 'Invalid JSON.' }, 400) }
+          const { value, error } = normalizeSignoff(body)
+          if (error) return json({ error }, 400)
+          await env.DB.prepare(`INSERT OR REPLACE INTO tool_signoffs (tool_id, cpa, created_at, note) VALUES (?, ?, ?, ?)`)
+            .bind(value.toolId, value.cpa, new Date().toISOString(), value.note || null).run()
+          return json({ ok: true }, 201)
+        }
+        return json({ error: 'Method not allowed.' }, 405)
+      }
+      const sdel = pathname.match(/^\/api\/signoffs\/([^/]+)\/([^/]+)$/)
+      if (sdel) {
+        if (request.method !== 'DELETE') return json({ error: 'Method not allowed.' }, 405)
+        await env.DB.prepare(`DELETE FROM tool_signoffs WHERE tool_id = ? AND cpa = ?`).bind(decodeURIComponent(sdel[1]), decodeURIComponent(sdel[2])).run()
+        return json({ ok: true })
       }
 
       if (pathname === '/api/feedback') {

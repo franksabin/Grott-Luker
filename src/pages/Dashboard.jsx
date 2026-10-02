@@ -1,15 +1,19 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Mail, Phone, Inbox, Link2 } from 'lucide-react'
 import { GROUPS, GROUP_ORDER, TOOLS } from '../lib/tools.js'
+import { isReady } from '../lib/signoffs.js'
+import { useSignoffs } from '../lib/useSignoffs.js'
 
 // Every tool is "In development" as of 2026-09-16 (full rebuild, not yet
 // re-reviewed), so the old show/hide toggle for in-development tools is gone:
 // hiding them would hide the whole toolkit.
 
-function ToolCard({ tool }) {
+function ToolCard({ tool, signoffs }) {
   const Icon = tool.icon
-  const testing = tool.status === 'testing'
-  const cpa = tool.status === 'cpa-testing'
+  const ready = isReady(tool, signoffs)
+  const who = (signoffs[tool.id] || []).map((s) => s.cpa)
+  const testing = !ready
+  const cpa = false
   return (
     <Link
       to={tool.path}
@@ -25,7 +29,7 @@ function ToolCard({ tool }) {
               <Link2 size={11} /> Client Shareable
             </span>
           ) : null}
-          {testing ? <span className="status-chip" title="Beta: works, but not reviewed with Grott Luker & Co. Not client ready.">Beta</span> : cpa ? <span className="cpa-chip" title="CPA Testing: being refined with a Grott Luker CPA. Not client ready yet.">CPA Testing</span> : <span className="live-chip" title="Live: reviewed with Grott Luker & Co. Client ready.">Live</span>}
+          {ready ? <span className="live-chip" title={who.length ? `Tested and signed off by ${who.join(", ")}` : "Reviewed with Grott Luker & Co."}>Ready{who.length ? ` · ${who.join(", ")}` : ""}</span> : <span className="status-chip" title="No Grott Luker CPA has signed off on this tool yet. Not client ready.">Not reviewed</span>}
         </span>
       </div>
       <h3>{tool.title}</h3>
@@ -40,7 +44,7 @@ function ToolCard({ tool }) {
   )
 }
 
-function GroupSection({ group, tools }) {
+function GroupSection({ group, tools, signoffs }) {
   return (
     <section className="tgroup" data-group={group.id}>
       <div className="ribbon">
@@ -57,7 +61,7 @@ function GroupSection({ group, tools }) {
       </div>
       <div className="tcard-grid">
         {tools.map((tool) => (
-          <ToolCard key={tool.id} tool={tool} />
+          <ToolCard key={tool.id} tool={tool} signoffs={signoffs} />
         ))}
       </div>
     </section>
@@ -65,6 +69,7 @@ function GroupSection({ group, tools }) {
 }
 
 export default function Dashboard() {
+  const { signoffs } = useSignoffs()
   const filtered = TOOLS
 
   return (
@@ -140,15 +145,14 @@ export default function Dashboard() {
 
       <div className="dash-bar">
         <Link to="/feedback" className="poll-cta">
-          <span className="poll-cta-tag">Beta</span>
+          <span className="poll-cta-tag">Review</span>
           Review the CPA tools — what to add, change, or include
           <ArrowRight size={14} />
         </Link>
         <div className="dash-bar-right">
           <span className="dev-note">
-            <span className="status-chip">Beta</span> not client ready
-            <span className="cpa-chip">CPA Testing</span> being refined with a CPA
-            <span className="live-chip">Live</span> client ready
+            <span className="status-chip">Not reviewed</span> not client ready
+            <span className="live-chip">Ready</span> a CPA has tested it and signed off
           </span>
         </div>
       </div>
@@ -156,7 +160,7 @@ export default function Dashboard() {
       {GROUP_ORDER.map((gid) => {
         const tools = filtered.filter((t) => t.group === gid)
         if (!tools.length) return null
-        return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} />
+        return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} signoffs={signoffs} />
       })}
 
       <div className="sbs-wrap">

@@ -13,6 +13,7 @@ import { normalizeSubmission, LIMITS } from './src/lib/submission.js'
 import { normalizeMileageSubmission, MILEAGE_LIMITS } from './src/lib/mileage.js'
 import { normalizeDonationSubmission, DONATION_LIMITS } from './src/lib/donations.js'
 import { normalizeFeedback, FEEDBACK_LIMITS } from './src/lib/feedback.js'
+import { normalizeSignoff } from './src/lib/signoffs.js'
 
 const DATA_DIR = '.dev-data'
 const DB_FILE = 'snapshots.db'
@@ -215,6 +216,23 @@ export default function devApi() {
             let log = null
             try { log = JSON.parse(row.log) } catch { log = null }
             return send(res, 200, { log: { ...row, log } })
+          }
+          if (route === '/signoffs' && req.method === 'GET') {
+            return send(res, 200, { signoffs: db.prepare(`SELECT tool_id, cpa, created_at, note FROM tool_signoffs ORDER BY created_at`).all() })
+          }
+          if (route === '/signoffs' && req.method === 'POST') {
+            const { raw } = await readBody(req)
+            let body
+            try { body = JSON.parse(raw) } catch { return send(res, 400, { error: 'Invalid JSON.' }) }
+            const { value, error } = normalizeSignoff(body)
+            if (error) return send(res, 400, { error })
+            db.prepare(`INSERT OR REPLACE INTO tool_signoffs (tool_id, cpa, created_at, note) VALUES (?, ?, ?, ?)`).run(value.toolId, value.cpa, new Date().toISOString(), value.note || null)
+            return send(res, 201, { ok: true })
+          }
+          const sdel = route.match(/^\/signoffs\/([^/]+)\/([^/]+)$/)
+          if (sdel && req.method === 'DELETE') {
+            db.prepare(`DELETE FROM tool_signoffs WHERE tool_id = ? AND cpa = ?`).run(decodeURIComponent(sdel[1]), decodeURIComponent(sdel[2]))
+            return send(res, 200, { ok: true })
           }
           if (route === '/feedback' && req.method === 'POST') {
             const { raw, tooLarge } = await readBody(req, FEEDBACK_LIMITS.body)

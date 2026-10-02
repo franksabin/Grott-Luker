@@ -109,6 +109,17 @@ export function getMileageLog(id, passcode) {
   return request(`/mileage-logs/${encodeURIComponent(id)}`, { passcode })
 }
 
+// ---------------- Tool sign-offs ----------------
+export function listSignoffs() {
+  return request('/signoffs')
+}
+export function addSignoff(toolId, cpa, note) {
+  return request('/signoffs', { method: 'POST', body: { toolId, cpa, note } })
+}
+export function removeSignoff(toolId, cpa) {
+  return request(`/signoffs/${encodeURIComponent(toolId)}/${encodeURIComponent(cpa)}`, { method: 'DELETE' })
+}
+
 // ---------------- CPA roadmap poll ----------------
 export function submitFeedback(answers) {
   return request('/feedback', { method: 'POST', body: answers })

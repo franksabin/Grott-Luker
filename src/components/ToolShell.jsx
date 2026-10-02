@@ -5,6 +5,7 @@ import { timestampNow } from '../lib/format.js'
 import { TOOLS } from '../lib/tools.js'
 import { EMAIL_REQUESTS } from '../lib/emailRequests.js'
 import RequestInfoModal from './RequestInfoModal.jsx'
+import SignoffPanel from './SignoffPanel.jsx'
 import MathTrace from './MathTrace.jsx'
 
 const STANDARD_DISCLOSURE =
@@ -113,16 +114,7 @@ export default function ToolShell({
         Estimate generated {generatedAt}
       </div>
 
-      {tool?.status === 'cpa-testing' ? (
-        <div className="baseline-banner is-cpa">
-          <strong>CPA Testing.</strong> Being refined with a Grott Luker &amp; Co. CPA — not client ready yet.
-        </div>
-      ) : null}
-      {tool?.status === 'testing' && !planned ? (
-        <div className="baseline-banner">
-          <strong>Beta.</strong> Not yet reviewed with Grott Luker &amp; Co. — not client ready.
-        </div>
-      ) : null}
+      {tool ? <SignoffPanel tool={tool} /> : null}
 
       {clientLink ? (
         <div className="share-how no-print">

@@ -71,3 +71,12 @@ CREATE TABLE IF NOT EXISTS feedback (
   firm        TEXT,
   answers     TEXT NOT NULL
 );
+
+-- A Grott Luker CPA's sign-off that a tool is tested and client ready.
+CREATE TABLE IF NOT EXISTS tool_signoffs (
+  tool_id     TEXT NOT NULL,
+  cpa         TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  note        TEXT,
+  PRIMARY KEY (tool_id, cpa)
+);
