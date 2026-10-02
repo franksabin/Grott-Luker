@@ -13,6 +13,8 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.comments import Comment
+from openpyxl.drawing.image import Image as XLImage
+from PIL import Image as PILImage
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "public" / "templates"
@@ -69,17 +71,76 @@ def categories():
 TREAT = {"ok": "Deductible", "limited": "Partly deductible", "ask": "For your CPA", "not": "Not deductible"}
 
 
+BRAND = ROOT / "public" / "brand"
+DISCLAIMER = (
+    "Prepared with the Grott Luker & Co. Client Decision Support Toolkit, powered by BlueLine Advisors. "
+    "This workbook is an educational planning record, not tax, legal, accounting, or investment advice. "
+    "Figures are the client\u2019s own entries and should be reviewed by Grott Luker & Co. before use in any return or decision."
+)
+ABOUT = [
+    ("About Grott Luker & Co.", f_bold),
+    ("Certified Public Accountants \u00b7 Portsmouth, New Hampshire \u00b7 Accounting | Tax Planning | Advisory. Questions about this log go to your Grott Luker CPA.", f_body),
+    ("", f_body),
+    ("Powered by BlueLine Advisors", f_bold),
+    ("The Client Decision Support Toolkit and its templates are built and maintained by BlueLine Advisors, LLC, an SEC-registered investment adviser based in Exeter, NH (registration does not imply any particular level of skill). Using this workbook does not create an advisory relationship with BlueLine. blueline-advisors.com", f_body),
+    ("", f_body),
+    (DISCLAIMER, f_note),
+]
+
+
+def _logo(path, height_px):
+    img = XLImage(str(path))
+    with PILImage.open(path) as im:
+        w, h = im.size
+    img.height = height_px
+    img.width = int(w * height_px / h)
+    return img
+
+
+def brand_band(ws, width_cols):
+    """Row 1: navy band with the Grott Luker logo at left and 'Powered by BlueLine Advisors' at right."""
+    for c in range(1, width_cols + 1):
+        ws.cell(row=1, column=c).fill = fill_head
+    ws.row_dimensions[1].height = 42
+    gl = _logo(BRAND / "gl-logo-white-tight.png", 50)
+    gl.anchor = "A1"
+    ws.add_image(gl)
+    tag = ws.cell(row=1, column=width_cols, value="POWERED BY  BLUELINE ADVISORS")
+    tag.font = Font(name=FONT, size=8, bold=True, color="FFFFFF")
+    tag.alignment = Alignment(horizontal="right", vertical="center")
+
+
 def title_block(ws, title, sub, width_cols):
-    ws["A1"] = title
-    ws["A1"].font = f_title
-    ws["A2"] = sub
-    ws["A2"].font = f_sub
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=width_cols)
+    brand_band(ws, width_cols)
+    ws["A2"] = title
+    ws["A2"].font = f_title
+    ws["A3"] = sub
+    ws["A3"].font = f_sub
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=width_cols)
-    ws.row_dimensions[1].height = 26
-    ws["A3"] = "Grott Luker & Co. · Client Decision Support Toolkit · platform by BlueLine Advisors"
-    ws["A3"].font = f_note
     ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=width_cols)
+    ws.row_dimensions[2].height = 26
+
+
+def footer_note(ws, row, width_cols):
+    c = ws.cell(row=row, column=1, value=DISCLAIMER)
+    c.font = f_note
+    c.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=width_cols)
+    ws.row_dimensions[row].height = 42
+
+
+def readme_sheet(ws, lines):
+    """Read me: brand band, the how-to lines, then the About / Powered-by block."""
+    ws.column_dimensions["A"].width = 112
+    brand_band(ws, 1)
+    r = 2
+    for t, f in lines + [("", f_body)] + ABOUT:
+        c = ws.cell(row=r, column=1, value=t)
+        c.font = f
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.row_dimensions[r].height = 18 if len(t) < 105 else (32 if len(t) < 220 else 48)
+        r += 1
+    ws.row_dimensions[2].height = 28
 
 
 def header_row(ws, row, headers, widths):
@@ -123,30 +184,22 @@ def build_mileage():
     # ---- Read me
     ws = wb.active
     ws.title = "Read me"
-    ws.column_dimensions["A"].width = 110
-    lines = [
-        (f"Mileage & Expense Log — {YEAR}", f_title),
+    readme_sheet(ws, [
+        (f"Mileage & Expense Log \u2014 {YEAR}", f_title),
         ("How to use this workbook", f_bold),
         ("1. Log every trip on the Mileage sheet: date, purpose (Business, Charity, or Medical), where you went, why, and the miles. The IRS rate for that date fills in by itself and the deduction is calculated.", f_body),
         ("2. Log business costs on the Expenses sheet: date, category, client or matter, description, amount. The sheet shows whether the category is usually deductible, partly deductible, something for your CPA, or not deductible.", f_body),
         ("3. The Summary sheet totals everything. In January, send the whole file to Grott Luker & Co., or type the figures into the online log at the link your CPA sent.", f_body),
         ("", f_body),
         ("Rules of thumb", f_bold),
-        ("• Keep the log as you go. A reconstructed log is the first thing an auditor challenges.", f_body),
-        ("• Commuting from home to your regular workplace is not deductible, whatever you carry or discuss on the way.", f_body),
-        ("• Parking and tolls are deductible on top of the mileage rate; gas, repairs, and car insurance are not — they are already inside the rate.", f_body),
-        ("• Business meals are 50% deductible when business is discussed and you are present. Note who and what. Entertainment is not deductible.", f_body),
-        ("• Equipment under $2,500 per item can usually be expensed; note the cost per item for anything larger.", f_body),
+        ("\u2022 Keep the log as you go. A reconstructed log is the first thing an auditor challenges.", f_body),
+        ("\u2022 Commuting from home to your regular workplace is not deductible, whatever you carry or discuss on the way.", f_body),
+        ("\u2022 Parking and tolls are deductible on top of the mileage rate; gas, repairs, and car insurance are not \u2014 they are already inside the rate.", f_body),
+        ("\u2022 Business meals are 50% deductible when business is discussed and you are present. Note who and what. Entertainment is not deductible.", f_body),
+        ("\u2022 Equipment under $2,500 per item can usually be expensed; note the cost per item for anything larger.", f_body),
         ("", f_body),
-        ("Yellow cells are yours to fill in. White cells calculate themselves — leave them alone. Rates are on the Rates sheet; verify each January.", f_note),
-        ("This workbook organizes records; it does not determine deductibility. Review with Grott Luker & Co. before filing.", f_note),
-    ]
-    for i, (t, f) in enumerate(lines, start=1):
-        c = ws.cell(row=i, column=1, value=t)
-        c.font = f
-        c.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.row_dimensions[i].height = 18 if len(t) < 100 else 32
-    ws.row_dimensions[1].height = 28
+        ("Yellow cells are yours to fill in. White cells calculate themselves \u2014 leave them alone. Rates are on the Rates sheet; verify each January.", f_note),
+    ])
 
     # ---- Rates
     wr = wb.create_sheet("Rates")
@@ -209,7 +262,8 @@ def build_mileage():
     wm.cell(row=tr, column=7, value=f"=SUM(G{first}:G{last})").number_format = MONEY
     wm.cell(row=tr, column=5).font = f_bold
     wm.cell(row=tr, column=7).font = f_bold
-    wm["A2"].comment = Comment("Dates before the first rate period use that period's rate.", "Grott Luker toolkit")
+    wm["A3"].comment = Comment("Dates before the first rate period use that period's rate.", "Grott Luker toolkit")
+    footer_note(wm, tr + 2, 7)
 
     # ---- Expenses
     we = wb.create_sheet("Expenses", 2)
@@ -239,6 +293,7 @@ def build_mileage():
     we.cell(row=tr, column=8, value=f"=SUM(H{first}:H{last})").number_format = MONEY
     we.cell(row=tr, column=5).font = f_bold
     we.cell(row=tr, column=8).font = f_bold
+    footer_note(we, tr + 2, 8)
 
     # ---- Summary
     wsu = wb.create_sheet("Summary", 3)
@@ -277,7 +332,10 @@ def build_mileage():
     wsu.cell(row=r, column=3, value=f"=C{9}+C{r - 2}").number_format = MONEY
     wsu.cell(row=r, column=3).font = Font(name=FONT, size=12, bold=True, color=NAVY)
     wsu.cell(row=r + 2, column=1, value='"For your CPA" items are logged but not counted as deductible here; your CPA decides.').font = f_note
+    footer_note(wsu, r + 4, 4)
 
+    wb.properties.creator = "Grott Luker & Co. \u00b7 BlueLine Advisors"
+    wb.properties.title = f"Mileage & Expense Log {YEAR}"
     wb.calculation.fullCalcOnLoad = True
     path = OUT / f"GrottLuker-Mileage-Expense-Log-{YEAR}.xlsx"
     wb.save(path)
@@ -289,30 +347,22 @@ def build_donations():
     wb = Workbook()
     ws = wb.active
     ws.title = "Read me"
-    ws.column_dimensions["A"].width = 110
-    lines = [
-        (f"Charitable Donation Log — {YEAR}", f_title),
+    readme_sheet(ws, [
+        (f"Charitable Donation Log \u2014 {YEAR}", f_title),
         ("How to use this workbook", f_bold),
         ("1. Log each gift on the Gifts sheet: date, organization, what it was, the type (Cash, Non-cash, or Securities), and the amount or fair market value. For securities add the cost basis and whether you held them more than a year.", f_body),
         ("2. The sheet calculates the deductible amount and flags what documentation each gift needs.", f_body),
         ("3. The Summary sheet totals by type and lists the flags. Send the workbook to Grott Luker & Co. in January with your receipt letters.", f_body),
         ("", f_body),
         ("Documentation rules", f_bold),
-        ("• Any single gift of $250 or more needs a contemporaneous written acknowledgment from the charity before you file. Mark the Receipt column Y once you have it.", f_body),
-        ("• Non-cash gifts over $500 in total require Form 8283 with the return.", f_body),
-        ("• Any non-cash item or group of similar items over $5,000 needs a qualified appraisal (publicly traded securities excepted).", f_body),
-        ("• Appreciated securities held more than a year are deductible at fair market value and the capital gain is never taxed. Held a year or less, the deduction is limited to cost basis.", f_body),
-        ("• Qualified charitable distributions from an IRA (70½+) are excluded from income instead of deducted; log them with a note so your CPA sees them.", f_body),
+        ("\u2022 Any single gift of $250 or more needs a contemporaneous written acknowledgment from the charity before you file. Mark the Receipt column Y once you have it.", f_body),
+        ("\u2022 Non-cash gifts over $500 in total require Form 8283 with the return.", f_body),
+        ("\u2022 Any non-cash item or group of similar items over $5,000 needs a qualified appraisal (publicly traded securities excepted).", f_body),
+        ("\u2022 Appreciated securities held more than a year are deductible at fair market value and the capital gain is never taxed. Held a year or less, the deduction is limited to cost basis.", f_body),
+        ("\u2022 Qualified charitable distributions from an IRA (70\u00bd+) are excluded from income instead of deducted; log them with a note so your CPA sees them.", f_body),
         ("", f_body),
         ("Yellow cells are yours to fill in. White cells calculate themselves.", f_note),
-        ("This workbook organizes gifts and flags documentation rules; it does not determine deductibility, which depends on the donee, AGI limits, and your facts. Review with Grott Luker & Co. before filing.", f_note),
-    ]
-    for i, (t, f) in enumerate(lines, start=1):
-        c = ws.cell(row=i, column=1, value=t)
-        c.font = f
-        c.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.row_dimensions[i].height = 18 if len(t) < 100 else 32
-    ws.row_dimensions[1].height = 28
+    ])
 
     wg = wb.create_sheet("Gifts", 1)
     title_block(wg, f"Gifts — {YEAR}", "One row per gift. Deductible amount and flags calculate from the type, amount, basis, and holding period.", 10)
@@ -351,6 +401,7 @@ def build_donations():
     wg.cell(row=tr, column=9, value=f"=SUM(I{first}:I{last})").number_format = MONEY
     wg.cell(row=tr, column=5).font = f_bold
     wg.cell(row=tr, column=9).font = f_bold
+    footer_note(wg, tr + 2, 10)
 
     wsu = wb.create_sheet("Summary", 2)
     title_block(wsu, f"Summary — {YEAR}", "Totals by gift type and the documentation checklist.", 4)
@@ -389,7 +440,10 @@ def build_donations():
             wsu.cell(row=r, column=col).border = border
         r += 1
     wsu.cell(row=r + 1, column=1, value="Thresholds: IRC §170(f)(8) acknowledgment at $250; Form 8283 above $500 of non-cash gifts; qualified appraisal above $5,000 per item or group.").font = f_note
+    footer_note(wsu, r + 3, 4)
 
+    wb.properties.creator = "Grott Luker & Co. \u00b7 BlueLine Advisors"
+    wb.properties.title = f"Charitable Donation Log {YEAR}"
     wb.calculation.fullCalcOnLoad = True
     path = OUT / f"GrottLuker-Charitable-Donation-Log-{YEAR}.xlsx"
     wb.save(path)
@@ -471,10 +525,20 @@ def build_kyn():
         ws.cell(row=r, column=3, value=note).font = f_note
         r += 1
     r += 1
-    ws.cell(row=r, column=1, value="When you're done, send this file to Grott Luker & Co. or type the figures into the online form at the link your CPA sent. Educational only; not tax, legal, or investment advice.").font = f_note
+    ws.cell(row=r, column=1, value="When you are done, send this file to Grott Luker & Co. or type the figures into the online form at the link your CPA sent.").font = f_note
     ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3)
+    r += 2
+    for t, f in ABOUT:
+        c = ws.cell(row=r, column=1, value=t)
+        c.font = f
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3)
+        ws.row_dimensions[r].height = 16 if len(t) < 100 else (34 if len(t) < 220 else 50)
+        r += 1
     ws.freeze_panes = "A6"
 
+    wb.properties.creator = "Grott Luker & Co. \u00b7 BlueLine Advisors"
+    wb.properties.title = "Know Your Numbers"
     wb.calculation.fullCalcOnLoad = True
     path = OUT / "GrottLuker-Know-Your-Numbers.xlsx"
     wb.save(path)
