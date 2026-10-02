@@ -88,27 +88,23 @@ ABOUT = [
 
 
 # --------------------------------------------------------------------------- source data
+import json
+import subprocess
+
+
+def guide():
+    """Categories, industries, rates, gift types — exported from the JS source by scripts/export-guide.mjs."""
+    out = ROOT / "scripts" / "guide.json"
+    subprocess.run(["node", str(ROOT / "scripts" / "export-guide.mjs")], check=True, cwd=ROOT, shell=True)
+    return json.loads(out.read_text(encoding="utf-8"))
+
+
 def read_src(rel):
     return (ROOT / "src" / "lib" / rel).read_text(encoding="utf-8")
 
 
-def rate_periods():
-    out = []
-    for m in re.finditer(r"\{ from: '(\d{4}-\d{2}-\d{2})', business: ([\d.]+), charity: ([\d.]+), medical: ([\d.]+) \}", read_src("mileage.js")):
-        out.append((m.group(1), float(m.group(2)), float(m.group(3)), float(m.group(4))))
-    assert out, "no rate periods parsed"
-    return out
-
-
-def categories():
-    out = []
-    for m in re.finditer(r"\{ id: '([a-z]+)', label: '([^']*)', treatment: '(\w+)', share: ([\d.]+), note: '((?:[^'\\]|\\.)*)' \}", read_src("expenseGuide.js")):
-        out.append((m.group(2), m.group(3), float(m.group(4)), m.group(5).replace("\\'", "'")))
-    assert len(out) > 20, f"only {len(out)} categories parsed"
-    return out
-
-
-TREAT = {"ok": "Deductible", "limited": "Partly deductible", "ask": "For your CPA", "not": "Not deductible"}
+TREAT = {  # legacy, kept for the donation/KYN builders
+    "ok": "Deductible", "limited": "Partly deductible", "ask": "For your CPA", "not": "Not deductible"}
 
 
 # --------------------------------------------------------------------------- building blocks
@@ -309,145 +305,321 @@ def readme(wb, title, sub, lines):
 
 # --------------------------------------------------------------------------- Mileage & Expense Log
 def build_mileage():
-    wb = Workbook()
-    rates = rate_periods()
-    cats = categories()
+    G = guide()
+    cats = G["CATEGORIES"]
+    inds = G["INDUSTRIES"]
+    rates = G["RATE_PERIODS"]
+    treat_label = {k: v["label"] for k, v in G["TREATMENTS"].items()}
+    treat_short = {k: v["short"] for k, v in G["TREATMENTS"].items()}
+    cat_by_id = {c["id"]: c for c in cats}
+    years = G["TAX_YEARS"]
     T = f"Mileage & Expense Log {YEAR}"
+    wb = Workbook()
 
     readme(wb, T, "How to use this workbook", [
-        ("Three sheets, kept through the year", f_section),
-        ("Mileage — one row per trip: date, purpose, where, why, miles. The IRS rate for that date and the deduction fill in by themselves.", f_body),
-        ("Expenses — one row per cost: date, category, who it was for, amount. The sheet shows whether the category is deductible, partly deductible, for your CPA to decide, or not deductible.", f_body),
-        ("Summary — totals by purpose and by treatment, ready to send.", f_body),
+        ("Start on the Log sheet", f_section),
+        ("Pick the tax year and your line of work. The sheet then lists what people in your work usually forget to log, and what they tend to claim that is not deductible.", f_body),
+        ("Travel — one row per trip: date, client, where and why, miles, purpose. The IRS rate for that date and the total fill in by themselves.", f_body),
+        ("Expenses — one row per cost: date, client or vendor, what and why, amount, category. The sheet shows how the category is usually treated, whether it is typical for your work, and any watch-out for your line of work.", f_body),
+        ("Summary — the year-end report: estimated deductions, miles by purpose, expenses by treatment, and the notes for your line of work.", f_body),
+        ("", f_body),
+        ("How expenses are counted", f_section),
+        ("Deductible — counted in full.  Partly deductible — counted at the allowed share (business meals at 50%).  For your CPA — recorded and totaled separately, not counted, because the answer depends on facts the log cannot see (business-use %, cost per item, exclusive use).  Not deductible — recorded so your CPA sees it, counted at zero.", f_body),
         ("", f_body),
         ("Rules of thumb", f_section),
         ("Keep the log as you go. A reconstructed log is the first thing an auditor challenges.", f_body),
         ("Commuting from home to your regular workplace is not deductible, whatever you carry or discuss on the way.", f_body),
         ("Parking and tolls are deductible on top of the mileage rate. Gas, repairs, and car insurance are not; they are already inside the rate.", f_body),
-        ("Business meals are 50% deductible when business is discussed and you are present. Note who and what. Entertainment is not deductible.", f_body),
-        ("Equipment under $2,500 per item can usually be expensed. Note the cost per item for anything larger.", f_body),
         ("", f_body),
         ("When you are done", f_section),
-        ("In January, email this file to your Grott Luker CPA, or type the totals into the online log at the link we sent you.", f_body),
-        ("Light-yellow cells are yours. Everything else calculates itself. Rates are on the Rates sheet; we update them each January.", f_note),
+        ("In January, email this file to your Grott Luker CPA, or enter the totals in the online log at the link we sent you.", f_body),
+        ("Light-yellow cells are yours. Everything else calculates itself. The rules are general 2026 federal treatment; your CPA decides.", f_note),
     ])
 
-    # ---- Rates (first, so the lookups can reference its rows)
-    wr = wb.create_sheet("Rates")
-    setup(wr, [40, 16, 14, 80], landscape=False, title=T)
-    band(wr, 4, "Rates & categories", "Reference")
-    section(wr, 5, 4, "IRS standard mileage rates", "dollars per mile, by effective date")
-    colheads(wr, 6, ["Effective from", "Business", "Charity", "Medical"], {2: "right", 3: "right", 4: "right"})
-    r0 = 7
-    for i, (frm, b, ch, med) in enumerate(rates):
-        y, m, d = (int(x) for x in frm.split("-"))
-        row = r0 + i
-        calc(wr.cell(row=row, column=1, value=datetime.date(y, m, d)), DATE, "left")
-        calc(wr.cell(row=row, column=2, value=b), RATE)
-        calc(wr.cell(row=row, column=3, value=ch), RATE)
-        calc(wr.cell(row=row, column=4, value=med), RATE)
-    rate_last = r0 + len(rates) - 1
-    wr.cell(row=rate_last + 1, column=1, value="Source: IRS Notice 2026-10; IRB 2026-29 raised the business and medical rates from July 1, 2026.").font = f_note
-    cat_sec = rate_last + 3
-    section(wr, cat_sec, 4, "Expense categories", "how each is usually treated")
-    colheads(wr, cat_sec + 1, ["Category", "Treatment", "Share", "What to know"], {3: "right"})
-    cat_top = cat_sec + 2
-    for i, (lab, treat, share, note) in enumerate(cats):
-        row = cat_top + i
-        c = wr.cell(row=row, column=1, value=lab); calc(c, None, "left"); c.alignment = Alignment(indent=1, vertical="top", wrap_text=True)
-        calc(wr.cell(row=row, column=2, value=TREAT[treat]), None, "left")
-        calc(wr.cell(row=row, column=3, value=share if treat in ("ok", "limited") else 0), PCT)
-        n = wr.cell(row=row, column=4, value=note); calc(n, None, "left"); n.alignment = Alignment(wrap_text=True, vertical="top")
-        wr.row_dimensions[row].height = 15 if len(note) < 95 else 28
-    cat_last = cat_top + len(cats) - 1
-    wr.freeze_panes = "A5"
+    # ------------------------------------------------------------------ Guide (data the formulas read)
+    wg = wb.create_sheet("Guide")
+    setup(wg, [44, 18, 10, 80] + [30] * len(inds), landscape=False, title=T)
+    band(wg, 4, "Guide", "Categories, lines of work, and rates")
+    wg.cell(row=5, column=1, value="Selected line of work (from the Log sheet)").font = f_colhead
+    sel = wg.cell(row=5, column=2, value="=Log!$B$9")
+    sel.font = f_body
+    wg.cell(row=6, column=1, value="Column of that line of work in the grids below").font = f_colhead
+    # industry header row for the grids
+    IND_HDR = 8
+    wg.cell(row=IND_HDR, column=1, value="LINES OF WORK →").font = f_colhead
+    for j, ind in enumerate(inds):
+        c = wg.cell(row=IND_HDR, column=5 + j, value=ind["label"])
+        c.font = f_colhead
+        c.alignment = Alignment(wrap_text=True, vertical="bottom")
+    wg.row_dimensions[IND_HDR].height = 42
+    first_ind_col = get_column_letter(5)
+    last_ind_col = get_column_letter(4 + len(inds))
+    idx = wg.cell(row=6, column=2, value=f'=IFERROR(MATCH(Log!$B$9,Guide!${first_ind_col}${IND_HDR}:${last_ind_col}${IND_HDR},0),{len(inds)})')
+    idx.font = f_body
+    IDX = "Guide!$B$6"
 
-    # ---- Mileage
-    wm = wb.create_sheet("Mileage", 1)
-    cols = 7
-    setup(wm, [13, 13, 24, 40, 10, 10, 14], title=T)
-    band(wm, cols, "Mileage log", f"Tax year {YEAR}")
-    section(wm, 5, cols, "Trips", "the rate and deduction fill in from the date and purpose")
-    colheads(wm, 6, ["Date", "Purpose", "Client / where", "Description", "Miles", "Rate", "Deduction"], {5: "right", 6: "right", 7: "right"})
-    dv = DataValidation(type="list", formula1='"Business,Charity,Medical"', allow_blank=True, error="Choose Business, Charity, or Medical.", errorTitle="Purpose")
-    wm.add_data_validation(dv)
+    # attention grid: items (rows A1..A12) and their category labels (rows C1..C12)
+    MAXA = max(len(i["attention"]) for i in inds)
+    MAXV = max(len(i["avoid"]) for i in inds)
+    r = IND_HDR + 2
+    section(wg, r, 4 + len(inds), "Pay extra attention to these — items", "one column per line of work")
+    ATT_ITEM0 = r + 1
+    for k in range(MAXA):
+        wg.cell(row=ATT_ITEM0 + k, column=1, value=f"Item {k + 1}").font = f_note
+        for j, ind in enumerate(inds):
+            if k < len(ind["attention"]):
+                c = wg.cell(row=ATT_ITEM0 + k, column=5 + j, value=ind["attention"][k][0])
+                c.font = f_body
+                c.alignment = Alignment(wrap_text=True, vertical="top")
+    ATT_ITEMN = ATT_ITEM0 + MAXA - 1
+    r = ATT_ITEMN + 2
+    section(wg, r, 4 + len(inds), "Pay extra attention to these — category of each item")
+    ATT_CAT0 = r + 1
+    for k in range(MAXA):
+        wg.cell(row=ATT_CAT0 + k, column=1, value=f"Item {k + 1}").font = f_note
+        for j, ind in enumerate(inds):
+            if k < len(ind["attention"]):
+                wg.cell(row=ATT_CAT0 + k, column=5 + j, value=cat_by_id[ind["attention"][k][1]]["label"]).font = f_body
+    ATT_CATN = ATT_CAT0 + MAXA - 1
+    r = ATT_CATN + 2
+    section(wg, r, 4 + len(inds), "Usually not deductible — category")
+    AV_CAT0 = r + 1
+    for k in range(MAXV):
+        wg.cell(row=AV_CAT0 + k, column=1, value=f"Watch-out {k + 1}").font = f_note
+        for j, ind in enumerate(inds):
+            if k < len(ind["avoid"]):
+                wg.cell(row=AV_CAT0 + k, column=5 + j, value=cat_by_id[ind["avoid"][k][0]]["label"]).font = f_body
+    AV_CATN = AV_CAT0 + MAXV - 1
+    r = AV_CATN + 2
+    section(wg, r, 4 + len(inds), "Usually not deductible — why")
+    AV_WHY0 = r + 1
+    for k in range(MAXV):
+        wg.cell(row=AV_WHY0 + k, column=1, value=f"Watch-out {k + 1}").font = f_note
+        for j, ind in enumerate(inds):
+            if k < len(ind["avoid"]):
+                c = wg.cell(row=AV_WHY0 + k, column=5 + j, value=ind["avoid"][k][1])
+                c.font = f_body
+                c.alignment = Alignment(wrap_text=True, vertical="top")
+        wg.row_dimensions[AV_WHY0 + k].height = 44
+    AV_WHYN = AV_WHY0 + MAXV - 1
+    # categories table
+    r = AV_WHYN + 3
+    section(wg, r, 4, "Expense categories", "how each is usually treated")
+    colheads(wg, r + 1, ["Category", "Treatment", "Share", "What to know"], {3: "right"})
+    CAT0 = r + 2
+    for i, c in enumerate(cats):
+        row = CAT0 + i
+        x = wg.cell(row=row, column=1, value=c["label"]); calc(x, None, "left"); x.alignment = Alignment(indent=1, vertical="top", wrap_text=True)
+        calc(wg.cell(row=row, column=2, value=treat_label[c["treatment"]]), None, "left")
+        calc(wg.cell(row=row, column=3, value=c["share"] if c["treatment"] in ("ok", "limited") else 0), PCT)
+        n = wg.cell(row=row, column=4, value=c["note"]); calc(n, None, "left"); n.alignment = Alignment(wrap_text=True, vertical="top")
+        wg.row_dimensions[row].height = 15 if len(c["note"]) < 95 else 28
+    CATN = CAT0 + len(cats) - 1
+    # rates table
+    r = CATN + 3
+    section(wg, r, 4, "IRS standard mileage rates", "dollars per mile, by effective date")
+    colheads(wg, r + 1, ["Effective from", "Business", "Charity", "Medical"], {2: "right", 3: "right", 4: "right"})
+    RATE0 = r + 2
+    for i, p in enumerate(rates):
+        y, m, d = (int(x) for x in p["from"].split("-"))
+        row = RATE0 + i
+        calc(wg.cell(row=row, column=1, value=datetime.date(y, m, d)), DATE, "left")
+        calc(wg.cell(row=row, column=2, value=p["business"]), RATE)
+        calc(wg.cell(row=row, column=3, value=p["charity"]), RATE)
+        calc(wg.cell(row=row, column=4, value=p["medical"]), RATE)
+    RATEN = RATE0 + len(rates) - 1
+    RATE_HDR = RATE0 - 1
+    wg.cell(row=RATEN + 1, column=1, value="Source: IRS Notice 2026-10; IRB 2026-29 raised the business and medical rates from July 1, 2026. Verify each January.").font = f_note
+    # industry list for the dropdown
+    IND_LIST0 = RATEN + 3
+    wg.cell(row=IND_LIST0 - 1, column=1, value="LINES OF WORK (dropdown source)").font = f_colhead
+    for j, ind in enumerate(inds):
+        wg.cell(row=IND_LIST0 + j, column=1, value=ind["label"]).font = f_body
+    IND_LISTN = IND_LIST0 + len(inds) - 1
+    wg.freeze_panes = "A5"
+
+    # ranges used by the other sheets
+    CAT_LABELS = f"Guide!$A${CAT0}:$A${CATN}"
+    CAT_TREAT = f"Guide!$B${CAT0}:$B${CATN}"
+    CAT_SHARE = f"Guide!$C${CAT0}:$C${CATN}"
+    ATT_ITEMS = f"Guide!${first_ind_col}${ATT_ITEM0}:${last_ind_col}${ATT_ITEMN}"
+    ATT_CATS = f"Guide!${first_ind_col}${ATT_CAT0}:${last_ind_col}${ATT_CATN}"
+    AV_CATS = f"Guide!${first_ind_col}${AV_CAT0}:${last_ind_col}${AV_CATN}"
+    AV_WHYS = f"Guide!${first_ind_col}${AV_WHY0}:${last_ind_col}${AV_WHYN}"
+
+    # ------------------------------------------------------------------ Log (settings + line-of-work guidance)
+    wl = wb.create_sheet("Log", 1)
+    lcols = 6
+    setup(wl, [34, 44, 14, 14, 14, 16], landscape=False, title=T)
+    band(wl, lcols, "Log", "Tax year and your line of work")
+    section(wl, 5, lcols, "Tax year")
+    label(wl.cell(row=6, column=1), "Tax year")
+    yr = wl.cell(row=6, column=2, value=YEAR)
+    inp(yr, "0", "left")
+    dvy = DataValidation(type="list", formula1='"' + ",".join(str(y) for y in years) + '"', allow_blank=False)
+    wl.add_data_validation(dvy)
+    dvy.add(yr)
+    wl.cell(row=7, column=1, value="IRS standard rates apply automatically by each trip's date. Verify against irs.gov every January.").font = f_note
+    wl.merge_cells(start_row=7, start_column=1, end_row=7, end_column=lcols)
+    section(wl, 8, lcols, "Your line of work")
+    label(wl.cell(row=9, column=1), "What kind of work is this log for?")
+    ind_cell = wl.cell(row=9, column=2, value=inds[-1]["label"])
+    inp(ind_cell)
+    wl.merge_cells(start_row=9, start_column=2, end_row=9, end_column=lcols)
+    dvi = DataValidation(type="list", formula1=f"=Guide!$A${IND_LIST0}:$A${IND_LISTN}", allow_blank=False, errorTitle="Line of work", error="Pick a line of work from the list.")
+    wl.add_data_validation(dvi)
+    dvi.add(ind_cell)
+    wl.cell(row=10, column=1, value="Picking your line of work changes the two lists below and marks your usual categories on the Expenses sheet. The rules are general; your CPA decides.").font = f_note
+    wl.merge_cells(start_row=10, start_column=1, end_row=10, end_column=lcols)
+    wl.row_dimensions[10].height = 28
+    wl.cell(row=10, column=1).alignment = Alignment(wrap_text=True, vertical="top")
+    # rates in use
+    r = 12
+    section(wl, r, lcols, "Rates in use", "dollars per mile")
+    colheads(wl, r + 1, ["From", "", "Business", "Charity", "Medical"], {3: "right", 4: "right", 5: "right"})
+    r += 2
+    for i in range(len(rates)):
+        calc(wl.cell(row=r, column=1, value=f"=Guide!A{RATE0 + i}"), DATE, "left")
+        calc(wl.cell(row=r, column=3, value=f"=Guide!B{RATE0 + i}"), RATE)
+        calc(wl.cell(row=r, column=4, value=f"=Guide!C{RATE0 + i}"), RATE)
+        calc(wl.cell(row=r, column=5, value=f"=Guide!D{RATE0 + i}"), RATE)
+        r += 1
+    r += 1
+    # usually not deductible
+    section(wl, r, lcols, "Usually not deductible", "for your line of work")
+    r += 1
+    for k in range(MAXV):
+        c = wl.cell(row=r, column=1, value=f'=IFERROR(INDEX({AV_CATS},{k + 1},{IDX}),"")')
+        c.font = f_bold; c.alignment = Alignment(indent=1, vertical="top", wrap_text=True); c.border = b_row
+        w = wl.cell(row=r, column=2, value=f'=IFERROR(INDEX({AV_WHYS},{k + 1},{IDX}),"")')
+        w.font = f_body; w.alignment = Alignment(wrap_text=True, vertical="top"); w.border = b_row
+        wl.merge_cells(start_row=r, start_column=2, end_row=r, end_column=lcols)
+        wl.row_dimensions[r].height = 32
+        r += 1
+    r += 1
+    # pay extra attention
+    section(wl, r, lcols, "Pay extra attention to these", "people in your work tend to forget to log them")
+    colheads(wl, r + 1, ["Item", "Category", "Treatment"], {})
+    r += 2
+    for k in range(MAXA):
+        it = wl.cell(row=r, column=1, value=f'=IFERROR(INDEX({ATT_ITEMS},{k + 1},{IDX}),"")')
+        it.font = f_body; it.alignment = Alignment(indent=1, vertical="center", wrap_text=True); it.border = b_row
+        ct = wl.cell(row=r, column=2, value=f'=IFERROR(INDEX({ATT_CATS},{k + 1},{IDX}),"")')
+        ct.font = f_body; ct.alignment = Alignment(vertical="center"); ct.border = b_row
+        tr_ = wl.cell(row=r, column=3, value=f'=IF(B{r}="","",INDEX({CAT_TREAT},MATCH(B{r},{CAT_LABELS},0)))')
+        tr_.font = f_note; tr_.alignment = Alignment(vertical="center"); tr_.border = b_row
+        wl.merge_cells(start_row=r, start_column=3, end_row=r, end_column=lcols)
+        wl.row_dimensions[r].height = 18
+        r += 1
+    footer(wl, r + 1, lcols)
+    wl.freeze_panes = "A5"
+
+    # ------------------------------------------------------------------ Travel
+    wt = wb.create_sheet("Travel", 2)
+    tcols = 7
+    setup(wt, [13, 22, 40, 10, 13, 10, 14], title=T)
+    band(wt, tcols, "Travel", f'="Tax year "&Log!$B$6&"   ·   Powered by BlueLine Advisors"')
+    section(wt, 5, tcols, "Trips", "the rate and total fill in from the date and purpose")
+    colheads(wt, 6, ["Date", "Client", "Description & destination", "Miles", "Purpose", "Rate", "Total"], {4: "right", 6: "right", 7: "right"})
+    dvp = DataValidation(type="list", formula1='"Business,Charity,Medical"', allow_blank=True, error="Choose Business, Charity, or Medical.", errorTitle="Purpose")
+    wt.add_data_validation(dvp)
     first, last = 7, 6 + ROWS
     for r in range(first, last + 1):
-        inp(wm.cell(row=r, column=1), DATE)
-        inp(wm.cell(row=r, column=2))
-        inp(wm.cell(row=r, column=3))
-        inp(wm.cell(row=r, column=4))
-        inp(wm.cell(row=r, column=5), INT, "right")
-        calc(wm.cell(row=r, column=6, value=f'=IF(OR(A{r}="",B{r}=""),"",INDEX(Rates!$B${r0}:$D${rate_last},MATCH(A{r},Rates!$A${r0}:$A${rate_last},1),MATCH(B{r},Rates!$B$6:$D$6,0)))'), RATE)
-        calc(wm.cell(row=r, column=7, value=f'=IF(F{r}="","",E{r}*F{r})'), MONEY)
-        dv.add(wm.cell(row=r, column=2))
-        wm.row_dimensions[r].height = 17
-    wm.freeze_panes = "A7"
-    tr = last + 1
-    total_row(wm, tr, 1, cols, 4, "Totals", {5: (f"=SUM(E{first}:E{last})", INT), 7: (f"=SUM(G{first}:G{last})", MONEY)})
-    footer(wm, tr + 2, cols)
-    wm["A6"].comment = Comment("Dates before the first rate period use that period's rate.", "Grott Luker & Co.")
+        inp(wt.cell(row=r, column=1), DATE)
+        inp(wt.cell(row=r, column=2))
+        inp(wt.cell(row=r, column=3))
+        inp(wt.cell(row=r, column=4), INT, "right")
+        inp(wt.cell(row=r, column=5))
+        calc(wt.cell(row=r, column=6, value=f'=IF(OR(A{r}="",E{r}=""),"",INDEX(Guide!$B${RATE0}:$D${RATEN},MATCH(A{r},Guide!$A${RATE0}:$A${RATEN},1),MATCH(E{r},Guide!$B${RATE_HDR}:$D${RATE_HDR},0)))'), RATE)
+        calc(wt.cell(row=r, column=7, value=f'=IF(F{r}="","",D{r}*F{r})'), MONEY)
+        dvp.add(wt.cell(row=r, column=5))
+        wt.row_dimensions[r].height = 17
+    wt.freeze_panes = "A7"
+    ttr = last + 1
+    total_row(wt, ttr, 1, tcols, 3, "Totals", {4: (f"=SUM(D{first}:D{last})", INT), 7: (f"=SUM(G{first}:G{last})", MONEY)})
+    footer(wt, ttr + 2, tcols)
 
-    # ---- Expenses
-    we = wb.create_sheet("Expenses", 2)
-    ecols = 8
-    setup(we, [13, 34, 22, 36, 13, 18, 8, 14], title=T)
-    band(we, ecols, "Expense log", f"Tax year {YEAR}")
-    section(we, 5, ecols, "Business expenses", "treatment and the deductible amount fill in from the category")
-    colheads(we, 6, ["Date", "Category", "Client / matter", "Description", "Amount", "Treatment", "Share", "Deductible"], {5: "right", 7: "right", 8: "right"})
-    cat_range = f"Rates!$A${cat_top}:$A${cat_last}"
-    dvc = DataValidation(type="list", formula1=f"={cat_range}", allow_blank=True, error="Pick a category from the list (see the Rates sheet).", errorTitle="Category")
+    # ------------------------------------------------------------------ Expenses
+    we = wb.create_sheet("Expenses", 3)
+    ecols = 9
+    setup(we, [13, 22, 36, 13, 34, 18, 13, 9, 46], title=T)
+    band(we, ecols, "Expenses", f'="Tax year "&Log!$B$6&"   ·   Powered by BlueLine Advisors"')
+    section(we, 5, ecols, "Business expenses", "treatment, counted amount, and watch-outs fill in from the category and your line of work")
+    colheads(we, 6, ["Date", "Client / vendor", "What and why", "Amount", "Category", "Treatment", "Counted", "Typical", "Watch out for your line of work"], {4: "right", 7: "right", 8: "center"})
+    dvc = DataValidation(type="list", formula1=f"={CAT_LABELS}", allow_blank=True, error="Pick a category from the list (see the Guide sheet).", errorTitle="Category")
     we.add_data_validation(dvc)
     for r in range(first, last + 1):
         inp(we.cell(row=r, column=1), DATE)
         inp(we.cell(row=r, column=2))
         inp(we.cell(row=r, column=3))
-        inp(we.cell(row=r, column=4))
-        inp(we.cell(row=r, column=5), MONEY, "right")
-        calc(we.cell(row=r, column=6, value=f'=IF(B{r}="","",INDEX(Rates!$B${cat_top}:$B${cat_last},MATCH(B{r},{cat_range},0)))'), None, "left")
-        calc(we.cell(row=r, column=7, value=f'=IF(B{r}="","",INDEX(Rates!$C${cat_top}:$C${cat_last},MATCH(B{r},{cat_range},0)))'), PCT)
-        calc(we.cell(row=r, column=8, value=f'=IF(OR(B{r}="",E{r}=""),"",E{r}*G{r})'), MONEY)
-        dvc.add(we.cell(row=r, column=2))
+        inp(we.cell(row=r, column=4), MONEY, "right")
+        inp(we.cell(row=r, column=5))
+        calc(we.cell(row=r, column=6, value=f'=IF(E{r}="","",INDEX({CAT_TREAT},MATCH(E{r},{CAT_LABELS},0)))'), None, "left")
+        calc(we.cell(row=r, column=7, value=f'=IF(OR(E{r}="",D{r}=""),"",D{r}*INDEX({CAT_SHARE},MATCH(E{r},{CAT_LABELS},0)))'), MONEY)
+        ty = we.cell(row=r, column=8, value=f'=IF(E{r}="","",IF(COUNTIF(INDEX({ATT_CATS},0,{IDX}),E{r})>0,"✓",""))')
+        calc(ty, None, "center")
+        ty.font = Font(name=SANS, size=11, bold=True, color=NAVY)
+        wo = we.cell(row=r, column=9, value=f'=IF(E{r}="","",IFERROR(INDEX(INDEX({AV_WHYS},0,{IDX}),MATCH(E{r},INDEX({AV_CATS},0,{IDX}),0)),""))')
+        calc(wo, None, "left")
+        wo.font = f_flag
+        wo.alignment = Alignment(wrap_text=False, vertical="center")
+        dvc.add(we.cell(row=r, column=5))
         we.row_dimensions[r].height = 17
     we.freeze_panes = "A7"
-    total_row(we, tr, 1, ecols, 4, "Totals", {5: (f"=SUM(E{first}:E{last})", MONEY), 8: (f"=SUM(H{first}:H{last})", MONEY)})
-    footer(we, tr + 2, ecols)
+    etr = last + 1
+    total_row(we, etr, 1, ecols, 3, "Totals", {4: (f"=SUM(D{first}:D{last})", MONEY), 7: (f"=SUM(G{first}:G{last})", MONEY)})
+    footer(we, etr + 2, ecols)
 
-    # ---- Summary
-    wsu = wb.create_sheet("Summary", 3)
+    # ------------------------------------------------------------------ Summary (the report)
+    wsu = wb.create_sheet("Summary", 4)
     scols = 6
     setup(wsu, [30, 14, 14, 3, 14, 14], landscape=False, title=T)
-    band(wsu, scols, "Year-end summary", f"Tax year {YEAR}")
-    tile(wsu, 5, 1, 2, "Business miles", f'=SUMIFS(Mileage!$E${first}:$E${last},Mileage!$B${first}:$B${last},"Business")', INT, "logged this year")
-    tile(wsu, 5, 3, 4, "Mileage deduction", f"=Mileage!G{tr}", MONEY0, "all purposes")
-    tile(wsu, 5, 5, 6, "Deductible expenses", f'=SUMIFS(Expenses!$H${first}:$H${last},Expenses!$F${first}:$F${last},"Deductible")+SUMIFS(Expenses!$H${first}:$H${last},Expenses!$F${first}:$F${last},"Partly deductible")', MONEY0, "before CPA review")
-    r = 9
-    section(wsu, r, scols, "Mileage by purpose")
-    r += 1
-    colheads(wsu, r, ["Purpose", "Miles", "Deduction"], {2: "right", 3: "right"})
-    r += 1
-    m0 = r
-    for p in ("Business", "Charity", "Medical"):
-        label(wsu.cell(row=r, column=1), p)
-        calc(wsu.cell(row=r, column=2, value=f'=SUMIFS(Mileage!$E${first}:$E${last},Mileage!$B${first}:$B${last},"{p}")'), INT)
-        calc(wsu.cell(row=r, column=3, value=f'=SUMIFS(Mileage!$G${first}:$G${last},Mileage!$B${first}:$B${last},"{p}")'), MONEY)
-        r += 1
-    total_row(wsu, r, 1, 3, 1, "All trips", {2: (f"=SUM(B{m0}:B{r - 1})", INT), 3: (f"=SUM(C{m0}:C{r - 1})", MONEY)})
-    r += 2
+    band(wsu, scols, "Year-end summary", f'="Tax year "&Log!$B$6&"   ·   Powered by BlueLine Advisors"')
+    meta = wsu.cell(row=5, column=1, value='="Prepared for discussion with Grott Luker & Co. · "&Log!$B$9')
+    meta.font = f_sub
+    wsu.merge_cells(start_row=5, start_column=1, end_row=5, end_column=scols)
+    # feature tile: estimated deductions
+    tile(wsu, 7, 1, 6, "Estimated deductions — mileage plus counted expenses", f"=Travel!G{ttr}+Expenses!G{etr}", MONEY0, '=Travel!D' + str(ttr) + '&" miles logged · "&TEXT(Expenses!D' + str(etr) + ',"$#,##0")&" of expenses logged"')
+    wsu.row_dimensions[8].height = 38
+    wsu.cell(row=8, column=1).font = Font(name=SERIF, size=24, bold=True, color=NAVY)
+    r = 11
+    tile(wsu, r, 1, 2, "Business miles", f'=SUMIFS(Travel!$D${first}:$D${last},Travel!$E${first}:$E${last},"Business")', INT, '=TEXT(SUMIFS(Travel!$G$' + str(first) + ':$G$' + str(last) + ',Travel!$E$' + str(first) + ':$E$' + str(last) + ',"Business"),"$#,##0.00")')
+    tile(wsu, r, 3, 4, "Charity miles", f'=SUMIFS(Travel!$D${first}:$D${last},Travel!$E${first}:$E${last},"Charity")', INT, '=TEXT(SUMIFS(Travel!$G$' + str(first) + ':$G$' + str(last) + ',Travel!$E$' + str(first) + ':$E$' + str(last) + ',"Charity"),"$#,##0.00")')
+    tile(wsu, r, 5, 6, "Medical miles", f'=SUMIFS(Travel!$D${first}:$D${last},Travel!$E${first}:$E${last},"Medical")', INT, '=TEXT(SUMIFS(Travel!$G$' + str(first) + ':$G$' + str(last) + ',Travel!$E$' + str(first) + ':$E$' + str(last) + ',"Medical"),"$#,##0.00")')
+    r = 15
+    E_AMT = f"Expenses!$D${first}:$D${last}"
+    E_CNT = f"Expenses!$G${first}:$G${last}"
+    E_TRT = f"Expenses!$F${first}:$F${last}"
+    tile(wsu, r, 1, 2, "Counted in the estimate", f'=SUMIFS({E_CNT},{E_TRT},"Deductible")+SUMIFS({E_CNT},{E_TRT},"Partly deductible")', MONEY0, "deductible and partly deductible")
+    tile(wsu, r, 3, 4, "For CPA review", f'=SUMIFS({E_AMT},{E_TRT},"For your CPA")', MONEY0, "equipment, phone, home office, inventory")
+    tile(wsu, r, 5, 6, "Not deductible", f'=SUMIFS({E_AMT},{E_TRT},"Not deductible")', MONEY0, "recorded, counted at zero")
+    r = 19
     section(wsu, r, scols, "Expenses by treatment")
     r += 1
-    colheads(wsu, r, ["Treatment", "Logged", "Deductible"], {2: "right", 3: "right"})
+    colheads(wsu, r, ["Treatment", "Logged", "Counted", "", "Entries"], {2: "right", 3: "right", 5: "right"})
     r += 1
     e0 = r
     for t in ("Deductible", "Partly deductible", "For your CPA", "Not deductible"):
         label(wsu.cell(row=r, column=1), t)
-        calc(wsu.cell(row=r, column=2, value=f'=SUMIFS(Expenses!$E${first}:$E${last},Expenses!$F${first}:$F${last},"{t}")'), MONEY)
-        calc(wsu.cell(row=r, column=3, value=f'=SUMIFS(Expenses!$H${first}:$H${last},Expenses!$F${first}:$F${last},"{t}")'), MONEY)
+        calc(wsu.cell(row=r, column=2, value=f'=SUMIFS({E_AMT},{E_TRT},"{t}")'), MONEY)
+        calc(wsu.cell(row=r, column=3, value=f'=SUMIFS({E_CNT},{E_TRT},"{t}")'), MONEY)
+        calc(wsu.cell(row=r, column=5, value=f'=COUNTIFS({E_TRT},"{t}",{E_AMT},">0")'), INT)
         r += 1
-    total_row(wsu, r, 1, 3, 1, "All expenses", {2: (f"=SUM(B{e0}:B{r - 1})", MONEY), 3: (f"=SUM(C{e0}:C{r - 1})", MONEY)})
+    total_row(wsu, r, 1, 5, 1, "All expenses", {2: (f"=SUM(B{e0}:B{r - 1})", MONEY), 3: (f"=SUM(C{e0}:C{r - 1})", MONEY), 5: (f"=SUM(E{e0}:E{r - 1})", INT)})
     r += 2
+    section(wsu, r, scols, '="Notes for "&LOWER(LEFT(Log!$B$9,1))&MID(Log!$B$9,2,200)')
+    r += 1
+    for k in range(MAXV):
+        c = wsu.cell(row=r, column=1, value=f'=IFERROR(INDEX({AV_CATS},{k + 1},{IDX}),"")')
+        c.font = f_bold; c.alignment = Alignment(indent=1, vertical="top", wrap_text=True); c.border = b_row
+        w = wsu.cell(row=r, column=2, value=f'=IFERROR(INDEX({AV_WHYS},{k + 1},{IDX}),"")')
+        w.font = f_body; w.alignment = Alignment(wrap_text=True, vertical="top"); w.border = b_row
+        wsu.merge_cells(start_row=r, start_column=2, end_row=r, end_column=scols)
+        wsu.row_dimensions[r].height = 32
+        r += 1
+    r += 1
     r = note_block(wsu, r, scols, "Reading this", [
-        "Deductible and partly deductible amounts are estimates from the category you chose. Items marked For your CPA are logged but not counted; your CPA places them.",
+        "Counted amounts are estimates from the category you chose. Items marked For your CPA are logged but not counted; your CPA places them.",
         "Parking and tolls add to the mileage deduction. Vehicle costs such as gas and repairs are already inside the standard mileage rate.",
     ])
     footer(wsu, r + 1, scols)
@@ -505,9 +677,9 @@ def build_donations():
         calc(wg.cell(row=r, column=9, value=f'=IF(OR(D{r}="",E{r}=""),"",IF(D{r}="Securities",IF(G{r}="N",MIN(E{r},IF(F{r}="",E{r},F{r})),E{r}),E{r}))'), MONEY)
         fl = wg.cell(row=r, column=10, value=(
             f'=IF(E{r}="","",TRIM('
-            f'IF(AND(E{r}>=250,H{r}<>"Y"),"Receipt letter needed. ","")&'
-            f'IF(AND(D{r}<>"Cash",E{r}>5000),"Appraisal likely. ","")&'
-            f'IF(AND(D{r}="Securities",G{r}="N"),"Short-term: limited to basis. ","")))'))
+            f'IF(AND(E{r}>=250,H{r}<>"Y"),"Get written acknowledgment (≥ $250). ","")&'
+            f'IF(AND(D{r}="Non-cash",E{r}>5000),"Qualified appraisal required (> $5,000 non-cash). ","")&'
+            f'IF(AND(D{r}="Securities",G{r}="N"),"Held ≤ 1 year — deduction limited to cost basis. ","")))'))
         calc(fl, None, "left")
         fl.font = f_flag
         dvt.add(wg.cell(row=r, column=4))
@@ -549,7 +721,7 @@ def build_donations():
         ("Gifts of $250+ still missing a receipt letter", f'=COUNTIFS(Gifts!$E${first}:$E${last},">=250",Gifts!$H${first}:$H${last},"<>Y")', INT),
         ("Non-cash gifts in total (Form 8283 over $500)", f'=SUMIFS(Gifts!$E${first}:$E${last},Gifts!$D${first}:$D${last},"<>Cash")', MONEY),
         ("Form 8283 needed", f'=IF(C{noncash_row}>500,"Yes","No")', None),
-        ("Non-cash items over $5,000 (appraisal)", f'=COUNTIFS(Gifts!$D${first}:$D${last},"<>Cash",Gifts!$E${first}:$E${last},">5000")', INT),
+        ("Non-cash items over $5,000 (appraisal)", f'=COUNTIFS(Gifts!$D${first}:$D${last},"Non-cash",Gifts!$E${first}:$E${last},">5000")', INT),
         ("Capital gain avoided on long-term securities", f'=SUMPRODUCT((Gifts!$D${first}:$D${last}="Securities")*(Gifts!$G${first}:$G${last}="Y")*(Gifts!$E${first}:$E${last}-Gifts!$F${first}:$F${last}))', MONEY),
     ]
     for lab, formula, fmt in items:
