@@ -2,8 +2,12 @@
 // Shared by the pages, the Worker, and the dev API.
 import { TOOLS } from './tools.js'
 
-// Reviewers who can sign a tool off: the Grott Luker team plus Frank and Jenn at BlueLine.
-export const CPAS = ['Travers', 'Deb', 'Jacques', 'Paula', 'Frank', 'Jenn']
+// Reviewers who can sign a tool off, in two groups: the Grott Luker CPAs and the BlueLine team.
+export const REVIEWER_GROUPS = [
+  { id: 'gl', label: 'Grott Luker', names: ['Travers', 'Deb', 'Jacques'] },
+  { id: 'bl', label: 'BlueLine', names: ['Jenn', 'Frank', 'Paula'] },
+]
+export const CPAS = REVIEWER_GROUPS.flatMap((g) => g.names)
 
 export function normalizeSignoff(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Invalid request body.' }

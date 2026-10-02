@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CheckCircle2, Circle, Loader2 } from 'lucide-react'
-import { CPAS, isReady } from '../lib/signoffs.js'
+import { REVIEWER_GROUPS, isReady } from '../lib/signoffs.js'
 import { useSignoffs } from '../lib/useSignoffs.js'
 
 const when = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -49,23 +49,28 @@ export default function SignoffPanel({ tool }) {
       </div>
       <div className="signoff-actions">
         <span className="signoff-label">Tested it and believe it is ready? Sign off as</span>
-        {CPAS.map((cpa) => {
-          const s = mine.find((x) => x.cpa === cpa)
-          return (
-            <button
-              key={cpa}
-              type="button"
-              className={`signoff-btn${s ? ' on' : ''}`}
-              onClick={() => toggle(cpa)}
-              disabled={busy !== ''}
-              title={s ? `Signed off ${when(s.created_at)} — click to withdraw` : `Sign off as ${cpa}`}
-            >
-              {busy === cpa ? <Loader2 size={13} className="spin" /> : s ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-              {cpa}
-              {s ? <small>{when(s.created_at)}</small> : null}
-            </button>
-          )
-        })}
+        {REVIEWER_GROUPS.map((g) => (
+          <span key={g.id} className="signoff-grp">
+            <span className="signoff-grp-label">{g.label}</span>
+            {g.names.map((cpa) => {
+              const s = mine.find((x) => x.cpa === cpa)
+              return (
+                <button
+                  key={cpa}
+                  type="button"
+                  className={`signoff-btn${s ? ' on' : ''}`}
+                  onClick={() => toggle(cpa)}
+                  disabled={busy !== ''}
+                  title={s ? `Signed off ${when(s.created_at)} — click to withdraw` : `Sign off as ${cpa}`}
+                >
+                  {busy === cpa ? <Loader2 size={13} className="spin" /> : s ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                  {cpa}
+                  {s ? <small>{when(s.created_at)}</small> : null}
+                </button>
+              )
+            })}
+          </span>
+        ))}
       </div>
       {error ? <div className="form-error" style={{ marginTop: 8 }}>{error}</div> : null}
     </div>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Mail, Phone, Inbox, Link2, Check } from 'lucide-react'
 import { GROUPS, GROUP_ORDER, TOOLS } from '../lib/tools.js'
-import { isReady, CPAS } from '../lib/signoffs.js'
+import { isReady, CPAS, REVIEWER_GROUPS } from '../lib/signoffs.js'
 
 // Dashboard review filter: 'all' | one of CPAS | 'none' (no sign-off yet). Remembered per browser.
 const FILTER_KEY = 'gl-review-filter'
@@ -40,12 +40,18 @@ function ReviewStrip({ tool, signoffs }) {
   }
   return (
     <div className="reviewers" aria-label={done.size ? `Reviewed by ${[...done].join(', ')}` : 'Not yet reviewed'}>
-      <span className={`rev-dot${done.size ? ' is-done' : ''}`} title={done.size ? `Reviewed by ${[...done].join(', ')}` : 'No CPA has signed off yet'} />
-      {CPAS.map((cpa) => (
-        <span key={cpa} className={`rev-pill${done.has(cpa) ? ' is-done' : ''}`} title={done.has(cpa) ? `${cpa} tested this tool and signed off on ${when(cpa)}` : `${cpa} has not signed off yet`}>
-          {done.has(cpa) ? <Check size={11} strokeWidth={3} /> : null}
-          {cpa}
-        </span>
+      {REVIEWER_GROUPS.map((g) => (
+        <div key={g.id} className="rev-row">
+          <span className="rev-grp">{g.label}</span>
+          <span className="rev-names">
+            {g.names.map((cpa) => (
+              <span key={cpa} className={`rev-name${done.has(cpa) ? ' is-done' : ''}`} title={done.has(cpa) ? `${cpa} tested this tool and signed off on ${when(cpa)}` : `${cpa} has not signed off yet`}>
+                {done.has(cpa) ? <Check size={11} strokeWidth={3} /> : null}
+                {cpa}
+              </span>
+            ))}
+          </span>
+        </div>
       ))}
     </div>
   )
@@ -212,12 +218,19 @@ export default function Dashboard() {
         <div className="rfilter" role="group" aria-label="Filter tools by reviewer">
           <span className="rfilter-lead">Show tools reviewed by</span>
           <button type="button" className={filter === 'all' ? 'is-on' : ''} onClick={() => setFilter('all')}>All tools</button>
-          {CPAS.map((cpa) => (
-            <button key={cpa} type="button" className={filter === cpa ? 'is-on' : ''} onClick={() => setFilter(cpa)}>
-              {cpa}
-            </button>
+          {REVIEWER_GROUPS.map((g) => (
+            <span key={g.id} className="rfilter-grp">
+              <span className="rfilter-grp-label">{g.label}</span>
+              {g.names.map((cpa) => (
+                <button key={cpa} type="button" className={filter === cpa ? 'is-on' : ''} onClick={() => setFilter(cpa)}>
+                  {cpa}
+                </button>
+              ))}
+            </span>
           ))}
-          <button type="button" className={filter === 'none' ? 'is-on' : ''} onClick={() => setFilter('none')}>No one yet</button>
+          <span className="rfilter-grp">
+            <button type="button" className={filter === 'none' ? 'is-on' : ''} onClick={() => setFilter('none')}>No one yet</button>
+          </span>
         </div>
         <div className="dash-bar-right">
           <span className="dev-note">
