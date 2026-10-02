@@ -2515,3 +2515,5 @@ html, body { overflow-x: hidden; }
 
 .tcard-uses { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .usage-note { color: var(--muted); }
+
+.staff-note { color: var(--muted); font-size: 12px; }

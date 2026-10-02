@@ -14,8 +14,20 @@ export default function Layout({ client = false }) {
 
   // Anonymous usage ping when a tool is opened (staff routes only). Fire-and-
   // forget; failures are silent and nothing is shown in the UI.
+  // Staff opt-out: visiting any page with ?staff=1 remembers this browser as
+  // staff and stops counting its opens; ?staff=0 clears it.
+  useEffect(() => {
+    const flag = new URLSearchParams(window.location.search).get('staff')
+    if (flag === '1') localStorage.setItem('gl-staff', '1')
+    if (flag === '0') localStorage.removeItem('gl-staff')
+  }, [pathname])
   useEffect(() => {
     if (client || !import.meta.env.PROD) return
+    try {
+      if (localStorage.getItem('gl-staff') === '1') return
+    } catch {
+      /* ignore */
+    }
     const tool = TOOLS.find((t) => t.path === pathname)
     if (!tool) return
     const payload = JSON.stringify({ tool_id: tool.id })

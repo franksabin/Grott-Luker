@@ -153,6 +153,7 @@ export default function Dashboard() {
           <span className="dev-note">
             <span className="status-chip">Not reviewed</span> not client ready
             <span className="live-chip">Ready</span> a CPA has tested it and signed off
+            {(() => { try { return localStorage.getItem('gl-staff') === '1' } catch { return false } })() ? <span className="staff-note">· this browser is staff: your opens are not counted</span> : null}
           </span>
         </div>
       </div>
