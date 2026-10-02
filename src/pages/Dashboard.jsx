@@ -221,7 +221,7 @@ export default function Dashboard() {
         </div>
         <div className="dash-bar-right">
           <span className="dev-note">
-            The names under each card show which Grott Luker CPAs have tested it and signed off. A dashed card has no sign-off yet and is not client ready.
+            The names under each card show who has tested it and signed off. A dashed card has no sign-off yet and is not client ready.
             {(() => { try { return localStorage.getItem('gl-staff') === '1' } catch { return false } })() ? <span className="staff-note"> · This browser is staff: your opens are not counted.</span> : null}
           </span>
         </div>

@@ -2,7 +2,8 @@
 // Shared by the pages, the Worker, and the dev API.
 import { TOOLS } from './tools.js'
 
-export const CPAS = ['Travers', 'Deb', 'Jacques']
+// Reviewers who can sign a tool off: the three Grott Luker CPAs plus Frank and Jenn at BlueLine.
+export const CPAS = ['Travers', 'Deb', 'Jacques', 'Frank', 'Jenn']
 
 export function normalizeSignoff(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Invalid request body.' }

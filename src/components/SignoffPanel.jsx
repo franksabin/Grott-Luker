@@ -42,7 +42,7 @@ export default function SignoffPanel({ tool }) {
           <>
             <Circle size={16} />
             <span>
-              <strong>Not yet reviewed.</strong> {loaded ? 'No Grott Luker CPA has signed off on this tool yet — not client ready.' : 'Checking…'}
+              <strong>Not yet reviewed.</strong> {loaded ? 'Nobody has signed off on this tool yet — not client ready.' : 'Checking…'}
             </span>
           </>
         )}
