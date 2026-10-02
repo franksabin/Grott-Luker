@@ -2512,3 +2512,6 @@ html, body { overflow-x: hidden; }
 .signoff-btn small { font-weight: 500; font-size: 10.5px; opacity: 0.85; }
 .signoff-btn:disabled { opacity: 0.6; cursor: default; }
 .tcard-flags .live-chip { white-space: normal; text-align: center; line-height: 1.3; max-width: 170px; }
+
+.tcard-uses { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.usage-note { color: var(--muted); }

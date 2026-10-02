@@ -376,8 +376,15 @@ export default {
       }
 
       if (pathname === '/api/usage') {
-        if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
-        return await handleUsage(request, env)
+        if (request.method === 'POST') return await handleUsage(request, env)
+        if (request.method === 'GET') {
+          const since = new Date(Date.now() - 30 * 86400000).toISOString()
+          const { results } = await env.DB.prepare(
+            `SELECT tool_id, COUNT(*) AS total, SUM(CASE WHEN ts >= ? THEN 1 ELSE 0 END) AS last30, MAX(ts) AS last_used FROM usage_events GROUP BY tool_id`,
+          ).bind(since).all()
+          return json({ usage: results || [] })
+        }
+        return json({ error: 'Method not allowed.' }, 405)
       }
 
       const detail = pathname.match(/^\/api\/snapshots\/([^/]+)$/)

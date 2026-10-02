@@ -3,12 +3,14 @@ import { ArrowRight, Mail, Phone, Inbox, Link2 } from 'lucide-react'
 import { GROUPS, GROUP_ORDER, TOOLS } from '../lib/tools.js'
 import { isReady } from '../lib/signoffs.js'
 import { useSignoffs } from '../lib/useSignoffs.js'
+import { useUsage } from '../lib/useUsage.js'
 
 // Every tool is "In development" as of 2026-09-16 (full rebuild, not yet
 // re-reviewed), so the old show/hide toggle for in-development tools is gone:
 // hiding them would hide the whole toolkit.
 
-function ToolCard({ tool, signoffs }) {
+function ToolCard({ tool, signoffs, usage }) {
+  const u = usage?.[tool.id]
   const Icon = tool.icon
   const ready = isReady(tool, signoffs)
   const who = (signoffs[tool.id] || []).map((s) => s.cpa)
@@ -35,7 +37,9 @@ function ToolCard({ tool, signoffs }) {
       <h3>{tool.title}</h3>
       <p>{tool.description}</p>
       <div className="tcard-foot">
-        <span />
+        <span className="tcard-uses" title={u?.last_used ? `Last opened ${new Date(u.last_used).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Not opened yet'}>
+          {u ? `${u.total} ${u.total === 1 ? 'use' : 'uses'}${u.last30 && u.last30 !== u.total ? ` · ${u.last30} this month` : ''}` : 'No uses yet'}
+        </span>
         <span className="tcard-open">
           Open <ArrowRight size={14} />
         </span>
@@ -44,7 +48,7 @@ function ToolCard({ tool, signoffs }) {
   )
 }
 
-function GroupSection({ group, tools, signoffs }) {
+function GroupSection({ group, tools, signoffs, usage }) {
   return (
     <section className="tgroup" data-group={group.id}>
       <div className="ribbon">
@@ -61,7 +65,7 @@ function GroupSection({ group, tools, signoffs }) {
       </div>
       <div className="tcard-grid">
         {tools.map((tool) => (
-          <ToolCard key={tool.id} tool={tool} signoffs={signoffs} />
+          <ToolCard key={tool.id} tool={tool} signoffs={signoffs} usage={usage} />
         ))}
       </div>
     </section>
@@ -70,6 +74,7 @@ function GroupSection({ group, tools, signoffs }) {
 
 export default function Dashboard() {
   const { signoffs } = useSignoffs()
+  const usage = useUsage()
   const filtered = TOOLS
 
   return (
@@ -155,7 +160,7 @@ export default function Dashboard() {
       {GROUP_ORDER.map((gid) => {
         const tools = filtered.filter((t) => t.group === gid)
         if (!tools.length) return null
-        return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} signoffs={signoffs} />
+        return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} signoffs={signoffs} usage={usage} />
       })}
 
       <div className="sbs-wrap">

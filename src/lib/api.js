@@ -109,6 +109,19 @@ export function getMileageLog(id, passcode) {
   return request(`/mileage-logs/${encodeURIComponent(id)}`, { passcode })
 }
 
+// ---------------- Usage counts ----------------
+// Fire-and-forget: one anonymous ping per tool open. Never throws.
+export function recordUsage(toolId) {
+  try {
+    fetch('/api/usage', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tool_id: toolId }), keepalive: true }).catch(() => {})
+  } catch {
+    /* ignore */
+  }
+}
+export function listUsage() {
+  return request('/usage')
+}
+
 // ---------------- Tool sign-offs ----------------
 export function listSignoffs() {
   return request('/signoffs')

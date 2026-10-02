@@ -255,6 +255,10 @@ export default function devApi() {
             })
             return send(res, 200, { rows })
           }
+          if (route === '/usage' && req.method === 'GET') {
+            const since = new Date(Date.now() - 30 * 86400000).toISOString()
+            return send(res, 200, { usage: db.prepare(`SELECT tool_id, COUNT(*) AS total, SUM(CASE WHEN ts >= ? THEN 1 ELSE 0 END) AS last30, MAX(ts) AS last_used FROM usage_events GROUP BY tool_id`).all(since) })
+          }
           if (route === '/usage' && req.method === 'POST') {
             const { raw } = await readBody(req)
             let body = {}

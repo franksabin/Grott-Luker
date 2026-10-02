@@ -6,6 +6,8 @@ import { TOOLS } from '../lib/tools.js'
 import { EMAIL_REQUESTS } from '../lib/emailRequests.js'
 import RequestInfoModal from './RequestInfoModal.jsx'
 import SignoffPanel from './SignoffPanel.jsx'
+import { recordUsage } from '../lib/api.js'
+import { useUsage } from '../lib/useUsage.js'
 import MathTrace from './MathTrace.jsx'
 
 const STANDARD_DISCLOSURE =
@@ -50,6 +52,11 @@ export default function ToolShell({
 
   const handlePrint = () => window.print()
   const generatedAt = timestampNow()
+  const usage = useUsage()
+  useEffect(() => {
+    if (tool?.id) recordUsage(tool.id)
+  }, [tool?.id])
+  const u = tool ? usage[tool.id] : null
 
   return (
     <div>
@@ -112,6 +119,7 @@ export default function ToolShell({
 
       <div className="timestamp" style={{ marginBottom: 22 }}>
         Estimate generated {generatedAt}
+        {u ? <span className="usage-note"> · opened {u.total} {u.total === 1 ? 'time' : 'times'}{u.last30 !== u.total ? `, ${u.last30} in the last 30 days` : ''}</span> : null}
       </div>
 
       {tool ? <SignoffPanel tool={tool} /> : null}
