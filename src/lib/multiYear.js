@@ -129,14 +129,27 @@ export function runScenario(i, withPlan) {
     lifetimeIrmaa += irmaa
     agiHistory.push(agi)
 
-    // Cash: RMD lands in the taxable account; tax is paid from the taxable
-    // account first, then withheld from the conversion.
+    // Cash. The RMD lands in the taxable account. The tax the household owes
+    // WITHOUT a conversion (on wages, pension, Social Security, RMD) and IRMAA
+    // come out of the taxable account while it lasts; any shortfall is paid
+    // from that same income, which the model treats as spent and does not
+    // track — identically in both scenarios. Only the extra tax caused by the
+    // conversion is charged to the conversion: taxable account first, then
+    // withheld from the conversion itself.
+    const { tax: fedBefore } = taxWith(brackets, taxableBefore)
+    const baselineTax = fedBefore + taxableBefore * i.stateRate
+    const convTax = Math.max(0, tax - baselineTax)
     pretax -= rmd + conversion
     side += rmd
-    side -= irmaa
-    const fromSide = Math.min(Math.max(0, side), tax)
-    side -= fromSide
-    const withheld = tax - fromSide
+    const payFromSide = (amount) => {
+      const paid = Math.min(Math.max(0, side), Math.max(0, amount))
+      side -= paid
+      return paid
+    }
+    payFromSide(irmaa)
+    payFromSide(baselineTax)
+    const convFromSide = payFromSide(convTax)
+    const withheld = convTax - convFromSide
     roth += Math.max(0, conversion - withheld)
     // Growth.
     pretax *= 1 + r

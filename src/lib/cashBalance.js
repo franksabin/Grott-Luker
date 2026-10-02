@@ -99,14 +99,25 @@ export function fvFactor(r, n) {
 // rates as decimals (0.32), ret as decimal (0.05).
 export function computeCashBalance(i) {
   const age = Math.min(75, Math.max(25, i.age || 0))
+  // Grid row actually used (ages outside 35–70 map to the nearest row).
+  const gridAge = Math.min(GRID_MAX_AGE, Math.max(GRID_MIN_AGE, Math.round(age)))
   const rate = (i.fed || 0) + (i.state || 0)
   const cb = cbMax(age, i.comp)
   const k401Only = LIMITS.dcAnnualAdditions + catchUp(age)
   const k401WithCb = LIMITS.deferral + catchUp(age) + EMPLOYER_PCT_WITH_CB * Math.min(i.comp, LIMITS.compensation)
   const taxCb = cb * rate
   const taxAll = (k401WithCb + cb) * rate
+  const tax401Only = k401Only * rate
   const employeeCost = (i.employees || 0) * (i.avgPay || 0) * EMPLOYEE_COST_PCT
-  const netCost = cb - taxCb + employeeCost * (1 - rate)
+  const employeeCostAfterTax = employeeCost * (1 - rate)
+  // Net cost of the cash balance piece alone (the 401(k) is assumed to exist either way).
+  const netCost = cb - taxCb + employeeCostAfterTax
+  // Owner's total after-tax outlay per year on each path. Employee cost is
+  // counted in the combined design only; a stand-alone 401(k)'s safe-harbor
+  // cost is not modeled. No plan invests the 401(k)-only after-tax equivalent.
+  const outlayNone = k401Only * (1 - rate)
+  const outlay401 = k401Only * (1 - rate)
+  const outlayBoth = (k401WithCb + cb) * (1 - rate) + employeeCostAfterTax
   const n = i.years
   const r = i.ret
   const f = fvFactor(r, n)
@@ -118,14 +129,20 @@ export function computeCashBalance(i) {
     Array.from({ length: n + 1 }, (_, t) => perYear * fvFactor(factorRate, t))
   return {
     age,
+    gridAge,
     rate,
     cb,
     k401Only,
     k401WithCb,
     taxCb,
     taxAll,
+    tax401Only,
     employeeCost,
+    employeeCostAfterTax,
     netCost,
+    outlayNone,
+    outlay401,
+    outlayBoth,
     n,
     r,
     v401,

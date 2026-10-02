@@ -17,6 +17,7 @@ import {
   Narrative,
 } from '../components/ui.jsx'
 import { StackedBar, TONE } from '../components/charts.jsx'
+import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeature, PrintTiles, PrintRows, PrintTable, PrintProse, PrintNote, PrintInputs, PrintAssumptions, PrintFooter, PrintCols } from '../components/PrintReport.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 import { capitalGainsTax, niitTax, TAX_YEAR } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
@@ -79,7 +80,11 @@ function compute(form) {
   const filing = form.filing
   const isCCorpAsset = form.entity === 'c_corp' && form.structure === 'asset'
 
-  const totalGain = Math.max(0, salePrice - costBasis - sellingExpenses)
+  const rawGain = salePrice - costBasis - sellingExpenses
+  const totalGain = Math.max(0, rawGain)
+  // Basis plus selling expenses above the price: nothing to tax. Whether the
+  // loss is deductible depends on the assets sold and is not modeled.
+  const loss = Math.max(0, -rawGain)
 
   // Corporate-level tax (C-corp asset sale only).
   const corpTax = isCCorpAsset ? totalGain * CORP_RATE : 0
@@ -92,7 +97,8 @@ function compute(form) {
   const fedCapGains = capitalGainsTax(personalGain, otherIncome, filing)
   const magi = otherIncome + personalGain
   const niit = niitTax(personalGain, magi, filing)
-  const federalTax = corpTax + fedCapGains + niit
+  const fedPersonal = fedCapGains + niit // owner-level federal tax, excludes the corporate layer
+  const federalTax = corpTax + fedPersonal
 
   const stateTax = personalGain * (st.capGains / 100)
 
@@ -102,21 +108,25 @@ function compute(form) {
 
   const effectiveTaxRate = totalGain > 0 ? totalTax / totalGain : 0
 
-  // Installment illustration — equal annual recognition.
+  // Installment illustration — equal annual recognition. A one-year note is
+  // the same as being paid at closing, so the illustration needs 2+ years.
   const installment = form.installment === 'yes'
-  const years = Math.max(1, Math.round(toNumber(form.installmentYears) || 1))
+  const installmentYears = Math.max(1, Math.round(toNumber(form.installmentYears) || 1))
   let year1 = null
-  if (installment && totalGain > 0) {
-    const gainPerYear = personalGain / years
+  if (installment && totalGain > 0 && installmentYears >= 2) {
+    const years = installmentYears
+    const gainPerYear = totalGain / years
+    const personalPerYear = personalGain / years
     const fedY1 =
-      capitalGainsTax(gainPerYear, otherIncome, filing) +
-      niitTax(gainPerYear, otherIncome + gainPerYear, filing)
-    const stateY1 = gainPerYear * (st.capGains / 100)
+      capitalGainsTax(personalPerYear, otherIncome, filing) +
+      niitTax(personalPerYear, otherIncome + personalPerYear, filing)
+    const stateY1 = personalPerYear * (st.capGains / 100)
     const corpY1 = corpTax / years
     year1 = {
       years,
       gainPerYear,
-      federal: corpY1 + fedY1,
+      corp: corpY1,
+      federal: fedY1,
       state: stateY1,
       total: corpY1 + fedY1 + stateY1,
     }
@@ -128,9 +138,11 @@ function compute(form) {
     sellingExpenses,
     debtPayoff,
     totalGain,
+    loss,
     corpTax,
     fedCapGains,
     niit,
+    fedPersonal,
     federalTax,
     stateTax,
     totalTax,
@@ -140,6 +152,7 @@ function compute(form) {
     isCCorpAsset,
     stateName: st.name,
     installment,
+    installmentYears,
     year1,
   }
 }
@@ -161,6 +174,202 @@ export default function BusinessSale() {
     ...(r.year1 ? [{ label: `Installment · year 1 of ${r.year1.years}`, formula: `gain ${money(r.year1.gainPerYear, 2)} recognized per year`, result: money(r.year1.total, 2), note: 'Federal + state on the first installment only; later years depend on income then.' }] : []),
   ], [r])
 
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const entityLabel = (ENTITY_OPTIONS.find((o) => o.value === form.entity) || ENTITY_OPTIONS[1]).label
+  const structureLabel = (STRUCTURE_OPTIONS.find((o) => o.value === form.structure) || STRUCTURE_OPTIONS[0]).label
+  const filingLabel = (FILING_OPTIONS.find((o) => o.value === form.filing) || FILING_OPTIONS[0]).label
+
+  // Labels and copy shared by the screen and the print report so the two never
+  // disagree. A negative result is a shortfall: label it, show it in parentheses.
+  const shortfall = r.liquidAfterTax < 0
+  const preTaxShort = r.netProceeds < 0
+  const rate = percent(r.effectiveTaxRate * 100, 1)
+  const liquidLabel = shortfall ? 'Estimated shortfall after taxes' : 'Estimated liquid proceeds after taxes'
+  const liquidValue = shortfall ? `(${money(-r.liquidAfterTax)})` : money(r.liquidAfterTax)
+  const netLabel = preTaxShort ? 'Shortfall after costs and debt, before tax' : 'Net proceeds after costs and debt, before tax'
+  const netValue = preTaxShort ? `(${money(-r.netProceeds)})` : money(r.netProceeds)
+  const federalLabel = r.isCCorpAsset ? 'Estimated federal tax on the distribution' : 'Estimated federal tax'
+  const taxNote = r.isCCorpAsset ? 'corporate, federal, NIIT, state' : 'federal, NIIT, state'
+  const uses = r.totalTax + r.sellingExpenses + r.debtPayoff
+  const featureNote = r.loss > 0
+    ? `No taxable gain — cost basis and selling expenses exceed the price by ${money(r.loss)}`
+    : shortfall
+      ? `Taxes, costs, and debt exceed the sale price · ${rate} effective tax rate on the ${money(r.totalGain)} gain`
+      : `On a ${money(r.totalGain)} capital gain · ${rate} effective tax rate on the gain`
+  const narrative = r.salePrice <= 0
+    ? 'Enter a sale price, cost basis, selling expenses, and any debt to be paid off to see the estimate.'
+    : r.loss > 0
+    ? `On a sale price of ${money(r.salePrice)}, cost basis and selling expenses exceed the price by ${money(r.loss)}, so we estimate no taxable gain and no tax on the sale. After selling expenses of ${money(r.sellingExpenses)} and debt payoff of ${money(r.debtPayoff)}, ${shortfall ? `the proceeds fall short by ${money(-r.liquidAfterTax)} — the sale price does not cover the costs and debt` : `this leaves an estimated ${money(r.liquidAfterTax)} in liquid proceeds`}. Whether the loss is deductible depends on the assets sold and is not modeled here.`
+    : `On a sale price of ${money(r.salePrice)}, we estimate a capital gain of ${money(r.totalGain)} and combined taxes and transaction costs of approximately ${money(r.totalTax + r.sellingExpenses)}. After debt payoff of ${money(r.debtPayoff)}, ${shortfall
+      ? `the proceeds fall short by ${money(-r.liquidAfterTax)} — the sale price does not cover taxes, transaction costs, and debt payoff, and the difference would have to come from other funds. The effective rate is ${rate} on the gain.`
+      : `this leaves an estimated ${money(r.liquidAfterTax)} in liquid proceeds after taxes — an effective rate of ${rate} on the gain.`}${r.isCCorpAsset ? ' As a C-corporation asset sale, the gain is taxed once at the corporate level and again when the proceeds are distributed.' : ''}`
+  const shortfallText = `Taxes, transaction costs, and debt payoff total ${money(uses)} against a ${money(r.salePrice)} sale price — a shortfall of ${money(-r.liquidAfterTax)}. There are no liquid proceeds to allocate, so the allocation chart is omitted; the gap would have to be covered from other funds or negotiated into the deal (for example, the buyer assuming part of the debt).`
+  const noTaxText = r.salePrice <= 0
+    ? 'Enter a sale price and cost basis to see how the estimated tax breaks down.'
+    : r.loss > 0
+      ? `No tax is estimated: cost basis and selling expenses exceed the sale price by ${money(r.loss)}, so there is no gain for federal, NIIT, or state tax to apply to.`
+      : r.totalGain > 0
+        ? `No tax is estimated: the ${money(r.totalGain)} gain falls within the 0% federal capital-gains bracket at this income level, below the NIIT threshold, and ${r.stateName} applies no tax to it.`
+        : 'No tax is estimated: the sale price equals cost basis plus selling expenses, so there is no gain.'
+
+  const assumptions = [
+    'Gain is treated as long-term capital gain taxed at 2026 federal rates. Ordinary-income recapture (e.g., depreciation, inventory, or certain asset classes in an asset sale) is not separately modeled.',
+    'The 3.8% Net Investment Income Tax is applied where modified income exceeds the applicable threshold.',
+    'A C-corporation asset sale is illustrated with two layers of tax: a 21% corporate rate on the gain, then personal capital-gains tax on the net distribution. This is a simplification of a fact-specific area.',
+    'State tax applies a single simplified capital-gains rate for the selected state and does not reflect brackets, credits, or nonresident sourcing.',
+    'Installment treatment assumes equal annual recognition of gain over two or more years and ignores interest income and applicable limitations.',
+    'Federal capital-gains brackets depend on total taxable income; the “other household taxable income” figure is used to place the gain in the correct bracket.',
+    ...(r.loss > 0 ? ['Cost basis plus selling expenses above the sale price produce no tax in this estimate; whether and how the loss is deductible depends on the assets sold and is not modeled.'] : []),
+  ]
+  const inputs = [
+    ['Sale price', money(r.salePrice)],
+    ['Cost basis', money(r.costBasis)],
+    ['Selling expenses', money(r.sellingExpenses)],
+    ['Debt to be paid off', money(r.debtPayoff)],
+    ['Entity type', entityLabel],
+    ['Transaction structure', structureLabel],
+    ['Filing status', filingLabel],
+    ['State of residence', r.stateName],
+    ['Other household taxable income', money(toNumber(form.otherIncome))],
+    ['Installment sale', r.installment ? (r.installmentYears >= 2 ? `Yes — over ${r.installmentYears} years` : 'Yes — 1 year, same as closing') : 'No — paid at closing'],
+  ]
+  const gainRows = [
+    { label: 'Sale price', value: money(r.salePrice) },
+    { label: 'Less: cost basis', value: `(${money(r.costBasis)})`, sub: true },
+    { label: 'Less: selling expenses', value: `(${money(r.sellingExpenses)})`, sub: true },
+    { label: 'Capital gain', value: money(r.totalGain), total: true },
+    ...(r.loss > 0 ? [{ label: 'Loss on the sale — no gain to tax; deductibility not modeled', value: `(${money(r.loss)})`, sub: true }] : []),
+  ]
+  const useRows = [
+    ...(r.isCCorpAsset ? [{ label: 'Estimated corporate-level tax (21%)', value: `(${money(r.corpTax)})` }] : []),
+    { label: `${federalLabel} (capital gains plus NIIT)`, value: `(${money(r.fedPersonal)})` },
+    { label: `Estimated state tax (${r.stateName})`, value: `(${money(r.stateTax)})` },
+    { label: 'Transaction costs (selling expenses)', value: `(${money(r.sellingExpenses)})` },
+    { label: 'Debt payoff at closing', value: `(${money(r.debtPayoff)})` },
+    { label: netLabel, value: netValue, sub: true },
+    { label: liquidLabel, value: liquidValue, total: true },
+  ]
+  const installmentRows = r.year1
+    ? [
+        { label: 'Gain recognized per year', value: money(r.year1.gainPerYear) },
+        ...(r.isCCorpAsset ? [{ label: 'Corporate-level tax — year 1', value: `(${money(r.year1.corp)})`, negative: true }] : []),
+        { label: r.isCCorpAsset ? 'Federal tax on the distribution — year 1' : 'Estimated federal tax — year 1', value: `(${money(r.year1.federal)})`, negative: true },
+        { label: 'Estimated state tax — year 1', value: `(${money(r.year1.state)})`, negative: true },
+        { label: 'Estimated total tax — year 1', value: money(r.year1.total), total: true },
+      ]
+    : []
+  // Every dollar of the sale price lands in exactly one of these segments.
+  const saleMix = [
+    { label: 'Liquid proceeds after taxes', value: Math.max(0, r.liquidAfterTax), color: TONE.net },
+    ...(r.isCCorpAsset ? [{ label: 'Corporate-level tax (21%)', value: r.corpTax, color: TONE.navy }] : []),
+    { label: 'Federal tax', value: r.fedPersonal, color: TONE.tax },
+    { label: 'State tax', value: r.stateTax, color: TONE.state },
+    { label: 'Transaction costs', value: r.sellingExpenses, color: TONE.cost },
+    { label: 'Debt payoff', value: r.debtPayoff, color: TONE.debt },
+  ]
+  const taxMix = [
+    ...(r.isCCorpAsset ? [{ label: 'Corporate-level tax (21%)', value: r.corpTax, color: TONE.navy }] : []),
+    { label: 'Federal capital-gains tax', value: r.fedCapGains, color: TONE.tax },
+    { label: 'Net investment income tax (3.8%)', value: r.niit, color: TONE.cost },
+    { label: `${r.stateName} state tax`, value: r.stateTax, color: TONE.state },
+  ]
+  // The C-corp asset branch and the installment branch add rows, a legend item,
+  // and prose; only those branches need the tighter page spacing.
+  const tight = r.isCCorpAsset || Boolean(r.year1)
+  const printReport = (
+    <PrintDoc>
+      <PrintPage compact={tight}>
+        <PrintBand
+          title="Business Sale Net Liquidity Estimate"
+          subtitle="What the sale leaves in hand after taxes, transaction costs, and debt payoff — liquidity only."
+          meta={`${entityLabel} · ${structureLabel} · ${filingLabel} · ${r.stateName}`}
+          metaRight={today}
+        />
+        <PrintFeature label={liquidLabel} value={liquidValue} note={featureNote} />
+        <PrintTiles
+          items={[
+            { label: 'Sale price', value: money(r.salePrice) },
+            { label: 'Capital gain', value: money(r.totalGain), note: r.loss > 0 ? `loss of ${money(r.loss)}` : 'price − basis − selling costs' },
+            { label: 'Total tax', value: money(r.totalTax), note: taxNote },
+            { label: 'Effective rate on the gain', value: rate },
+          ]}
+        />
+        <PrintSection title="From sale price to net liquidity">
+          <PrintRows rows={gainRows} />
+        </PrintSection>
+        <PrintSection title="Taxes, costs, and debt paid from the proceeds">
+          <PrintRows rows={useRows} />
+        </PrintSection>
+        <PrintSection title="What this means">
+          <PrintProse>{narrative}</PrintProse>
+        </PrintSection>
+        <PrintSection title="Where the sale price goes" className="pr-chart">
+          {shortfall ? (
+            <PrintProse>{shortfallText}</PrintProse>
+          ) : r.salePrice > 0 ? (
+            <StackedBar height={56} data={saleMix} />
+          ) : (
+            <PrintProse>Enter a sale price, cost basis, and selling expenses to see how the price is allocated.</PrintProse>
+          )}
+        </PrintSection>
+        <PrintFooter page={1} pages={2} />
+      </PrintPage>
+      <PrintPage last compact={tight}>
+        <PrintPageHead title="Business Sale Net Liquidity Estimate" right={today} />
+        <PrintCols>
+          <PrintSection title="Tax detail on the gain">
+            <PrintRows
+              rows={[
+                ...(r.isCCorpAsset ? [{ label: 'Corporate-level tax (21%)', value: money(r.corpTax) }] : []),
+                { label: 'Federal long-term capital gains tax', value: money(r.fedCapGains) },
+                { label: 'Net investment income tax (3.8%)', value: money(r.niit) },
+                { label: `State tax (${r.stateName})`, value: money(r.stateTax) },
+                { label: 'Total tax', value: money(r.totalTax), total: true },
+                { label: 'Effective rate on the gain', value: rate, sub: true },
+                { label: 'Tax as a share of the sale price', value: percent(r.salePrice > 0 ? (r.totalTax / r.salePrice) * 100 : 0, 1), sub: true },
+              ]}
+            />
+          </PrintSection>
+          <div>
+            <PrintSection title="Where the tax comes from" className="pr-chart">
+              {r.totalTax > 0 ? <StackedBar height={28} data={taxMix} /> : <PrintProse>{noTaxText}</PrintProse>}
+            </PrintSection>
+            {r.year1 ? (
+              <PrintSection title={`Installment sale · year 1 of ${r.year1.years}`} note={`vs. ${money(r.totalTax)} if all paid at closing`}>
+                <PrintRows rows={installmentRows} />
+              </PrintSection>
+            ) : null}
+          </div>
+        </PrintCols>
+        <PrintSection title="How the structure changes the tax">
+          <PrintTable
+            head={['', 'Asset sale', 'Stock / equity sale']}
+            widths={['24%', '38%', '38%']}
+            rows={[
+              ['What the buyer acquires', 'The individual business assets; the entity usually stays with the seller', 'The ownership interest itself; the entity and its history go with it'],
+              ['Pass-through entity (LLC, partnership, S-corp)', 'One layer of tax at the owner level; part of the gain can be ordinary-income recapture. A sole proprietorship is always sold this way', 'One layer of tax, generally capital gain (partnership “hot assets” can produce some ordinary income)'],
+              ['C-corporation', 'Two layers — 21% corporate tax, then capital-gains tax when proceeds are distributed', 'One layer of capital-gains tax to the shareholder; §1202 exclusion may apply to qualifying stock'],
+              ['Why buyers care', 'Stepped-up basis in the assets — more depreciation going forward', 'No basis step-up; buyer inherits the entity\'s liabilities'],
+              ['Typical negotiation', 'Buyers prefer it; sellers may ask for a higher price to cover the extra tax', 'Sellers prefer it; buyers may discount the price'],
+            ]}
+          />
+        </PrintSection>
+        <PrintNote title="Reading the result">
+          The effective rate is measured on the gain, not the sale price. Selling expenses reduce both the gain and the cash received; debt payoff reduces cash but not the taxable gain.
+          {r.year1 ? ` The installment illustration assumes equal payments over ${r.year1.years} years; later years depend on income in those years, and interest on the note is not modeled.` : ''}
+          {' '}This estimator stops at net liquidity after taxes. By design, it does not address retirement planning, retirement readiness, investment projections, or withdrawal planning. Those conversations are best had directly with Grott Luker &amp; Co.
+        </PrintNote>
+        <PrintSection title="Inputs used in this estimate">
+          <PrintInputs items={inputs} />
+        </PrintSection>
+        <PrintSection title="Assumptions">
+          <PrintAssumptions items={assumptions} />
+        </PrintSection>
+        <PrintFooter page={2} pages={2} />
+      </PrintPage>
+    </PrintDoc>
+  )
+
   return (
     <ToolShell
       title="Business Sale & Net Liquidity Estimator"
@@ -168,6 +377,7 @@ export default function BusinessSale() {
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
       steps={steps}
+      printReport={printReport}
     >
       <div className="tool-grid">
         <div>
@@ -256,6 +466,7 @@ export default function BusinessSale() {
                 value={form.installmentYears}
                 onChange={set('installmentYears')}
                 suffix="yrs"
+                hint="Two or more years; a one-year note is the same as being paid at closing."
               />
             ) : null}
           </RefinePanel>
@@ -266,31 +477,32 @@ export default function BusinessSale() {
             <ReportHeader
               sectionTitle="Net Liquidity Summary"
               meta="Estimated after-tax proceeds"
-              metaRight={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              metaRight={today}
             />
 
-            <FeatureBlock
-              label="Estimated liquid proceeds after taxes"
-              value={money(r.liquidAfterTax)}
-              note={`On a ${money(r.totalGain)} capital gain · ${percent(r.effectiveTaxRate * 100)} effective tax rate`}
-            />
+            <FeatureBlock label={liquidLabel} value={liquidValue} note={featureNote} />
 
             <StatTiles
               items={[
-                { label: 'Capital gain', value: money(r.totalGain) },
-                { label: 'Total tax', value: money(r.totalTax), tone: 'bad', note: 'federal, NIIT, state' },
-                { label: 'Effective rate on the gain', value: percent(r.effectiveTaxRate * 100, 1) },
+                { label: 'Capital gain', value: money(r.totalGain), note: r.loss > 0 ? `loss of ${money(r.loss)}` : undefined },
+                { label: 'Total tax', value: money(r.totalTax), tone: 'bad', note: taxNote },
+                { label: 'Effective rate on the gain', value: rate },
               ]}
             />
 
             <div className="result-list">
               <ResultRow label="Sale price" value={r.salePrice} />
-              <ResultRow label="Less: cost basis" value={-r.costBasis} raw={`(${money(r.costBasis)})`} />
-              <ResultRow
-                label="Less: selling expenses"
-                raw={`(${money(r.sellingExpenses)})`}
-              />
+              <ResultRow label="Less: cost basis" raw={`(${money(r.costBasis)})`} />
+              <ResultRow label="Less: selling expenses" raw={`(${money(r.sellingExpenses)})`} />
               <ResultRow label="Capital gain" value={r.totalGain} total />
+              {r.loss > 0 ? (
+                <ResultRow
+                  label="Loss on the sale"
+                  info="Cost basis plus selling expenses exceed the sale price, so there is no gain to tax. Whether the loss is deductible depends on the assets sold and is not modeled."
+                  raw={`(${money(r.loss)})`}
+                  sub
+                />
+              ) : null}
             </div>
 
             <div className="result-list" style={{ marginTop: 20 }}>
@@ -303,9 +515,9 @@ export default function BusinessSale() {
                 />
               ) : null}
               <ResultRow
-                label="Estimated federal tax"
-                info="Federal long-term capital gains tax plus, where applicable, the 3.8% Net Investment Income Tax and any corporate-level tax."
-                raw={`(${money(r.federalTax)})`}
+                label={federalLabel}
+                info="Federal long-term capital gains tax plus, where applicable, the 3.8% Net Investment Income Tax. Any corporate-level tax is shown on its own row above."
+                raw={`(${money(r.fedPersonal)})`}
                 negative
               />
               <ResultRow
@@ -328,41 +540,31 @@ export default function BusinessSale() {
 
             <div className="result-list" style={{ marginTop: 20 }}>
               <ResultRow
-                label="Net proceeds (after costs & debt, pre-tax)"
+                label={netLabel}
                 info="Sale price less selling expenses and debt payoff, before income taxes."
-                value={r.netProceeds}
+                raw={netValue}
+                negative={preTaxShort}
               />
               <ResultRow
-                label="Estimated liquid proceeds after taxes"
-                value={r.liquidAfterTax}
+                label={liquidLabel}
+                raw={liquidValue}
                 total
-                positive={r.liquidAfterTax >= 0}
-                negative={r.liquidAfterTax < 0}
+                positive={!shortfall}
+                negative={shortfall}
               />
             </div>
 
-            <Narrative>
-              On a sale price of {money(r.salePrice)}, we estimate a capital gain
-              of {money(r.totalGain)} and combined taxes and transaction costs of
-              approximately {money(r.totalTax + r.sellingExpenses)}. After debt
-              payoff of {money(r.debtPayoff)}, this leaves an estimated{' '}
-              {money(r.liquidAfterTax)} in liquid proceeds after taxes — an
-              effective rate of {percent(r.effectiveTaxRate * 100)} on the gain.
-            </Narrative>
+            <Narrative>{narrative}</Narrative>
 
             <div className="chart-block" style={{ marginTop: 22 }}>
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>
                 Where the sale price goes
               </div>
-              <StackedBar
-                data={[
-                  { label: 'Liquid proceeds after taxes', value: Math.max(0, r.liquidAfterTax), color: TONE.net },
-                  { label: 'Federal tax', value: r.federalTax, color: TONE.tax },
-                  { label: 'State tax', value: r.stateTax, color: TONE.state },
-                  { label: 'Transaction costs', value: r.sellingExpenses, color: TONE.cost },
-                  { label: 'Debt payoff', value: r.debtPayoff, color: TONE.debt },
-                ]}
-              />
+              {shortfall ? (
+                <p className="small muted" style={{ margin: 0 }}>{shortfallText}</p>
+              ) : (
+                <StackedBar data={saleMix} />
+              )}
             </div>
 
             <div className="report-footer">
@@ -370,7 +572,7 @@ export default function BusinessSale() {
             </div>
           </section>
 
-          {r.installment && r.year1 ? (
+          {r.year1 ? (
             <Panel title="Installment Sale Illustration">
               <p className="small muted" style={{ marginTop: 0 }}>
                 Assuming the gain is recognized evenly over {r.year1.years} years
@@ -378,10 +580,9 @@ export default function BusinessSale() {
                 is not modeled.
               </p>
               <div className="result-list">
-                <ResultRow label="Gain recognized per year" value={r.year1.gainPerYear} />
-                <ResultRow label="Estimated federal tax — Year 1" raw={`(${money(r.year1.federal)})`} negative />
-                <ResultRow label="Estimated state tax — Year 1" raw={`(${money(r.year1.state)})`} negative />
-                <ResultRow label="Estimated total tax — Year 1" value={r.year1.total} total />
+                {installmentRows.map((row) => (
+                  <ResultRow key={row.label} label={row.label} raw={row.value} total={row.total} negative={row.negative} />
+                ))}
               </div>
             </Panel>
           ) : null}
@@ -395,16 +596,7 @@ export default function BusinessSale() {
         </div>
       </div>
 
-      <Assumptions
-        items={[
-          'Gain is treated as long-term capital gain taxed at 2026 federal rates. Ordinary-income recapture (e.g., depreciation, inventory, or certain asset classes in an asset sale) is not separately modeled.',
-          'The 3.8% Net Investment Income Tax is applied where modified income exceeds the applicable threshold.',
-          'A C-corporation asset sale is illustrated with two layers of tax: a 21% corporate rate on the gain, then personal capital-gains tax on the net distribution. This is a simplification of a fact-specific area.',
-          'State tax applies a single simplified capital-gains rate for the selected state and does not reflect brackets, credits, or nonresident sourcing.',
-          'Installment treatment assumes equal annual recognition of gain and ignores interest income and applicable limitations.',
-          'Federal capital-gains brackets depend on total taxable income; the “other household taxable income” figure is used to place the gain in the correct bracket.',
-        ]}
-      />
+      <Assumptions items={assumptions} />
     </ToolShell>
   )
 }

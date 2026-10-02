@@ -19,6 +19,7 @@ import {
   Field,
 } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
+import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeature, PrintTiles, PrintRows, PrintTable, PrintProse, PrintNote, PrintInputs, PrintAssumptions, PrintFooter, PrintCols } from '../components/PrintReport.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 import { TAX_YEAR } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
@@ -159,7 +160,7 @@ export default function Exchange1031() {
   const steps = useMemo(() => [
     ...r.relReal.map((a) => ({ label: `${a.name || 'Property sold'} — realized gain`, formula: `(${money(a.price, 2)} − costs ${money(a.costs, 2)}) − (cost ${money(a.cost, 2)} − depreciation ${money(a.depreciation, 2)})`, result: money(a.gain, 2) })),
     { label: 'Amount realized, all real property', formula: `${money(r.salePrice, 2)} − selling costs ${money(r.sellingCosts, 2)} (${percent(r.sellPct * 100, 1)}${r.otherCosts ? ` + ${money(r.otherCosts, 2)} other` : ''})`, result: money(r.amountRealized, 2) },
-    { label: 'Realized gain, all real property', formula: `${money(r.amountRealized, 2)} − adjusted basis ${money(r.adjustedBasis, 2)}`, result: money(r.realizedGain, 2), note: `${money(r.depreciation, 2)} of it is depreciation recapture.` },
+    { label: 'Realized gain, all real property', formula: `${money(r.amountRealized, 2)} − adjusted basis ${money(r.adjustedBasis, 2)}`, result: money(r.realizedGain, 2), note: `${money(r.saleTax.unrecap, 2)} of it is depreciation recapture (the lesser of the gain and the ${money(r.depreciation, 2)} of depreciation taken).` },
     { label: 'Proceeds held by the intermediary', formula: `${money(r.amountRealized, 2)} − mortgages paid off ${money(r.oldDebt, 2)}`, result: money(r.netEquity, 2) },
     { label: 'Cash needed to close the replacements', formula: `${money(r.replacementPrice, 2)} + closing costs ${money(r.replacementCosts, 2)} (${percent(r.buyPct * 100, 1)}) − new mortgages ${money(r.newDebt, 2)}`, result: money(r.equityIn, 2) },
     { label: 'Cash taken out', formula: `requested ${money(r.cashOutRequested, 2)}${r.surplus > 0 ? ` + proceeds not reinvested ${money(r.surplus, 2)}` : ''}`, result: money(r.cashBoot, 2) },
@@ -190,6 +191,273 @@ export default function Exchange1031() {
   const shape = relCount && repCount ? `${relCount}-for-${repCount}` : ''
   const cashDirection = r.cashBoot > 0 ? `${money(r.cashBoot)} cash out` : r.cashAdded > 0 ? `${money(r.cashAdded)} cash in` : 'no cash either way'
 
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const hasEquip = r.relEquip.length > 0 || r.repEquip.length > 0
+  const filingLabel = (FILING.find((f) => f.value === form.filing) || FILING[0]).label
+  // Depreciation recapture is the depreciation portion OF THE GAIN, never more than the gain itself.
+  const recapRealized = r.saleTax.unrecap
+  // The cash tile follows the boot: cash taken out is boot and leads whenever it exists; cash brought in is not boot.
+  const cashTile = r.cashBoot > 0
+    ? { label: 'Cash taken out', value: money(r.cashBoot), tone: 'bad', note: r.mortgageBoot > 0 ? `boot, + ${money(r.mortgageBoot)} mortgage boot` : r.cashAdded > 0 ? `boot · ${money(r.cashAdded)} also brought in` : 'this is boot' }
+    : r.cashAdded > 0
+      ? { label: 'Cash brought in', value: money(r.cashAdded), note: r.mortgageBoot > 0 ? `not boot · ${money(r.mortgageBoot)} mortgage boot` : 'not boot' }
+      : { label: 'Cash taken out', value: money(0), note: r.mortgageBoot > 0 ? `${money(r.mortgageBoot)} mortgage boot` : 'no boot' }
+
+  // One source of narrative text for the screen and the printed report.
+  const narrative = r.ready ? (
+    <>
+      {relCount === 1 ? 'The property' : `The ${relCount} properties`} sold for {money(r.salePrice)} after {money(r.sellingCosts)} of costs against a {money(r.adjustedBasis)} adjusted basis, realizing a {money(r.realizedGain)} gain{recapRealized > 0 ? `, ${money(recapRealized)} of it depreciation recapture` : ''}.
+      {' '}
+      {r.realizedGain === 0
+        ? 'There is no gain to defer.'
+        : r.isFull
+          ? `Reinvesting the full ${money(r.netEquity)} of proceeds${r.cashAdded > 0 ? ` plus ${money(r.cashAdded)} of new cash` : ''} and replacing the debt leaves no boot, so the whole gain is deferred and the ${repCount === 1 ? 'replacement takes' : `${repCount} replacements share`} a ${money(r.replacementBasis)} basis.`
+          : `As entered there is ${money(r.totalBoot)} of boot (${money(r.cashBoot)} cash out, ${money(r.mortgageBoot)} debt not replaced), so ${money(r.recognizedGain)} is taxed now, about ${money(r.exchangeTax.total)}, and ${money(r.deferredGain)} is deferred. To defer everything, ${r.fullFix}.`}
+      {r.relEquip.length ? ` The equipment sold is a separate taxable sale: ${money(r.equipRecapture)} of §1245 recapture at ordinary rates${r.bonus ? `, offset by expensing the ${money(r.equipBoughtTotal)} of equipment bought` : ''}, for a net ${money(r.equipTax)} in tax.` : ''}
+      {' '}Selling everything outright would cost about {money(r.taxSale)} in tax and leave {money(r.cashAfterSale)} in hand; the exchange leaves {money(r.cashPosition)}.
+      {idDate ? ` Identify replacement property by ${fmtDate(idDate)} and close by ${fmtDate(closeDate)}.` : ''}
+    </>
+  ) : (
+    'Enter each asset sold and bought. Mark tractors, vehicles, and other equipment as Equipment so they are taxed correctly outside the exchange. The estimate updates as you type.'
+  )
+
+  const assumptions = [
+    'Real property held for investment or business use qualifies as like-kind; personal residences and dealer inventory do not. Equipment, vehicles, livestock, and other personal property have been excluded from §1031 since 2018 and are treated as taxable sales here.',
+    `Selling costs default to ${DEFAULT_SELL_COST_PCT}% of price and purchase closing costs to ${DEFAULT_BUY_COST_PCT}%, applied to every asset; both are adjustable. Purchase costs are added to basis.`,
+    'With several properties, realized gain, proceeds, and debt are totaled across all real property (losses on one net against gains on another) and the carryover basis is allocated to the replacements in proportion to price. The exchange-group rules of Reg. §1.1031(j)-1 can produce a different answer for mixed exchanges; the qualified intermediary or tax adviser should confirm.',
+    'Gain recognized is the lesser of realized gain and total boot. Boot is cash taken out, proceeds not reinvested, and net debt relief not offset by cash brought in. A loss on the real property is not recognized in an exchange (§1031(c)) and is shown as $0 gain here; selling outright would recognize it, which is not modeled.',
+    `Recognized real-property gain is taxed as unrecaptured §1250 gain first (ordinary rate capped at 25%), then at the ${TAX_YEAR} 0/15/20% rates stacked above other taxable income after the standard deduction, plus NIIT above the MAGI threshold. Equipment gain is §1245 recapture at the marginal ordinary rate up to depreciation taken, the excess as §1231 gain at capital rates; NIIT is not applied to equipment from an active business.`,
+    'Equipment bought is expensed in full when the toggle is on (100% bonus depreciation, permanent for property acquired after January 19, 2025); it is assumed to be placed in service in the same tax year as the equipment sale.',
+    'State tax is a flat simplified rate on recognized gain and net ordinary equipment income. Several states tax deferred gain when the replacement is out of state or on a later sale; not modeled.',
+    'Deadlines run 45 and 180 calendar days from the first sale closing; the 180-day period ends earlier if the return, including extensions, is due first. A qualified intermediary must hold the proceeds.',
+    'Baseline model. Not reviewed by Grott Luker & Co.',
+  ]
+
+  const inputs = [
+    ['Cash out requested at closing', money(toNumber(form.cashOut))],
+    ['Closing date of the first sale', form.closingDate ? fmtDate(addDays(form.closingDate, 0)) : '—'],
+    ['Filing status', filingLabel],
+    ['Other taxable income this year', money(toNumber(form.otherIncome))],
+    ['Selling costs', `${percent(toNumber(form.sellPct), 1)} of price`],
+    ['Purchase closing costs', `${percent(toNumber(form.buyPct), 1)} of price`],
+    ['Other exchange costs', money(toNumber(form.otherCosts))],
+    ['State of residence', st.name],
+    [`Expense equipment bought in ${TAX_YEAR}`, form.expenseEquipment === 'no' ? 'No' : 'Yes'],
+  ]
+  // Long asset names and treatments are clipped with an ellipsis so a 3+3 table never wraps a row.
+  const clip = (text, maxWidth) => (
+    <span title={text} style={{ display: 'block', maxWidth, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</span>
+  )
+  // One table: every asset as entered (price, cost, depreciation, debt) and how the model treats it. The model
+  // reads the same fields (r.rel / r.rep carry the typed values through), so the inputs and the treatment agree.
+  const assetRows = [
+    ...r.relReal.map((a) => [clip(a.name || 'Property sold', 176), clip('Sold · like-kind', 111), money(a.price), money(a.cost), money(a.depreciation), money(a.debt), money(a.gain)]),
+    ...r.equipSold.map((a) => [clip(a.name || 'Equipment sold', 176), clip('Sold · taxable §1245', 111), money(a.price), money(a.cost), money(a.depreciation), money(a.debt), money(a.loss > 0 ? -a.loss : a.gain)]),
+    ...r.repReal.map((a) => [clip(a.name || 'Property bought', 176), clip('Bought · like-kind', 111), money(a.price), '—', '—', money(a.debt), money(a.basis)]),
+    ...r.repEquip.map((a) => [clip(a.name || 'Equipment bought', 176), clip(r.expenseEquipment ? `Bought · expensed ${TAX_YEAR}` : 'Bought · depreciable', 111), money(a.price), '—', '—', money(a.debt), money(a.total)]),
+  ]
+  const exchangeColLabel = `${exchangeLabel}${r.relEquip.length ? ' + equipment' : ''}`
+  const compareRows = [
+    ['Gain taxed now', money(r.realizedGain + r.equipRecapture + r.equipSec1231), money(r.recognizedGain + r.equipRecapture + r.equipSec1231)],
+    ['Tax due now', money(r.taxSale), money(r.taxNow)],
+    ['Cash after tax', money(r.cashAfterSale), money(r.cashPosition)],
+    ['Gain deferred', '$0', money(r.deferredGain)],
+  ]
+  // Sensitivity: the same model with only the cash taken out changed (0%, 25%, 50%, 75%, 100% of the proceeds held,
+  // plus the amount as entered). Everything else stays exactly as entered.
+  const cashOutSteps = r.ready && r.realizedGain > 0 && r.netEquity > 0
+    ? [...new Set([0, 0.25, 0.5, 0.75].map((f) => Math.round((r.netEquity * f) / 1000) * 1000).concat([Math.round(r.netEquity), Math.round(r.cashOut)]))].sort((a, b) => a - b)
+    : []
+  const sensitivityRows = cashOutSteps.map((c) => {
+    const s = c === Math.round(r.cashOut) ? r : computeExchange({
+      relinquished: form.relinquished,
+      replacement: form.replacement,
+      sellPct: toNumber(form.sellPct),
+      buyPct: toNumber(form.buyPct),
+      otherCosts: form.otherCosts,
+      cashOut: c,
+      filing: form.filing,
+      otherIncome: form.otherIncome,
+      stateRate: st.capGains / 100,
+      expenseEquipment: form.expenseEquipment !== 'no',
+    })
+    return { asEntered: c === Math.round(r.cashOut), cells: [money(s.cashOut), s.cashAdded > 0 ? money(s.cashAdded) : '—', money(s.recognizedGain), money(s.deferredGain), money(s.taxNow), money(s.cashPosition)] }
+  })
+
+  const printReport = (
+    <PrintDoc>
+      <PrintPage compact>
+        <PrintBand
+          title="Like-Kind Exchange Illustration"
+          subtitle="Tax due now and gain deferred on a like-kind exchange of investment real estate."
+          meta={r.ready ? `${shape} · ${money(r.salePrice)} sold · ${money(r.replacementPrice)} bought · ${cashDirection}` : 'Enter what was sold and what was bought'}
+          metaRight={today}
+        />
+        <PrintFeature
+          label={`Tax due now — ${exchangeLabel.toLowerCase()}${r.relEquip.length ? ' plus equipment' : ''}`}
+          value={money(r.taxNow)}
+          note={r.realizedGain > 0
+            ? `vs. ${money(r.taxSale)} selling everything outright · ${money(r.deferredGain)} of gain deferred`
+            : `no real-property gain to defer · ${r.relEquip.length ? 'the tax comes from the equipment sold' : 'the same as selling outright'}`}
+        />
+        <PrintTiles
+          items={[
+            { label: 'Gain deferred', value: money(r.deferredGain), note: `of ${money(r.realizedGain)} realized`, best: r.deferredGain > 0 },
+            { label: cashTile.label, value: cashTile.value, note: cashTile.note },
+            { label: 'Cash after closing', value: money(r.cashPosition), note: 'after tax, all assets' },
+            { label: 'Tax if sold outright', value: money(r.taxSale), note: `leaves ${money(r.cashAfterSale)} in hand` },
+          ]}
+        />
+        <PrintSection title="The exchange in four lines" note="gain, boot, deferral, tax">
+          <PrintRows
+            rows={[
+              { label: `Realized gain, ${relCount} ${relCount === 1 ? 'property' : 'properties'}${recapRealized > 0 ? ` (${money(recapRealized)} of it depreciation recapture)` : ''}`, value: money(r.realizedGain) },
+              { label: `Gain recognized on the exchange (boot ${money(r.totalBoot)})`, value: money(r.recognizedGain) },
+              { label: 'Gain deferred', value: money(r.deferredGain) },
+              { label: `Tax due now${hasEquip ? ', exchange plus equipment' : ''}`, value: money(r.taxNow), total: true },
+            ]}
+          />
+        </PrintSection>
+        <PrintSection title="What this means">
+          <PrintProse>{narrative}</PrintProse>
+        </PrintSection>
+        {r.realizedGain > 0 ? (
+          <PrintSection title="Tax due now, sell outright vs. exchange" className="pr-chart">
+            <BarCompare
+              height={230}
+              legend={false}
+              groups={[
+                { label: 'Sell outright', bars: [{ label: 'Tax due now', value: r.taxSale, color: TONE.tax }] },
+                { label: exchangeLabel, bars: [{ label: 'Tax due now', value: r.taxNow, color: TONE.tax }] },
+              ]}
+            />
+          </PrintSection>
+        ) : r.ready ? (
+          <PrintSection title="Why there is no gain to defer: amount realized vs. adjusted basis" className="pr-chart">
+            <BarCompare
+              height={200}
+              legend={false}
+              groups={[
+                { label: 'Amount realized, after costs', bars: [{ label: 'Amount realized', value: r.amountRealized, color: TONE.net }] },
+                { label: 'Adjusted basis (cost less depreciation)', bars: [{ label: 'Adjusted basis', value: r.adjustedBasis, color: TONE.debt }] },
+              ]}
+            />
+            <PrintNote title="No gain to defer">
+              The real property's adjusted basis of {money(r.adjustedBasis)} is at or above the {money(r.amountRealized)} realized after costs, so there is no gain for an exchange to defer{hasEquip ? ' and the tax shown comes from the equipment sold alongside it' : ''}. A loss on like-kind property is not recognized in an exchange (§1031(c)); an outright sale would recognize it, which this estimate does not model.
+            </PrintNote>
+          </PrintSection>
+        ) : (
+          <PrintNote title="Nothing to illustrate yet">
+            Enter each asset sold and bought to see the tax due now against an outright sale.
+          </PrintNote>
+        )}
+        <PrintFooter page={1} pages={3} />
+      </PrintPage>
+
+      <PrintPage>
+        <PrintPageHead title="Like-Kind Exchange Illustration" right={today} />
+        <PrintSection title="Each asset and how it is treated" note="as entered · gain if sold, carryover basis if bought">
+          {assetRows.length ? (
+            <PrintTable
+              head={['Asset', 'Treatment', 'Price', 'Cost', 'Deprec.', 'Debt', 'Gain / basis']}
+              widths={['29%', '19%', '10%', '10%', '10%', '10%', '12%']}
+              align={['left', 'left', 'right', 'right', 'right', 'right', 'right']}
+              rows={assetRows}
+            />
+          ) : (
+            <PrintProse>No assets entered yet.</PrintProse>
+          )}
+        </PrintSection>
+        <PrintCols>
+          <PrintSection title="Proceeds and replacement" note="real property">
+            <PrintRows
+              rows={[
+                { label: 'Sale price, all sold', value: money(r.salePrice) },
+                { label: `Selling costs (${percent(r.sellPct * 100, 1)}${r.otherCosts ? ' + other' : ''})`, value: money(r.sellingCosts), sub: true },
+                { label: 'Mortgages paid off', value: money(r.oldDebt), sub: true },
+                { label: 'Proceeds held by the intermediary', value: money(r.netEquity) },
+                { label: 'Replacement price, all bought', value: money(r.replacementPrice) },
+                { label: `Closing costs (${percent(r.buyPct * 100, 1)})`, value: money(r.replacementCosts), sub: true },
+                { label: 'New mortgages', value: money(r.newDebt), sub: true },
+                { label: 'Cash needed to close', value: money(r.equityIn), total: true },
+              ]}
+            />
+          </PrintSection>
+          <PrintSection title="How boot was measured" note="taxed up to the gain">
+            <PrintRows
+              rows={[
+                { label: r.cashOut < r.cashOutRequested ? 'Cash taken out (capped at proceeds held)' : 'Cash taken out at closing', value: money(r.cashOut), sub: true },
+                { label: 'Proceeds not reinvested', value: money(r.surplus), sub: true },
+                { label: 'Cash boot', value: money(r.cashBoot) },
+                { label: 'Debt relief (old less new mortgages)', value: money(r.debtRelief), sub: true },
+                { label: 'Cash brought in', value: money(r.cashAdded), sub: true },
+                { label: 'Mortgage boot', value: money(r.mortgageBoot) },
+                { label: 'Total boot', value: money(r.totalBoot), total: true },
+                { label: 'Carryover basis, replacements', value: money(r.replacementBasis) },
+              ]}
+            />
+          </PrintSection>
+        </PrintCols>
+        <PrintSection title="From realized gain to tax due" note={hasEquip ? 'real property totaled, then the equipment sale' : 'all real property, totaled'}>
+          <PrintRows
+            rows={[
+              { label: `Amount realized, ${relCount} ${relCount === 1 ? 'property' : 'properties'} (after ${percent(r.sellPct * 100, 1)} costs)`, value: money(r.amountRealized) },
+              { label: 'Adjusted basis, all sold', value: money(r.adjustedBasis), sub: true },
+              { label: 'Realized gain', value: money(r.realizedGain) },
+              { label: `Of which depreciation recapture (lesser of the gain and ${money(r.depreciation)} taken)`, value: money(recapRealized), sub: true },
+              { label: `Gain recognized on the exchange (lesser of gain and boot ${money(r.totalBoot)})`, value: money(r.recognizedGain) },
+              { label: `Unrecaptured §1250 gain at ${percent(r.exchangeTax.rate1250 * 100, 0)}`, value: money(r.exchangeTax.tax1250), sub: true },
+              { label: 'Capital gain at 0/15/20%', value: money(r.exchangeTax.taxLtcg), sub: true },
+              { label: 'Net investment income tax', value: money(r.exchangeTax.niit), sub: true },
+              { label: `State tax (${st.name})`, value: money(r.exchangeTax.state), sub: true },
+              ...(hasEquip ? [{ label: `Equipment: recapture ${money(r.equipRecapture)}${r.bonus ? ` less ${money(r.bonus)} expensed` : ''}, net tax`, value: money(r.equipTax), sub: true }] : []),
+              { label: 'Tax due now', value: money(r.taxNow), total: true },
+            ]}
+          />
+        </PrintSection>
+        <PrintFooter page={2} pages={3} />
+      </PrintPage>
+
+      <PrintPage last compact>
+        <PrintPageHead title="Like-Kind Exchange Illustration" right={today} />
+        <PrintSection title="Exchange vs. selling everything outright" note="tax and cash today">
+          <PrintTable head={['', 'Sell everything outright', exchangeColLabel]} widths={['40%', '30%', '30%']} rows={compareRows} />
+        </PrintSection>
+        {idDate ? (
+          <PrintSection title="Deadlines" note={`from the ${fmtDate(addDays(form.closingDate, 0))} closing`}>
+            <PrintRows
+              rows={[
+                { label: `Identify replacement property within ${ID_DAYS} days`, value: fmtDate(idDate) },
+                { label: `Close on the replacement within ${CLOSE_DAYS} days`, value: fmtDate(closeDate) },
+              ]}
+            />
+          </PrintSection>
+        ) : null}
+        <PrintNote title="Reading the result">
+          Boot is what makes an exchange partial: cash taken out, proceeds not reinvested, and debt given up that is not replaced with new debt or fresh cash. Every dollar of boot is taxed, up to the realized gain, with the depreciation portion first at up to 25%. With several properties on either side the test is run on the totals: all proceeds must go into all replacements and total debt must be replaced. Equipment is the trap in a farm or business sale: since 2018 it cannot ride along in the exchange, its depreciation is recaptured at ordinary rates the year it is sold, and the usual answer is to expense the replacement equipment in the same year.
+        </PrintNote>
+        {sensitivityRows.length ? (
+          <PrintSection title="If a different amount of cash were taken out" note="same assets, debt, and costs · the row as entered is shaded">
+            <PrintTable
+              head={['Cash taken out', 'Cash brought in', 'Gain recognized', 'Gain deferred', 'Tax due now', 'Cash after closing']}
+              widths={['17%', '17%', '17%', '17%', '16%', '16%']}
+              align={['right', 'right', 'right', 'right', 'right', 'right']}
+              rows={sensitivityRows.map((s) => s.cells)}
+              rowClass={(_, i) => (sensitivityRows[i].asEntered ? 'is-tint' : '')}
+            />
+          </PrintSection>
+        ) : null}
+        <PrintSection title="Inputs used in this estimate">
+          <PrintInputs items={inputs} />
+        </PrintSection>
+        <PrintSection title="Assumptions">
+          <PrintAssumptions items={assumptions} />
+        </PrintSection>
+        <PrintFooter page={3} pages={3} />
+      </PrintPage>
+    </PrintDoc>
+  )
+
   return (
     <ToolShell
       title="1031 Exchange Analyzer"
@@ -197,6 +465,7 @@ export default function Exchange1031() {
       onReset={() => setForm(BLANK())}
       onSample={() => setForm(SAMPLE())}
       steps={steps}
+      printReport={printReport}
     >
       <div className="tool-grid">
         <div>
@@ -252,7 +521,7 @@ export default function Exchange1031() {
             <StatTiles
               items={[
                 { label: 'Gain deferred', value: money(r.deferredGain), tone: r.deferredGain > 0 ? 'good' : undefined, note: `of ${money(r.realizedGain)} realized` },
-                { label: r.cashAdded > 0 ? 'Cash brought in' : 'Cash taken out', value: money(r.cashAdded > 0 ? r.cashAdded : r.cashBoot), tone: r.cashBoot > 0 ? 'bad' : undefined, note: r.mortgageBoot > 0 ? `+ ${money(r.mortgageBoot)} mortgage boot` : r.totalBoot > 0 ? 'this is boot' : 'no boot' },
+                { label: cashTile.label, value: cashTile.value, tone: cashTile.tone, note: cashTile.note },
                 { label: 'Cash after closing', value: money(r.cashPosition), tone: r.cashPosition < 0 ? 'bad' : undefined, note: 'after tax, all assets' },
               ]}
             />
@@ -272,24 +541,7 @@ export default function Exchange1031() {
               <ResultRow label="Tax due now" value={r.taxNow} total negative={r.taxNow > 0} positive={r.taxNow < 0} />
             </div>
 
-            <Narrative>
-              {r.ready ? (
-                <>
-                  {relCount === 1 ? 'The property' : `The ${relCount} properties`} sold for {money(r.salePrice)} after {money(r.sellingCosts)} of costs against a {money(r.adjustedBasis)} adjusted basis, realizing a {money(r.realizedGain)} gain, {money(r.depreciation)} of it depreciation recapture.
-                  {' '}
-                  {r.realizedGain === 0
-                    ? 'There is no gain to defer.'
-                    : r.isFull
-                      ? `Reinvesting the full ${money(r.netEquity)} of proceeds${r.cashAdded > 0 ? ` plus ${money(r.cashAdded)} of new cash` : ''} and replacing the debt leaves no boot, so the whole gain is deferred and the ${repCount === 1 ? 'replacement takes' : `${repCount} replacements share`} a ${money(r.replacementBasis)} basis.`
-                      : `As entered there is ${money(r.totalBoot)} of boot (${money(r.cashBoot)} cash out, ${money(r.mortgageBoot)} debt not replaced), so ${money(r.recognizedGain)} is taxed now, about ${money(r.exchangeTax.total)}, and ${money(r.deferredGain)} is deferred. To defer everything, ${r.fullFix}.`}
-                  {r.relEquip.length ? ` The equipment sold is a separate taxable sale: ${money(r.equipRecapture)} of §1245 recapture at ordinary rates${r.bonus ? `, offset by expensing the ${money(r.equipBoughtTotal)} of equipment bought` : ''}, for a net ${money(r.equipTax)} in tax.` : ''}
-                  {' '}Selling everything outright would cost about {money(r.taxSale)} in tax and leave {money(r.cashAfterSale)} in hand; the exchange leaves {money(r.cashPosition)}.
-                  {idDate ? ` Identify replacement property by ${fmtDate(idDate)} and close by ${fmtDate(closeDate)}.` : ''}
-                </>
-              ) : (
-                'Enter each asset sold and bought. Mark tractors, vehicles, and other equipment as Equipment so they are taxed correctly outside the exchange. The estimate updates as you type.'
-              )}
-            </Narrative>
+            <Narrative>{narrative}</Narrative>
 
             <ScenarioCards
               sub="tax and cash today"
@@ -304,16 +556,16 @@ export default function Exchange1031() {
                 <thead><tr><th>Asset</th><th>Treatment</th><th className="num">Price</th><th className="num">Gain / basis</th></tr></thead>
                 <tbody>
                   {r.relReal.map((a) => (
-                    <tr key={a.id}><td>{a.name || 'Property sold'}</td><td>Relinquished · like-kind</td><td className="num">{money(a.price)}</td><td className="num">{money(a.gain)} gain</td></tr>
+                    <tr key={a.id}><td>{a.name || 'Property sold'}</td><td>Sold · like-kind</td><td className="num">{money(a.price)}</td><td className="num">{money(a.gain)} gain</td></tr>
                   ))}
                   {r.equipSold.map((a) => (
-                    <tr key={a.id}><td>{a.name || 'Equipment sold'}</td><td>Taxable sale · §1245</td><td className="num">{money(a.price)}</td><td className="num">{a.loss > 0 ? `${money(a.loss)} loss` : `${money(a.gain)} gain`}</td></tr>
+                    <tr key={a.id}><td>{a.name || 'Equipment sold'}</td><td>Sold · taxable §1245</td><td className="num">{money(a.price)}</td><td className="num">{a.loss > 0 ? `${money(a.loss)} loss` : `${money(a.gain)} gain`}</td></tr>
                   ))}
                   {r.repReal.map((a) => (
-                    <tr key={a.id}><td>{a.name || 'Property bought'}</td><td>Replacement · carryover basis</td><td className="num">{money(a.price)}</td><td className="num">{money(a.basis)} basis</td></tr>
+                    <tr key={a.id}><td>{a.name || 'Property bought'}</td><td>Bought · like-kind</td><td className="num">{money(a.price)}</td><td className="num">{money(a.basis)} basis</td></tr>
                   ))}
                   {r.repEquip.map((a) => (
-                    <tr key={a.id}><td>{a.name || 'Equipment bought'}</td><td>{r.expenseEquipment ? `Expensed in ${TAX_YEAR}` : 'Depreciable'}</td><td className="num">{money(a.price)}</td><td className="num">{money(a.total)} basis</td></tr>
+                    <tr key={a.id}><td>{a.name || 'Equipment bought'}</td><td>{r.expenseEquipment ? `Bought · expensed ${TAX_YEAR}` : 'Bought · depreciable'}</td><td className="num">{money(a.price)}</td><td className="num">{money(a.total)} basis</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -346,19 +598,7 @@ export default function Exchange1031() {
         Boot is what makes an exchange partial: cash taken out, proceeds not reinvested, and debt given up that is not replaced with new debt or fresh cash. Every dollar of boot is taxed, up to the realized gain, with the depreciation portion first at up to 25%. With several properties on either side the test is run on the totals: all proceeds must go into all replacements and total debt must be replaced. Equipment is the trap in a farm or business sale: since 2018 it cannot ride along in the exchange, its depreciation is recaptured at ordinary rates the year it is sold, and the usual answer is to expense the replacement equipment in the same year.
       </Note>
 
-      <Assumptions
-        items={[
-          'Real property held for investment or business use qualifies as like-kind; personal residences and dealer inventory do not. Equipment, vehicles, livestock, and other personal property have been excluded from §1031 since 2018 and are treated as taxable sales here.',
-          `Selling costs default to ${DEFAULT_SELL_COST_PCT}% of price and purchase closing costs to ${DEFAULT_BUY_COST_PCT}%, applied to every asset; both are adjustable. Purchase costs are added to basis.`,
-          'With several properties, realized gain, proceeds, and debt are totaled across all real property (losses on one net against gains on another) and the carryover basis is allocated to the replacements in proportion to price. The exchange-group rules of Reg. §1.1031(j)-1 can produce a different answer for mixed exchanges; the actuary of a 1031, the intermediary or tax adviser, should confirm.',
-          'Gain recognized is the lesser of realized gain and total boot. Boot is cash taken out, proceeds not reinvested, and net debt relief not offset by cash brought in.',
-          `Recognized real-property gain is taxed as unrecaptured §1250 gain first (ordinary rate capped at 25%), then at the ${TAX_YEAR} 0/15/20% rates stacked above other taxable income after the standard deduction, plus NIIT above the MAGI threshold. Equipment gain is §1245 recapture at the marginal ordinary rate up to depreciation taken, the excess as §1231 gain at capital rates; NIIT is not applied to equipment from an active business.`,
-          'Equipment bought is expensed in full when the toggle is on (100% bonus depreciation, permanent for property acquired after January 19, 2025); it is assumed to be placed in service in the same tax year as the equipment sale.',
-          'State tax is a flat simplified rate on recognized gain and net ordinary equipment income. Several states tax deferred gain when the replacement is out of state or on a later sale; not modeled.',
-          'Deadlines run 45 and 180 calendar days from the first sale closing; the 180-day period ends earlier if the return, including extensions, is due first. A qualified intermediary must hold the proceeds.',
-          'Baseline model. Not reviewed by Grott Luker & Co.',
-        ]}
-      />
+      <Assumptions items={assumptions} />
     </ToolShell>
   )
 }

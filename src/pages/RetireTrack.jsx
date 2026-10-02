@@ -14,7 +14,13 @@ import {
   Narrative,
 } from '../components/ui.jsx'
 import { DonutChart, BarCompare, LineChart, TONE, PALETTE } from '../components/charts.jsx'
+import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeature, PrintTiles, PrintRows, PrintTable, PrintProse, PrintNote, PrintInputs, PrintAssumptions, PrintFooter, PrintCols } from '../components/PrintReport.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
+
+// Rates print exactly as entered — 4% → "4%", 3.5% → "3.5%", 6.25% → "6.25%" —
+// so one input never shows up as three different numbers on the same page.
+const rate = (v) => `${parseFloat(toNumber(v).toFixed(2))}%`
+const yrs = (n, short = false) => `${n} ${short ? (n === 1 ? 'yr' : 'yrs') : n === 1 ? 'year' : 'years'}`
 
 const BLANK = {
   age: '',
@@ -82,8 +88,10 @@ function compute(form) {
   const portfolioIncome = projectedNestEgg * withdrawalRate
   const totalIncome = portfolioIncome + ss + pension + other
   const gap = totalIncome - futureExpenses
-  const coverage = futureExpenses > 0 ? (totalIncome / futureExpenses) * 100 : 0
-  const onTrack = gap >= 0
+  // Without a spending need there is nothing to cover: coverage and "on track" are not measurable.
+  const hasNeed = futureExpenses > 0
+  const coverage = hasNeed ? (totalIncome / futureExpenses) * 100 : 0
+  const onTrack = hasNeed && gap >= 0
 
   return {
     years,
@@ -96,6 +104,7 @@ function compute(form) {
     expenses: futureExpenses,
     gap,
     coverage,
+    hasNeed,
     onTrack,
     withdrawalRate,
     balances,
@@ -126,6 +135,210 @@ export default function RetireTrack() {
     ]
   }, [r, form])
 
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const ageN = toNumber(form.age)
+  const retireAgeN = toNumber(form.retireAge)
+  const otherSources = r.ss + r.pension + r.other
+  const wrPct = rate(r.withdrawalRate * 100)
+  const growPct = rate(form.growthRate)
+  const inflPct = rate(form.inflationRate)
+  const todaySavings = toNumber(form.savings)
+  const noHorizon = r.years === 0
+  const blankAges = ageN === 0 && retireAgeN === 0
+  // Status, coverage note and the surplus/shortfall tile are shared by the screen and the print
+  // so the two never disagree — including when no spending need has been entered.
+  const statusLabel = r.hasNeed
+    ? r.onTrack ? 'Projected income covers needs' : 'Projected income falls short'
+    : 'Spending need not entered'
+  const coverageNote = r.hasNeed
+    ? `Covers ${percent(r.coverage, 0)} of your ${money(r.expenses)} estimated need in the first year of retirement`
+    : 'Enter an estimated annual spending need to measure coverage'
+  const gapLabel = r.gap >= 0 ? 'Annual surplus' : 'Annual shortfall'
+  const gapTile = r.hasNeed
+    ? { label: gapLabel, value: money(Math.abs(r.gap)), note: `${percent(r.coverage, 0)} of need covered`, best: r.gap >= 0, tone: r.gap >= 0 ? 'good' : 'bad' }
+    : { label: 'Surplus / shortfall', value: '—', note: 'no spending need entered' }
+  const narrative = (
+    <>
+      {noHorizon
+        ? <>With retirement at your current age there is no accumulation period, so the nest egg is today's savings of {money(r.projectedNestEgg)}.</>
+        : <>Growing your savings for {yrs(r.years)}, we project a nest egg of about {money(r.projectedNestEgg)} at retirement.</>}{' '}At a {wrPct} withdrawal rate that provides roughly {money(r.portfolioIncome)} a year, plus {money(otherSources)} from Social Security, pension, and other income — about {money(r.totalIncome)} of total annual income
+      {r.hasNeed
+        ? <> against an estimated {money(r.expenses)} of spending (inflated to your retirement year), a {r.gap >= 0 ? 'surplus' : 'shortfall'} of {money(Math.abs(r.gap))}.</>
+        : <>. No spending need has been entered, so whether that income is enough cannot be measured yet.</>}
+    </>
+  )
+  // Income sources for the print donut and its list; zero sources drop out, matching the chart.
+  const incomeSources = [
+    { label: 'Portfolio', value: r.portfolioIncome, color: PALETTE[0] },
+    { label: 'Social Security', value: r.ss, color: PALETTE[2] },
+    { label: 'Pension', value: r.pension, color: PALETTE[4] },
+    { label: 'Other', value: r.other, color: PALETTE[3] },
+  ].filter((s) => s.value > 0)
+  const dot = (color) => <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: color, marginRight: 7, verticalAlign: 'middle', position: 'relative', top: -1, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />
+  // Milestone rows for the savings-path table: at most 6 points from today to retirement.
+  const milestoneIdx = (() => {
+    const n = r.balances.length - 1
+    if (n <= 0) return [0]
+    const step = Math.max(1, Math.ceil(n / 5))
+    const idx = []
+    for (let t = 0; t < n; t += step) idx.push(t)
+    idx.push(n)
+    return idx
+  })()
+  // When there is no accumulation period (current age at or past the target), the line chart
+  // would be a single point; show instead what each extra year of saving would do, using the
+  // same compute() with only the retirement age changed.
+  const laterRows = noHorizon && !blankAges
+    ? [1, 2, 3, 5].map((k) => {
+        const alt = compute({ ...form, retireAge: String(ageN + k) })
+        return {
+          label: `Retire at ${ageN + k} instead · ${yrs(k)} more of saving`,
+          value: r.hasNeed ? `${money(alt.totalIncome)} · ${percent(alt.coverage, 0)} covered` : money(alt.totalIncome),
+        }
+      })
+    : []
+  const assumptions = [
+    'Savings grow at the assumed accumulation return until your target retirement age; contributions are assumed level and invested each year.',
+    'Your stated spending need (in today\'s dollars) is inflated to your retirement year at the assumed inflation rate before comparing it to projected income.',
+    'Sustainable income applies the assumed withdrawal rate to the projected nest egg — a planning guideline, not a guarantee. The post-retirement return assumption is not yet reflected in this withdrawal math; it is shown to frame a conversation about sequence-of-returns risk.',
+    'Social Security, pension, and other income are entered as expected annual amounts and are not separately inflation-adjusted.',
+    'Taxes, healthcare shocks, and market sequence risk are not modeled.',
+    'This is a high-level readiness snapshot to frame a planning conversation, not a comprehensive retirement plan.',
+  ]
+  const inputs = [
+    ['Current age', `${ageN} yrs`],
+    ['Target retirement age', `${retireAgeN} yrs`],
+    ['Current savings', money(todaySavings)],
+    ['Annual contributions', money(toNumber(form.annualContribution))],
+    ['Spending need (today\'s $)', money(toNumber(form.annualExpenses))],
+    ['Social Security (annual)', money(r.ss)],
+    ['Pension (annual)', money(r.pension)],
+    ['Other income (annual)', money(r.other)],
+    ['Return (accumulation)', growPct],
+    ['Post-retirement return', rate(form.postRetirementReturn)],
+    ['Inflation rate', inflPct],
+    ['Withdrawal rate', rate(form.withdrawalRate)],
+  ]
+  const printReport = (
+    <PrintDoc>
+      <PrintPage>
+        <PrintBand
+          title="Retirement Readiness Summary"
+          subtitle="Today's savings projected to your target retirement age, and the income they can sustain measured against what you expect to spend."
+          meta={`Age ${ageN} → retire at ${retireAgeN} · ${noHorizon ? 'retiring now' : `${yrs(r.years)} to go`} · ${statusLabel}`}
+          metaRight={today}
+        />
+        <PrintFeature
+          label="Projected annual retirement income"
+          value={money(r.totalIncome)}
+          note={coverageNote}
+        />
+        <PrintTiles
+          items={[
+            { label: 'Projected nest egg', value: money(r.projectedNestEgg), note: noHorizon ? 'today' : `in ${yrs(r.years)}` },
+            { label: 'Portfolio income', value: money(r.portfolioIncome), note: `${wrPct} withdrawal rate` },
+            { label: 'Retirement spending', value: r.hasNeed ? money(r.expenses) : '—', note: r.hasNeed ? `inflated at ${inflPct} a year` : 'not entered' },
+            gapTile,
+          ]}
+        />
+        <PrintSection title="What this means">
+          <PrintProse>{narrative}</PrintProse>
+        </PrintSection>
+        {noHorizon ? (
+          <PrintSection title="Projected savings balance">
+            <PrintProse>
+              {blankAges
+                ? 'Enter your current age and target retirement age to project the savings path from today to retirement.'
+                : `Your current age (${ageN}) is at or past the target retirement age (${retireAgeN}), so there is no accumulation period to project: the nest egg is today's savings of ${money(r.projectedNestEgg)} and the spending need is measured in today's dollars. The rows below show what each additional year of saving before retirement would do to first-year income.`}
+            </PrintProse>
+            {laterRows.length ? <PrintRows rows={laterRows} /> : null}
+          </PrintSection>
+        ) : (
+          <PrintSection title="Projected savings balance" className="pr-chart">
+            <LineChart
+              xStart={form.age ? `Age ${ageN}` : 'Today'}
+              xEnd={form.retireAge ? `Age ${retireAgeN}` : 'Retirement'}
+              legend={false}
+              series={[{ label: 'Retirement & investment savings', color: TONE.net, points: r.balances }]}
+            />
+          </PrintSection>
+        )}
+        <PrintFooter page={1} pages={2} />
+      </PrintPage>
+      <PrintPage last compact={incomeSources.length > 2}>
+        <PrintPageHead title="Retirement Readiness Summary" right={today} />
+        <PrintCols>
+          <PrintSection title="Income sources at retirement" note="first year, annual" className="pr-chart">
+            {incomeSources.length ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
+                  <DonutChart
+                    size={140}
+                    thickness={24}
+                    legend={false}
+                    centerValue={money(r.totalIncome)}
+                    centerLabel="Annual"
+                    data={incomeSources}
+                  />
+                </div>
+                <PrintRows
+                  rows={incomeSources.map((s) => ({
+                    label: <>{dot(s.color)}{s.label} · {percent(r.totalIncome > 0 ? (s.value / r.totalIncome) * 100 : 0, 0)}</>,
+                    value: money(s.value),
+                  }))}
+                />
+              </>
+            ) : (
+              <PrintProse>No retirement income has been projected yet. Enter current savings or contributions (for portfolio income), and any Social Security, pension, or other income you expect, to see how the first year of retirement would be funded.</PrintProse>
+            )}
+          </PrintSection>
+          <PrintSection title="Income vs. spending" note="at retirement">
+            <PrintRows
+              rows={[
+                { label: 'Projected nest egg at retirement', value: money(r.projectedNestEgg) },
+                { label: `Sustainable portfolio income (${wrPct})`, value: money(r.portfolioIncome), sub: true },
+                { label: 'Social Security + pension + other', value: money(otherSources), sub: true },
+                { label: 'Total projected income', value: money(r.totalIncome), total: true },
+                { label: 'Estimated spending (inflated)', value: r.hasNeed ? money(r.expenses) : 'not entered' },
+                r.hasNeed
+                  ? { label: gapLabel, value: money(Math.abs(r.gap)), sub: true }
+                  : { label: 'Surplus / shortfall', value: 'not measured', sub: true },
+              ]}
+            />
+          </PrintSection>
+        </PrintCols>
+        <PrintSection title="Savings path to retirement" note={`${growPct} assumed return · ${money(toNumber(form.annualContribution))} added each year`}>
+          <PrintTable
+            head={['Age', 'Years from today', 'Projected balance', 'Increase since today']}
+            widths={['20%', '26%', '27%', '27%']}
+            align={['left', 'left', 'right', 'right']}
+            rows={milestoneIdx.map((t) => [
+              `Age ${ageN + t}`,
+              t === 0 ? 'Today' : t === r.years ? `${yrs(t, true)} · retirement` : yrs(t, true),
+              money(r.balances[t]),
+              t === 0 ? '—' : `+${money(r.balances[t] - todaySavings)}`,
+            ])}
+          />
+        </PrintSection>
+        <PrintNote title="Reading the result">
+          The coverage ratio compares projected first-year retirement income with your spending need inflated to the retirement year. The withdrawal rate is a planning guideline, not a promise: it tells you how much the nest egg could reasonably supply in year one, before taxes, healthcare surprises, and the order of market returns have their say. The post-retirement return you entered is not yet in this math; it frames the conversation about how the balance behaves once withdrawals begin.{' '}
+          {!r.hasNeed
+            ? 'No spending need was entered, so the coverage ratio and any surplus or shortfall are not measured; enter your expected annual spending in today\'s dollars to complete the picture.'
+            : r.gap >= 0
+              ? `A surplus of ${money(r.gap)} is a cushion, not slack — it is the first thing a weak early market or a higher inflation rate would consume.`
+              : `A shortfall of ${money(Math.abs(r.gap))} is usually closed by some mix of saving more, retiring later, or spending less; each lever can be tested by changing one input.`}
+        </PrintNote>
+        <PrintSection title="Inputs used in this estimate">
+          <PrintInputs items={inputs} />
+        </PrintSection>
+        <PrintSection title="Assumptions">
+          <PrintAssumptions items={assumptions} />
+        </PrintSection>
+        <PrintFooter page={2} pages={2} />
+      </PrintPage>
+    </PrintDoc>
+  )
+
   return (
     <ToolShell
       title="Am I on Track to Retire?"
@@ -133,6 +346,7 @@ export default function RetireTrack() {
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
       steps={steps}
+      printReport={printReport}
     >
       <div className="tool-grid">
         <div>
@@ -215,28 +429,28 @@ export default function RetireTrack() {
           <section className="report">
             <ReportHeader
               sectionTitle="Retirement Readiness Summary"
-              meta={r.onTrack ? 'Projected income covers needs' : 'Projected income falls short'}
-              metaRight={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              meta={statusLabel}
+              metaRight={today}
             />
             <FeatureBlock
               label="Projected annual retirement income"
               value={money(r.totalIncome)}
-              note={`Covers ${percent(r.coverage, 0)} of your ${money(r.expenses)} estimated need`}
+              note={coverageNote}
             />
             <StatTiles
               items={[
-                { label: 'Projected nest egg', value: money(r.projectedNestEgg), note: `in ${r.years} years` },
-                { label: 'Portfolio income', value: money(r.portfolioIncome), note: `${percent(r.withdrawalRate * 100, 1)} withdrawal rate` },
-                { label: r.gap >= 0 ? 'Annual surplus' : 'Annual shortfall', value: money(Math.abs(r.gap)), tone: r.gap >= 0 ? 'good' : 'bad', note: `${percent(r.coverage, 0)} of need covered` },
+                { label: 'Projected nest egg', value: money(r.projectedNestEgg), note: noHorizon ? 'today' : `in ${yrs(r.years)}` },
+                { label: 'Portfolio income', value: money(r.portfolioIncome), note: `${wrPct} withdrawal rate` },
+                gapTile,
               ]}
             />
             <div className="result-list">
               <ResultRow label="Projected nest egg at retirement" value={r.projectedNestEgg} />
-              <ResultRow label={`Sustainable portfolio income (${percent(r.withdrawalRate * 100, 0)})`} value={r.portfolioIncome} sub />
-              <ResultRow label="Social Security + pension + other" value={r.ss + r.pension + r.other} sub />
+              <ResultRow label={`Sustainable portfolio income (${wrPct})`} value={r.portfolioIncome} sub />
+              <ResultRow label="Social Security + pension + other" value={otherSources} sub />
               <ResultRow label="Total projected income" value={r.totalIncome} total />
               <ResultRow
-                label={r.gap >= 0 ? 'Annual surplus' : 'Annual shortfall'}
+                label={gapLabel}
                 value={Math.abs(r.gap)}
                 sub
                 positive={r.gap >= 0}
@@ -244,22 +458,13 @@ export default function RetireTrack() {
               />
             </div>
 
-            <Narrative>
-              Growing your savings for {r.years} years, we project a nest egg of
-              about {money(r.projectedNestEgg)} at retirement. At a {percent(r.withdrawalRate * 100, 0)}{' '}
-              withdrawal rate that provides roughly {money(r.portfolioIncome)} a
-              year, plus {money(r.ss + r.pension + r.other)} from Social Security,
-              pension, and other income — about {money(r.totalIncome)} of total
-              annual income against an estimated {money(r.expenses)} of spending
-              (inflated to your retirement year), a{' '}
-              {r.gap >= 0 ? 'surplus' : 'shortfall'} of {money(Math.abs(r.gap))}.
-            </Narrative>
+            <Narrative>{narrative}</Narrative>
 
             <div className="chart-block">
               <div className="panel-title" style={{ border: 'none', paddingBottom: 6, marginBottom: 12 }}>Projected savings balance</div>
               <LineChart
-                xStart={form.age ? `Age ${toNumber(form.age)}` : 'Today'}
-                xEnd={form.retireAge ? `Age ${toNumber(form.retireAge)}` : 'Retirement'}
+                xStart={form.age ? `Age ${ageN}` : 'Today'}
+                xEnd={form.retireAge ? `Age ${retireAgeN}` : 'Retirement'}
                 series={[{ label: 'Retirement & investment savings', color: TONE.net, points: r.balances }]}
               />
             </div>
@@ -297,16 +502,7 @@ export default function RetireTrack() {
         </div>
       </div>
 
-      <Assumptions
-        items={[
-          'Savings grow at the assumed accumulation return until your target retirement age; contributions are assumed level and invested each year.',
-          'Your stated spending need (in today\'s dollars) is inflated to your retirement year at the assumed inflation rate before comparing it to projected income.',
-          'Sustainable income applies the assumed withdrawal rate to the projected nest egg — a planning guideline, not a guarantee. The post-retirement return assumption is not yet reflected in this withdrawal math; it is shown to frame a conversation about sequence-of-returns risk.',
-          'Social Security, pension, and other income are entered as expected annual amounts and are not separately inflation-adjusted.',
-          'Taxes, healthcare shocks, and market sequence risk are not modeled.',
-          'This is a high-level readiness snapshot to frame a planning conversation, not a comprehensive retirement plan.',
-        ]}
-      />
+      <Assumptions items={assumptions} />
     </ToolShell>
   )
 }

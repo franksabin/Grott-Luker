@@ -16,6 +16,7 @@ import {
   Narrative,
 } from '../components/ui.jsx'
 import { LineChart, TONE } from '../components/charts.jsx'
+import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeature, PrintTiles, PrintRows, PrintTable, PrintProse, PrintNote, PrintInputs, PrintAssumptions, PrintFooter, PrintCols } from '../components/PrintReport.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 import {
   LIMITS,
@@ -84,12 +85,151 @@ export default function CashBalance() {
       { label: 'Tax saved on the cash balance contribution', formula: `${money(r.cb)} × ${percent(r.rate * 100, 1)}`, result: money(r.taxCb) },
       { label: 'Tax saved on both plans', formula: `(${money(r.k401WithCb)} + ${money(r.cb)}) × ${percent(r.rate * 100, 1)}`, result: money(r.taxAll) },
       ...(r.employeeCost > 0 ? [{ label: 'Employee contributions', formula: `${form.employees} × ${money(toNumber(form.avgPay))} × ${percent(EMPLOYEE_COST_PCT * 100, 1)}`, result: money(r.employeeCost) }] : []),
-      { label: 'Net cost after tax', formula: `${money(r.cb)} − ${money(r.taxCb)}${r.employeeCost > 0 ? ` + ${money(r.employeeCost)} × (1 − ${percent(r.rate * 100, 1)})` : ''}`, result: money(r.netCost) },
+      { label: 'Net cost of the cash balance, after tax', formula: `${money(r.cb)} − ${money(r.taxCb)}${r.employeeCost > 0 ? ` + ${money(r.employeeCost)} × (1 − ${percent(r.rate * 100, 1)})` : ''}`, result: money(r.netCost) },
+      { label: 'Owner outlay for both plans, after tax', formula: `(${money(r.k401WithCb)} + ${money(r.cb)}) × (1 − ${percent(r.rate * 100, 1)})${r.employeeCost > 0 ? ` + ${money(r.employeeCostAfterTax)} employee cost after tax` : ''}`, result: money(r.outlayBoth) },
       { label: `Balance after ${r.n} years, 401(k) + cash balance`, formula: `${money(r.k401WithCb + r.cb)} a year × ((1 + ${form.ret}%)^${r.n} − 1) ÷ ${form.ret}%`, result: money(r.vBoth) },
       { label: `Balance after ${r.n} years, 401(k) only`, formula: `${money(r.k401Only)} a year, same return`, result: money(r.v401) },
       { label: `Balance after ${r.n} years, no plan`, formula: `${money(r.k401Only)} × (1 − ${percent(r.rate * 100, 1)}) a year at ${form.ret}% × (1 − ${percent(TAXABLE_DRAG * 100, 0)} tax drag)`, result: money(r.vNone) },
     ],
     [r, form],
+  )
+
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const compLabel = COMP.find((o) => o.value === form.comp)?.label || money(toNumber(form.comp))
+  const offGrid = r.age !== r.gridAge
+  const ageEntered = toNumber(form.age)
+  const employeeWord = toNumber(form.employees) === 1 ? 'employee' : 'employees'
+  const assumptions = [
+    `Cash balance contributions are the maximums from Kongruent's ${LIMITS.year} actuarial grid by age (${GRID_MIN_AGE}–${GRID_MAX_AGE}) and considered earnings, subject to the §415(b) limit; pay between grid columns uses the lower column.${offGrid ? ` Age ${r.age} is outside the grid, so the nearest row (age ${r.gridAge}) is used.` : ''}`,
+    `The first-year contribution — ${money(r.k401WithCb + r.cb)} combined, ${money(r.k401Only)} in the 401(k)-only path — is held level for all ${r.n} years. In practice the grid amount rises with age, the catch-up changes at 60–63, and the §415(b) limit eventually caps the cash balance account, so this is an illustration of the first-year design, not a funding schedule.`,
+    `${LIMITS.year} limits: ${money(LIMITS.compensation)} compensation, ${money(LIMITS.dcAnnualAdditions)} annual additions, ${money(LIMITS.deferral)} deferrals, catch-up ${money(LIMITS.catchUp)} at 50 and ${money(LIMITS.catchUp60)} at 60–63.`,
+    `In the combined design, employer 401(k) contributions are 6% of pay (3% safe harbor plus 3% profit sharing), the level typically permitted alongside a cash balance plan. The 401(k)-only scenario uses the full annual additions limit plus catch-up.`,
+    `The no-plan scenario invests the after-tax equivalent of the 401(k)-only contribution outside a plan with a ${percent(TAXABLE_DRAG * 100, 0)} annual tax drag on returns.`,
+    `Employee cost (${percent(EMPLOYEE_COST_PCT * 100, 1)} of pay) is counted in the combined design only; the safe-harbor cost of a stand-alone 401(k) is not modeled. It is illustrative and excludes plan administration, actuarial fees, PBGC premiums, and prior benefit accruals. The actuary sets the actual required contribution.`,
+    'Federal bracket and state rate are applied to the deduction as entered; no other income effects are modeled.',
+  ]
+  const narrativeText =
+    `At ${r.age} on ${money(toNumber(form.comp))} of pay, the ${LIMITS.year} grid allows a ${money(r.cb)} cash balance contribution${offGrid ? ` (nearest grid row, age ${r.gridAge})` : ''}. ` +
+    `Paired with ${money(r.k401WithCb)} through the 401(k), the business deducts ${money(r.k401WithCb + r.cb)} a year and saves about ${money(r.taxAll)} in tax at a ${percent(r.rate * 100, 0)} combined rate. ` +
+    `Held level for ${r.n} years at ${form.ret}%, that grows to ${money(r.vBoth)}, against ${money(r.v401)} from a 401(k) alone and ${money(r.vNone)} investing the same after-tax dollars outside a plan.` +
+    (r.employeeCost > 0 ? ` Covering ${toNumber(form.employees)} ${employeeWord} adds about ${money(r.employeeCost)} a year before tax, ${money(r.employeeCostAfterTax)} after the deduction.` : '')
+  const inputs = [
+    ['Age', form.age === '' ? `not entered · modeled at ${r.age}` : `${ageEntered} yrs${ageEntered !== r.age ? ` · modeled at ${r.age}` : ''}`],
+    ['Plan compensation', compLabel],
+    ['Federal tax bracket', `${form.fed}%`],
+    ['Years until retirement', `${r.n} years`],
+    ['Assumed annual return', `${form.ret}%`],
+    ['State income tax rate', `${form.state}%`],
+    ['Eligible employees (other than owners)', String(toNumber(form.employees))],
+    ['Average employee pay', money(toNumber(form.avgPay))],
+  ]
+  const milestones = Array.from(new Set([1, ...Array.from({ length: Math.floor(r.n / 5) }, (_, i) => (i + 1) * 5), r.n]))
+    .filter((y) => y >= 1 && y <= r.n)
+    .sort((a, b) => a - b)
+  const tickFmt = (v) => {
+    const a = Math.abs(v)
+    const s = a >= 1e6 ? `$${(a / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 })}M` : a >= 1000 ? `$${Math.round(a / 1000).toLocaleString('en-US')}k` : money(a)
+    return v < 0 ? `−${s}` : s
+  }
+  const printReport = (
+    <PrintDoc>
+      <PrintPage>
+        <PrintBand
+          title="Cash Balance Plan Illustration"
+          subtitle="What a cash balance plan adds on top of a 401(k): the contribution, the tax saved, the net cost, and the balance at retirement."
+          meta={`Age ${r.age} · ${money(toNumber(form.comp))} pay · ${r.n} years · ${form.ret}% return`}
+          metaRight={today}
+        />
+        <PrintFeature
+          label={`Projected balance after ${r.n} years — 401(k) + cash balance`}
+          value={money(r.vBoth)}
+          note={`vs. ${money(r.v401)} with a 401(k) only · ${money(r.vNone)} with no plan`}
+        />
+        <PrintTiles
+          items={[
+            { label: 'Cash balance contribution', value: money(r.cb), note: 'business deduction' },
+            { label: 'Tax saved per year', value: money(r.taxAll), note: 'both plans', best: true },
+            { label: 'Net cost of cash balance', value: money(r.netCost), note: 'after tax, this year' },
+            { label: 'vs. 401(k) only', value: `+${money(r.vBoth - r.v401)}`, note: 'at retirement' },
+          ]}
+        />
+        <PrintSection title="What this means">
+          <PrintProse>{narrativeText}</PrintProse>
+        </PrintSection>
+        <PrintSection title="Projected balance by year" className="pr-chart">
+          <LineChart
+            xEnd={`Year ${r.n}`}
+            format={tickFmt}
+            series={[
+              { label: '401(k) + cash balance', color: TONE.net, points: r.series.both },
+              { label: '401(k) only', color: TONE.accent, points: r.series.k401 },
+              { label: 'No plan (taxable)', color: TONE.cost, points: r.series.none },
+            ]}
+          />
+        </PrintSection>
+        <PrintFooter page={1} pages={2} />
+      </PrintPage>
+      <PrintPage last compact={r.employeeCost > 0 || offGrid}>
+        <PrintPageHead title="Cash Balance Plan Illustration" right={today} />
+        <PrintSection title="This year's contribution and tax" note={`${percent(r.rate * 100, 0)} combined rate`}>
+          <PrintRows
+            rows={[
+              { label: 'Cash balance contribution (business deduction)', value: money(r.cb) },
+              { label: '401(k) alongside it (deferral, catch-up, 6% employer)', value: money(r.k401WithCb), sub: true },
+              { label: 'Tax saved on the cash balance contribution', value: `−${money(r.taxCb)}` },
+              ...(r.employeeCost > 0 ? [{ label: `Employee contributions, after tax (${toNumber(form.employees)} × ${percent(EMPLOYEE_COST_PCT * 100, 1)} of pay, less ${percent(r.rate * 100, 0)} tax saved)`, value: `+${money(r.employeeCostAfterTax)}` }] : []),
+              { label: 'Net cost of the cash balance, after tax', value: money(r.netCost), total: true },
+              { label: 'Owner outlay for both plans, after tax (adds the 401(k) net of its deduction)', value: money(r.outlayBoth), sub: true },
+            ]}
+          />
+        </PrintSection>
+        <PrintSection title="Three paths at retirement" note={`${r.n} years at ${form.ret}% · no plan invests the same after-tax dollars in a taxable account`}>
+          <PrintTable
+            head={['', 'No plan', '401(k) only', '401(k) + cash balance']}
+            widths={['34%', '22%', '22%', '22%']}
+            align={['left', 'right', 'right', 'right']}
+            rows={[
+              ['Plan contribution per year', '$0', money(r.k401Only), money(r.k401WithCb + r.cb)],
+              ['Tax saved per year', '$0', money(r.tax401Only), money(r.taxAll)],
+              ...(r.employeeCost > 0 ? [['Employee contributions, after tax', '—', '—', money(r.employeeCostAfterTax)]] : []),
+              ['Owner outlay per year, after tax', money(r.outlayNone), money(r.outlay401), money(r.outlayBoth)],
+              [`Balance after ${r.n} years`, money(r.vNone), money(r.v401), money(r.vBoth)],
+              ['Advantage over no plan', '—', `+${money(r.v401 - r.vNone)}`, `+${money(r.vBoth - r.vNone)}`],
+            ]}
+          />
+        </PrintSection>
+        <PrintCols>
+          <PrintSection title="Balance along the way">
+            <PrintTable
+              head={['Year', 'No plan', '401(k) only', '401(k) + CB']}
+              widths={['16%', '28%', '28%', '28%']}
+              rows={milestones.map((y) => [String(y), money(r.series.none[y]), money(r.series.k401[y]), money(r.series.both[y])])}
+            />
+          </PrintSection>
+          <PrintSection title="Plan limits applied" note={`${LIMITS.year}`}>
+            <PrintRows
+              rows={[
+                { label: '401(k) elective deferral', value: money(LIMITS.deferral) },
+                { label: `Catch-up at age ${r.age}`, value: money(catchUp(r.age)) },
+                { label: `Employer 6% × ${money(Math.min(toNumber(form.comp), LIMITS.compensation))}`, value: money(EMPLOYER_PCT_WITH_CB * Math.min(toNumber(form.comp), LIMITS.compensation)) },
+                { label: '401(k) alongside a cash balance plan', value: money(r.k401WithCb), total: true },
+                { label: '401(k) on its own (§415(c) + catch-up)', value: money(r.k401Only), sub: true },
+              ]}
+            />
+          </PrintSection>
+        </PrintCols>
+        <PrintNote title="Reading the result">
+          The cash balance contribution is a required, actuarially set amount once the plan is adopted, not a discretionary one, so the owner needs income that can carry it for several years. Employees generally must receive contributions too, which is why the employee count matters more than any other refinement. The 401(k) alongside a cash balance plan is smaller than a 401(k) on its own because employer money is normally held to 6% of pay in the combined design.
+        </PrintNote>
+        <PrintSection title="Inputs used in this estimate">
+          <PrintInputs items={inputs} />
+        </PrintSection>
+        <PrintSection title="Assumptions">
+          <PrintAssumptions items={assumptions} />
+        </PrintSection>
+        <PrintFooter page={2} pages={2} />
+      </PrintPage>
+    </PrintDoc>
   )
 
   return (
@@ -98,6 +238,7 @@ export default function CashBalance() {
       subtitle="What a cash balance plan adds on top of a 401(k) for a business owner: the maximum contribution by age and pay from the 2026 actuarial grid, the tax saved, the net cost, and the balance at retirement against a 401(k) alone and no plan at all."
       onReset={() => setForm(DEFAULTS)}
       steps={steps}
+      printReport={printReport}
     >
       <div className="tool-grid">
         <div>
@@ -148,14 +289,12 @@ export default function CashBalance() {
               <ResultRow label="Cash balance contribution (business deduction)" value={r.cb} />
               <ResultRow label="401(k) alongside it (deferral, catch-up, 6% employer)" value={r.k401WithCb} sub />
               <ResultRow label="Tax saved on the cash balance contribution" value={r.taxCb} positive />
-              {r.employeeCost > 0 ? <ResultRow label={`Employee contributions (${form.employees} × ${percent(EMPLOYEE_COST_PCT * 100, 1)} of pay)`} value={r.employeeCost} negative /> : null}
-              <ResultRow label="Net cost after tax" value={r.netCost} total />
+              {r.employeeCost > 0 ? <ResultRow label={`Employee contributions, after tax (${toNumber(form.employees)} × ${percent(EMPLOYEE_COST_PCT * 100, 1)} of pay, less ${percent(r.rate * 100, 0)} tax saved)`} value={r.employeeCostAfterTax} negative /> : null}
+              <ResultRow label="Net cost of the cash balance, after tax" value={r.netCost} total />
+              <ResultRow label="Owner outlay for both plans, after tax (adds the 401(k) net of its deduction)" value={r.outlayBoth} sub />
             </div>
 
-            <Narrative>
-              At {r.age} on {money(toNumber(form.comp))} of pay, the {LIMITS.year} grid allows a {money(r.cb)} cash balance contribution. Paired with {money(r.k401WithCb)} through the 401(k), the business deducts {money(r.k401WithCb + r.cb)} a year and saves about {money(r.taxAll)} in tax at a {percent(r.rate * 100, 0)} combined rate. Over {r.n} years at {form.ret}%, that grows to {money(r.vBoth)}, against {money(r.v401)} from a 401(k) alone and {money(r.vNone)} investing the same after-tax dollars outside a plan.
-              {r.employeeCost > 0 ? ` Covering ${form.employees} employees adds about ${money(r.employeeCost)} a year before tax.` : ''}
-            </Narrative>
+            <Narrative>{narrativeText}</Narrative>
 
             <ScenarioCards
               sub="at retirement"
@@ -169,6 +308,7 @@ export default function CashBalance() {
             <div className="chart-block">
               <LineChart
                 xEnd={`Year ${r.n}`}
+                format={tickFmt}
                 series={[
                   { label: '401(k) + cash balance', color: TONE.net, points: r.series.both },
                   { label: '401(k) only', color: TONE.accent, points: r.series.k401 },
@@ -185,16 +325,7 @@ export default function CashBalance() {
         The cash balance contribution is a required, actuarially set amount once the plan is adopted, not a discretionary one, so the owner needs income that can carry it for several years. Employees generally must receive contributions too, which is why the employee count matters more than any other refinement. The 401(k) alongside a cash balance plan is smaller than a 401(k) on its own because employer money is normally held to 6% of pay in the combined design.
       </Note>
 
-      <Assumptions
-        items={[
-          `Cash balance contributions are the maximums from Kongruent's ${LIMITS.year} actuarial grid by age (${GRID_MIN_AGE}–${GRID_MAX_AGE}) and considered earnings, subject to the §415(b) limit; pay between grid columns uses the lower column.`,
-          `${LIMITS.year} limits: ${money(LIMITS.compensation)} compensation, ${money(LIMITS.dcAnnualAdditions)} annual additions, ${money(LIMITS.deferral)} deferrals, catch-up ${money(LIMITS.catchUp)} at 50 and ${money(LIMITS.catchUp60)} at 60–63.`,
-          `In the combined design, employer 401(k) contributions are 6% of pay (3% safe harbor plus 3% profit sharing), the level typically permitted alongside a cash balance plan. The 401(k)-only scenario uses the full annual additions limit plus catch-up.`,
-          `The no-plan scenario invests the after-tax equivalent of the 401(k)-only contribution outside a plan with a ${percent(TAXABLE_DRAG * 100, 0)} annual tax drag on returns.`,
-          'Employee cost is illustrative and does not include plan administration, actuarial fees, PBGC premiums, or the cost of prior benefit accruals. The actuary sets the actual required contribution.',
-          'Federal bracket and state rate are applied to the deduction as entered; no other income effects are modeled.',
-        ]}
-      />
+      <Assumptions items={assumptions} />
     </ToolShell>
   )
 }

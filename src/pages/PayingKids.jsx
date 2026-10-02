@@ -17,7 +17,8 @@ import {
   Narrative,
 } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
-import { money, toNumber, percent } from '../lib/format.js'
+import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeature, PrintTiles, PrintRows, PrintTable, PrintProse, PrintNote, PrintInputs, PrintAssumptions, PrintFooter, PrintCols } from '../components/PrintReport.jsx'
+import { money, toNumber, percent, number } from '../lib/format.js'
 import { ordinaryTax, STANDARD_DEDUCTION, TAX_YEAR, SS_WAGE_BASE } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 
@@ -131,6 +132,247 @@ export default function PayingKids() {
   const ready = r.kids.length > 0
   const entityLabel = ENTITY.find((e) => e.value === r.entity)?.label
 
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  // Same formatter as the screen's ResultRow (money(-x) → "-$X"), so page 1 never mixes minus glyphs.
+  const cost = (v) => money(v > 0 ? -v : 0)
+  const ficaKids = r.kids.filter((k) => k.fica > 0).length
+  // Blank-state planning table: hours a child can work before owing income tax, at common rates.
+  const headroomRows = [15, 18, 20, 25, 30].map((rate) => [
+    `${money(rate, 2)}/hr`,
+    `${number(r.std / rate)} hours`,
+    `${number(r.std / rate / 50, 1)} hrs/wk`,
+    `${number(IRA_LIMIT / rate)} hours`,
+  ])
+  const assumptions = [
+    `${TAX_YEAR} single standard deduction of ${money(STANDARD_DEDUCTION.single)} and ordinary brackets for each child; the child is assumed to have no other income. Earned income is not subject to the kiddie tax.`,
+    'Owner saving is the wages times the owner’s federal bracket plus a flat state rate; for a sole proprietor, self-employment tax at 15.3% × 92.35% is also saved, assuming net earnings stay below the Social Security wage base. For an S- or C-corporation the model assumes the dollars would otherwise have reached the owner as salary or pass-through income taxed at that bracket; if a C-corporation would instead retain them, the deduction is worth only the 21% corporate rate and the saving shown is overstated.',
+    'Payroll-tax exemption: wages to a child under 18 from a parent’s sole proprietorship or a partnership owned only by the parents are exempt from Social Security and Medicare; under 21, from FUTA. An S- or C-corporation pays 15.3% and FUTA on every employee.',
+    `Roth IRA room is the lesser of wages and the ${money(IRA_LIMIT)} limit. Contributions can come from anyone, including the parent, as long as the child had that much earned income.`,
+    'Company 401(k) eligibility uses the plan’s minimum age as entered; service requirements and entry dates are not modeled.',
+    'State unemployment and workers’ compensation, payroll service fees, and the child’s own filing requirement are not modeled.',
+    'Baseline model. Not reviewed by Grott Luker & Co.',
+  ]
+  const inputs = [
+    ['Entity type', entityLabel],
+    ['Owner’s federal bracket', percent(r.ownerFed * 100, 0)],
+    ['State', r.st.name],
+    ['401(k) plan minimum age', `${r.planMinAge} years`],
+    ...form.kids.map((k, i) => [
+      `Child ${i + 1}`,
+      toNumber(k.age) && toNumber(k.hours) && toNumber(k.rate)
+        ? `age ${toNumber(k.age)} · ${toNumber(k.hours).toLocaleString()} hours × ${money(toNumber(k.rate), 2)}/hr`
+        : 'not entered',
+    ]),
+  ]
+  const narrative = ready ? (
+    <>
+      Paying {r.kids.length === 1 ? 'one child' : `${r.kids.length} children`} {money(r.wages)} for real work shifts that income out of the owner’s {percent(r.ownerFed * 100, 0)} bracket, saving about {money(r.ownerIncomeTax)} in income tax{r.entity === 'soleprop' ? ` and ${money(r.ownerSe)} in self-employment tax` : ''}.
+      {' '}
+      {r.childFed + r.childState > 0
+        ? `The children owe about ${money(r.childFed + r.childState)} on the portion above the ${money(r.std)} standard deduction.`
+        : `Each child’s wages sit under the ${money(r.std)} standard deduction, so they owe no income tax.`}
+      {' '}
+      {r.fica > 0
+        ? r.entity === 'soleprop'
+          ? `Because ${r.kids.length === 1 ? 'the child is' : ficaKids === 1 ? 'one child is' : `${ficaKids} of the children are`} 18 or older, Social Security and Medicare of ${money(r.fica)} apply to ${ficaKids === 1 ? 'that child’s' : 'their'} wages, which eats into the benefit.`
+          : `Because the business is a corporation, Social Security and Medicare of ${money(r.fica)} apply to all of the wages, which eats into the benefit.`
+        : 'Under 18 in a parent’s business, the wages are exempt from Social Security and Medicare, so nothing is lost to payroll tax.'}
+      {' '}The wages also create {money(r.roth)} of Roth IRA room{r.eligibleKids ? `, and ${r.eligibleKids === 1 ? 'one child meets' : `${r.eligibleKids} children meet`} the plan’s age ${r.planMinAge} minimum for the company 401(k)` : ''}.
+    </>
+  ) : (
+    'Enter a child’s age, hours for the year, and an hourly rate. The estimate updates as you type.'
+  )
+  const printNote = (
+    <PrintNote title="Reading the result">
+      The work has to be real and age-appropriate, the pay has to match what a stranger would earn for it, and there has to be a record: a timesheet, a written job description, pay through payroll with a W-2, and the money landing in the child’s own account, not back in the parent’s. Paying a six-year-old $16,000 to “model” for the website does not survive. Paying a 15-year-old $6,000 to do bookkeeping and social media on a timesheet does.
+    </PrintNote>
+  )
+  const printInputsCols = (
+    <PrintCols>
+      <PrintSection title="Inputs used in this estimate">
+        <PrintInputs items={inputs} />
+      </PrintSection>
+      <PrintSection title="Assumptions">
+        <PrintAssumptions items={assumptions} />
+      </PrintSection>
+    </PrintCols>
+  )
+  const printReport = ready ? (
+    <PrintDoc>
+      <PrintPage>
+        <PrintBand
+          title="Family Payroll Illustration"
+          subtitle="What the family saves when the children are paid for real work, and what payroll tax costs."
+          meta={`${entityLabel} · ${r.kids.length} ${r.kids.length === 1 ? 'child' : 'children'} · ${money(r.wages)} in wages`}
+          metaRight={today}
+        />
+        <PrintFeature
+          label="Net family tax saved this year"
+          value={money(r.net)}
+          note={`${money(r.wages)} of wages moved from a ${percent(r.ownerFed * 100, 0)} bracket to the children`}
+        />
+        <PrintTiles
+          items={[
+            { label: 'Owner taxes saved', value: money(r.ownerIncomeTax + r.ownerSe), note: r.entity === 'soleprop' ? 'income + self-employment tax' : 'income tax on the deduction', best: r.net > 0 },
+            { label: 'Taxes the children pay', value: money(r.taxIfKidsPaid), note: 'income + payroll' },
+            { label: 'Roth IRA room created', value: money(r.roth), note: `up to ${money(IRA_LIMIT)} per child` },
+          ]}
+        />
+        <PrintSection title="Where the saving comes from" note="this tax year">
+          <PrintRows
+            rows={[
+              { label: r.entity === 'soleprop' ? `Owner income and self-employment tax saved on ${money(r.wages)} of wages` : `Owner income tax saved on ${money(r.wages)} of wages`, value: money(r.ownerIncomeTax + r.ownerSe) },
+              { label: 'Children’s income tax', value: cost(r.childFed + r.childState), sub: true },
+              { label: 'Social Security, Medicare & FUTA on their wages', value: cost(r.fica + r.futa), sub: true },
+              { label: 'Net family tax saved', value: money(r.net), total: true },
+            ]}
+          />
+        </PrintSection>
+        <PrintSection title="What this means">
+          <PrintProse>{narrative}</PrintProse>
+        </PrintSection>
+        <PrintSection title="Wages against the standard deduction" note={`each child owes no income tax on the first ${money(r.std)}`} className="pr-chart">
+          <BarCompare
+            height={230}
+            groups={r.kids.map((k, i) => ({
+              label: `Child ${i + 1}, age ${k.age}`,
+              bars: [
+                { label: 'Wages', value: k.wages, color: TONE.net },
+                { label: 'Standard deduction', value: r.std, color: TONE.cost },
+              ],
+            }))}
+          />
+        </PrintSection>
+        <PrintFooter page={1} pages={2} />
+      </PrintPage>
+      <PrintPage last>
+        <PrintPageHead title="Family Payroll Illustration" right={today} />
+        <PrintSection title="Two ways to tax the same dollars" note="owner keeps the income vs. children are paid">
+          <PrintTable
+            head={['', 'Owner keeps the income', 'Children are paid']}
+            widths={['40%', '30%', '30%']}
+            align={['left', 'right', 'right']}
+            rowClass={(row) => (row[0] === 'Total tax on these dollars' ? 'is-strong' : '')}
+            rows={[
+              ['Income tax', money(r.ownerIncomeTax), money(r.childFed + r.childState)],
+              ['Self-employment tax', money(r.ownerSe), '$0'],
+              ['Social Security & Medicare', '$0', money(r.fica)],
+              ['Federal unemployment (FUTA)', '$0', money(r.futa)],
+              ['Total tax on these dollars', money(r.taxIfOwnerKeeps), money(r.taxIfKidsPaid)],
+              ['Roth IRA room created', '$0', money(r.roth)],
+            ]}
+          />
+        </PrintSection>
+        <PrintSection title="Child by child" note={`family net = owner saving − child’s tax − payroll tax · 401(k) uses the plan’s age ${r.planMinAge} minimum`}>
+          <PrintTable
+            head={['Child', 'Wages', 'Their tax', 'Payroll tax', 'Family net', 'Roth room', '401(k)']}
+            widths={['22%', '13%', '13%', '13%', '13%', '13%', '13%']}
+            align={['left', 'right', 'right', 'right', 'right', 'right', 'left']}
+            rows={r.kids.map((k, i) => [
+              `Child ${i + 1}, age ${k.age}`,
+              money(k.wages),
+              money(k.childFed + k.childState),
+              money(k.fica + k.futa),
+              money(k.net),
+              money(k.roth),
+              k.planEligible ? 'Eligible' : `Under ${r.planMinAge}`,
+            ])}
+          />
+        </PrintSection>
+        <PrintSection title="Tax on the same dollars" note={r.taxIfKidsPaid > 0 ? 'owner keeps the income vs. children are paid' : 'the children owe nothing — every dollar of tax on these wages disappears'} className="pr-chart">
+          <BarCompare
+            height={110}
+            legend={false}
+            groups={[
+              { label: 'Owner keeps the income', bars: [{ label: 'Tax', value: r.taxIfOwnerKeeps, color: TONE.tax }] },
+              { label: 'Children are paid', bars: [{ label: 'Tax', value: r.taxIfKidsPaid, color: TONE.tax }] },
+            ]}
+          />
+        </PrintSection>
+        {printNote}
+        {printInputsCols}
+        <PrintFooter page={2} pages={2} />
+      </PrintPage>
+    </PrintDoc>
+  ) : (
+    <PrintDoc>
+      <PrintPage>
+        <PrintBand
+          title="Family Payroll Illustration"
+          subtitle="What the family saves when the children are paid for real work, and what payroll tax costs."
+          meta="No children entered yet"
+          metaRight={today}
+        />
+        <PrintFeature
+          label="Net family tax saved this year"
+          value="—"
+          note="Enter at least one child’s age, hours for the year, and hourly rate; the estimate fills in as you type"
+        />
+        <PrintSection title="How the estimate is built" note={`${TAX_YEAR} rules`}>
+          <PrintRows
+            rows={[
+              { label: 'Owner income tax saved', value: 'wages × federal bracket + state rate' },
+              { label: 'Owner self-employment tax saved (sole proprietor)', value: 'wages × 92.35% × 15.3%' },
+              { label: 'Child’s income tax', value: `$0 on the first ${money(r.std)}; single brackets above`, sub: true },
+              { label: 'Social Security & Medicare on the child’s wages', value: 'exempt under 18 in a parent’s sole proprietorship', sub: true },
+              { label: 'Federal unemployment (FUTA)', value: `exempt under 21; otherwise 0.6% of the first ${money(FUTA_BASE)}`, sub: true },
+              { label: 'Roth IRA room created', value: `lesser of wages and ${money(IRA_LIMIT)} per child` },
+            ]}
+          />
+        </PrintSection>
+        <PrintSection title="What this means">
+          <PrintProse>
+            {narrative} Wages paid to a child for real work are a business deduction to the owner and, up to the standard deduction, tax-free income to the child. In a parent’s sole proprietorship or a partnership owned only by the parents, a child under 18 also escapes Social Security and Medicare; a corporation gets no family exemption, so the payroll tax has to be weighed against the income-tax saving.
+          </PrintProse>
+        </PrintSection>
+        <PrintSection title="Payroll-tax rules by entity type" note="what the business pays on a child’s wages">
+          <PrintTable
+            head={['', 'Sole proprietor / parents’ partnership', 'S- or C-corporation']}
+            widths={['34%', '33%', '33%']}
+            rows={[
+              ['Social Security & Medicare (15.3%)', 'Exempt while the child is under 18', 'Due on every dollar, any age'],
+              ['Federal unemployment (FUTA)', 'Exempt while the child is under 21', `0.6% of the first ${money(FUTA_BASE)}`],
+              ['Owner self-employment tax saved', 'Yes — the wages come out of net self-employment earnings', 'No — the owner is on W-2 salary'],
+              ['Child’s income tax', `$0 up to the ${money(r.std)} standard deduction`, `$0 up to the ${money(r.std)} standard deduction`],
+              ['Roth IRA room for the child', `Lesser of wages and ${money(IRA_LIMIT)}`, `Lesser of wages and ${money(IRA_LIMIT)}`],
+            ]}
+          />
+        </PrintSection>
+        <PrintFooter page={1} pages={2} />
+      </PrintPage>
+      <PrintPage last>
+        <PrintPageHead title="Family Payroll Illustration" right={today} />
+        <PrintSection title="Tax-free wage capacity per child" note={`hours to reach the ${money(r.std)} standard deduction and the ${money(IRA_LIMIT)} Roth IRA limit`}>
+          <PrintTable
+            head={['Hourly rate', 'Hours to the standard deduction', 'Over a 50-week year', `Hours to fund a ${money(IRA_LIMIT)} Roth IRA`]}
+            widths={['22%', '28%', '22%', '28%']}
+            align={['left', 'right', 'right', 'right']}
+            rows={headroomRows}
+          />
+          <PrintProse>
+            The rate has to be what a stranger would be paid for the same work; the hours have to be real and recorded. Below the standard deduction the child owes no federal income tax, and in most states little or no state tax, while the owner deducts every dollar.
+          </PrintProse>
+        </PrintSection>
+        <PrintSection title="What has to be in the file" note="the records that carry the deduction on audit">
+          <PrintTable
+            head={['Record', 'Why it matters']}
+            widths={['30%', '70%']}
+            rows={[
+              ['Written job description', 'Shows the work is real, age-appropriate, and needed by the business'],
+              ['Timesheet or hours log', 'Ties the wages to hours actually worked; estimates after the fact do not hold up'],
+              ['Pay rate comparison', 'Documents that the rate matches what an unrelated worker would earn'],
+              ['Payroll run and Form W-2', 'The wages have to go through payroll and be reported like any employee’s'],
+              ['Deposit to the child’s own account', 'Money that lands back in the parent’s account is not the child’s wages'],
+            ]}
+          />
+        </PrintSection>
+        {printNote}
+        {printInputsCols}
+        <PrintFooter page={2} pages={2} />
+      </PrintPage>
+    </PrintDoc>
+  )
+
   return (
     <ToolShell
       title="What If I Pay My Kids Through the Business?"
@@ -138,6 +380,7 @@ export default function PayingKids() {
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
       steps={steps}
+      printReport={printReport}
     >
       <div className="tool-grid">
         <div>
@@ -191,24 +434,7 @@ export default function PayingKids() {
               <ResultRow label="Net family tax saved" value={r.net} total positive={r.net > 0} negative={r.net < 0} />
             </div>
 
-            <Narrative>
-              {ready ? (
-                <>
-                  Paying {r.kids.length === 1 ? 'one child' : `${r.kids.length} children`} {money(r.wages)} for real work shifts that income out of the owner’s {percent(r.ownerFed * 100, 0)} bracket, saving about {money(r.ownerIncomeTax)} in income tax{r.entity === 'soleprop' ? ` and ${money(r.ownerSe)} in self-employment tax` : ''}.
-                  {' '}
-                  {r.childFed + r.childState > 0
-                    ? `The children owe about ${money(r.childFed + r.childState)} on the portion above the ${money(r.std)} standard deduction.`
-                    : `Each child’s wages sit under the ${money(r.std)} standard deduction, so they owe no income tax.`}
-                  {' '}
-                  {r.fica > 0
-                    ? `Because the business is ${r.entity === 'soleprop' ? 'paying a child 18 or older' : 'a corporation'}, Social Security and Medicare of ${money(r.fica)} apply to the wages, which eats into the benefit.`
-                    : 'Under 18 in a parent’s business, the wages are exempt from Social Security and Medicare, so nothing is lost to payroll tax.'}
-                  {' '}The wages also create {money(r.roth)} of Roth IRA room{r.eligibleKids ? `, and ${r.eligibleKids === 1 ? 'one child meets' : `${r.eligibleKids} children meet`} the plan’s age ${r.planMinAge} minimum for the company 401(k)` : ''}.
-                </>
-              ) : (
-                'Enter a child’s age, hours for the year, and an hourly rate. The estimate updates as you type.'
-              )}
-            </Narrative>
+            <Narrative>{narrative}</Narrative>
 
             <ScenarioCards
               sub="tax on the same dollars"
@@ -256,17 +482,7 @@ export default function PayingKids() {
         The work has to be real and age-appropriate, the pay has to match what a stranger would earn for it, and there has to be a record: a timesheet, a written job description, pay through payroll with a W-2, and the money landing in the child’s own account, not back in the parent’s. Paying a six-year-old $16,000 to “model” for the website does not survive. Paying a 15-year-old $6,000 to do bookkeeping and social media on a timesheet does.
       </Note>
 
-      <Assumptions
-        items={[
-          `${TAX_YEAR} single standard deduction of ${money(STANDARD_DEDUCTION.single)} and ordinary brackets for each child; the child is assumed to have no other income. Earned income is not subject to the kiddie tax.`,
-          'Owner saving is the wages times the owner’s federal bracket plus a flat state rate; for a sole proprietor, self-employment tax at 15.3% × 92.35% is also saved, assuming net earnings stay below the Social Security wage base.',
-          'Payroll-tax exemption: wages to a child under 18 from a parent’s sole proprietorship or a partnership owned only by the parents are exempt from Social Security and Medicare; under 21, from FUTA. An S- or C-corporation pays 15.3% and FUTA on every employee.',
-          `Roth IRA room is the lesser of wages and the ${money(IRA_LIMIT)} limit. Contributions can come from anyone, including the parent, as long as the child had that much earned income.`,
-          'Company 401(k) eligibility uses the plan’s minimum age as entered; service requirements and entry dates are not modeled.',
-          'State unemployment and workers’ compensation, payroll service fees, and the child’s own filing requirement are not modeled.',
-          'Baseline model. Not reviewed by Grott Luker & Co.',
-        ]}
-      />
+      <Assumptions items={assumptions} />
     </ToolShell>
   )
 }

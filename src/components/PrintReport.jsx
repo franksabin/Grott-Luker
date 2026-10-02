@@ -11,8 +11,13 @@ export function PrintDoc({ children }) {
   return <div className="pr-doc print-only">{children}</div>
 }
 
-export function PrintPage({ children, last = false }) {
-  return <section className={`pr-page${last ? ' is-last' : ''}`}>{children}</section>
+export function PrintPage({ children, last = false, compact = false }) {
+  return <section className={`pr-page${last ? ' is-last' : ''}${compact ? ' is-compact' : ''}`}>{children}</section>
+}
+
+// Two (or three) blocks side by side. Children are usually PrintSections.
+export function PrintCols({ children, cols = 2 }) {
+  return <div className={`pr-cols${cols === 3 ? ' is-3' : ''}`}>{children}</div>
 }
 
 export function PrintBand({ title, subtitle, meta, metaRight }) {
@@ -94,16 +99,18 @@ export function PrintRows({ rows }) {
   )
 }
 
-export function PrintTable({ head, rows, widths }) {
+// align: per-column 'left' | 'right' (right = numeric, tabular). rowClass(row, i) → 'is-strong' | 'is-tint' | ''.
+export function PrintTable({ head, rows, widths, align, rowClass }) {
+  const cls = (j) => (align && align[j] === 'right' ? 'num' : undefined)
   return (
     <table className="pr-table">
       {widths ? <colgroup>{widths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup> : null}
       <thead>
-        <tr>{head.map((h, i) => <th key={i}>{h}</th>)}</tr>
+        <tr>{head.map((h, i) => <th key={i} className={cls(i)}>{h}</th>)}</tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
+          <tr key={i} className={rowClass ? rowClass(r, i) || undefined : undefined}>{r.map((c, j) => <td key={j} className={cls(j)}>{c}</td>)}</tr>
         ))}
       </tbody>
     </table>

@@ -2604,7 +2604,7 @@ html, body { overflow-x: hidden; }
   .pr-section { margin-bottom: 8px; }
   .pr-section-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1.5px solid #c4a054; padding: 0 90px 3px 36px; margin-bottom: 6px; }
   .pr-section-head h2 { font-family: var(--font-serif); font-size: 12.5px; font-weight: 700; color: #0f2440; margin: 0; }
-  .pr-section-head span { font-size: 9px; color: #726d63; font-style: italic; }
+  .pr-section-head > span { font-size: 9px; color: #726d63; font-style: italic; }
   .pr-rows { display: flex; flex-direction: column; }
   .pr-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 2px 90px 2px 36px; border-bottom: 1px solid #efeae0; font-size: 10.5px; }
   .pr-row b { font-variant-numeric: lining-nums tabular-nums; color: #0f2440; font-size: 13px; font-weight: 400; }
@@ -2615,6 +2615,9 @@ html, body { overflow-x: hidden; }
   .pr-table th { text-align: left; font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: #726d63; border-bottom: 1px solid #0f2440; padding: 3px 6px 4px; }
   .pr-table td { padding: 2px 6px; border-bottom: 1px solid #efeae0; vertical-align: top; line-height: 1.3; }
   .pr-table td:first-child { font-weight: 600; color: #0f2440; }
+  .pr-table th.num, .pr-table td.num { text-align: right; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+  .pr-table tr.is-strong td { font-weight: 700; color: #0f2440; border-top: 1px solid #0f2440; }
+  .pr-table tr.is-tint td { background: #f4f0e6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pr-prose { font-size: 10.5px; line-height: 1.5; color: #26262b; margin: 0 0 6px; padding: 0 36px; }
   .pr-note { background: #f4f0e6; border-left: 3px solid #c4a054; padding: 6px 12px; margin: 2px 0 6px; font-size: 9.5px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pr-note-title { font-weight: 700; color: #0f2440; margin-bottom: 2px; }
@@ -2624,12 +2627,55 @@ html, body { overflow-x: hidden; }
   .pr-inputs dd { margin: 0; font-weight: 600; color: #0f2440; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
   .pr-assumptions { margin: 0; padding-left: 50px; padding-right: 36px; font-size: 8.5px; line-height: 1.35; color: #454650; }
   .pr-assumptions li { margin-bottom: 2px; }
+  .pr-chart .chart-bars, .pr-chart .chart-block svg, .pr-chart .chart-line svg { max-height: none; }
   .pr-chart .chart-bars { margin: 0; }
   .pr-chart .chart-bars-plot { padding: 0 60px; gap: 40px; }
   .pr-chart .chart-bar-col { max-width: 130px; }
   .pr-chart .chart-bar-val { font-size: 12px; }
   .pr-chart .chart-bar-glabel { font-size: 11px; }
   .pr-chart .chart-bar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Other chart types inside a .pr-chart section */
+  .pr-chart .chart-block { margin: 0; }
+  .pr-chart .chart-title { font-size: 9px; margin: 0 0 6px; padding: 0 36px; }
+  .pr-chart .chart-line { padding: 0 36px; }
+  .pr-chart .chart-line svg { width: 100%; height: auto; display: block; }
+  .pr-chart .chart-line .chart-legend { margin-top: 6px; }
+  .pr-chart .chart-legend { display: flex; flex-wrap: wrap; font-size: 9.5px; gap: 2px 16px; padding: 0 36px; margin: 6px 0 0; }
+  .pr-chart .chart-legend li { display: inline-flex; align-items: center; gap: 6px; font-size: 9.5px; padding: 1px 0; margin: 0; border: 0; }
+  .pr-chart .chart-legend-label, .pr-chart .chart-legend-val { font-size: 9.5px; }
+  .pr-chart .chart-dot { width: 8px; height: 8px; }
+  .pr-chart .chart-stack { width: auto; margin: 0 36px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-chart .chart-stack-seg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-chart .chart-donut-wrap { padding: 0 36px; gap: 24px; align-items: center; }
+  .pr-chart .chart-donut-value { font-size: 15px; }
+  .pr-chart .chart-donut-label { font-size: 8.5px; }
+  .pr-chart .chart-donut-seg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-chart .bracket-chart { margin: 10px 36px 0; }
+  .pr-chart .bracket-stack span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-chart .bracket-age { font-size: 8px; }
+  .pr-chart .bracket-legend { font-size: 9px; margin-top: 16px; gap: 4px 12px; }
+  .pr-chart .chart-range { margin: 0 36px; }
+  .pr-chart .chart-range-fill, .pr-chart .chart-range-ref { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-chart .chart-range-labels { font-size: 9px; }
+  /* Side-by-side blocks (e.g. inputs beside assumptions, or two row lists) */
+  .pr-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; align-items: start; }
+  .pr-cols.is-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pr-cols > .pr-section { margin-bottom: 6px; }
+  .pr-cols .pr-section-head { padding: 0 12px 3px; }
+  .pr-cols .pr-row { padding: 2px 12px; }
+  .pr-cols .pr-prose, .pr-cols .pr-inputs, .pr-cols .chart-line, .pr-cols .chart-stack, .pr-cols .chart-donut-wrap, .pr-cols .chart-legend, .pr-cols .bracket-chart, .pr-cols .chart-range { padding-left: 12px; padding-right: 12px; margin-left: 0; margin-right: 0; }
+  .pr-cols .pr-inputs { grid-template-columns: 1fr; margin: 0 12px; }
+  .pr-cols .pr-assumptions { padding-left: 26px; padding-right: 12px; }
+  .pr-cols .pr-table { width: calc(100% - 24px); margin: 4px 12px; }
+  .pr-cols .chart-bars-plot { padding: 0 12px; gap: 16px; }
+  .pr-cols .chart-bar-col { max-width: 80px; }
+  /* Compact variants when a page is tight */
+  .pr-page.is-compact .pr-row { padding-top: 1px; padding-bottom: 1px; font-size: 10px; }
+  .pr-page.is-compact .pr-row b { font-size: 12px; }
+  .pr-page.is-compact .pr-prose { font-size: 10px; line-height: 1.4; }
+  .pr-page.is-compact .pr-section { margin-bottom: 6px; }
+  .pr-page.is-compact .pr-table { font-size: 9px; }
+  .pr-page.is-compact .pr-table td { padding: 1px 6px; }
   .pr-footer { margin-top: auto; padding-top: 6px; border-top: 1px solid #d8d1bf; }
   .pr-footer-row { display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #5b6472; }
   .pr-footer-powered { display: inline-flex; align-items: center; gap: 6px; color: #8a8377; }
