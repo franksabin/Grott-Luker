@@ -168,11 +168,9 @@ export const TOOLS = [
       'Appreciated securities available to gift',
     ],
   },
-
-  // ---------- Business Owner Planning ----------
   {
     id: 'qbi-optimizer',
-    group: 'business-owner',
+    group: 'cpa',
     status: 'testing',
     path: '/tools/qbi-optimizer',
     icon: Percent,
@@ -181,6 +179,8 @@ export const TOOLS = [
     description:
       'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
   },
+
+  // ---------- Business Owner Planning ----------
   {
     id: 'owner-comp',
     group: 'business-owner',
