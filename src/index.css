@@ -2685,3 +2685,22 @@ html, body { overflow-x: hidden; }
 }
 
 .field-hint { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+
+/* ------- Reviewer strip under each card + reviewer filter ------- */
+.tcell { display: flex; flex-direction: column; min-width: 0; }
+.tcell .tcard { flex: 0 0 auto; }
+.reviewers { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; padding: 9px 4px 0; min-width: 0; }
+.rev-dot { width: 8px; height: 8px; border-radius: 50%; background: #c8998a; flex: 0 0 auto; margin-right: 3px; }
+.rev-dot.is-done { background: #3e8158; }
+.rev-pill { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; border: 1px solid #ddd7c8; color: #a39d92; background: #fff; line-height: 1.2; white-space: nowrap; }
+.rev-pill.is-done { color: #2e7d5b; background: #e7f1ea; border-color: #bcd9c7; }
+.dash-bar, .dash .dash-bar { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; margin: 56px 0 18px; }
+.rfilter { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rfilter-lead { font-size: 12.5px; color: var(--muted); margin-right: 4px; }
+.rfilter button { font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 13px; border-radius: 20px; border: 1px solid #ddd7c8; background: #fff; color: var(--ink-soft, #5b6472); cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+.rfilter button:hover { border-color: #0f2440; color: #0f2440; }
+.rfilter button.is-on { background: #0f2440; color: #fff; border-color: #0f2440; }
+.rfilter-status { font-size: 13.5px; color: var(--ink-soft, #5b6472); margin: -6px 0 18px; }
+.rfilter-status .linkish { font: inherit; background: none; border: 0; padding: 0; color: #2f6099; text-decoration: underline; cursor: pointer; }
+.dev-note { max-width: 440px; }
+@media (max-width: 760px) { .dash-bar { flex-direction: column; align-items: flex-start; } .dev-note { max-width: none; } }

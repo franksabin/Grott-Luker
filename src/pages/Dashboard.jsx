@@ -1,7 +1,55 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Mail, Phone, Inbox, Link2 } from 'lucide-react'
+import { ArrowRight, Mail, Phone, Inbox, Link2, Check } from 'lucide-react'
 import { GROUPS, GROUP_ORDER, TOOLS } from '../lib/tools.js'
-import { isReady } from '../lib/signoffs.js'
+import { isReady, CPAS } from '../lib/signoffs.js'
+
+// Dashboard review filter: 'all' | one of CPAS | 'none' (no sign-off yet). Remembered per browser.
+const FILTER_KEY = 'gl-review-filter'
+const VALID_FILTER = (v) => v && (v === 'all' || v === 'none' || CPAS.includes(v))
+// ?reviewer=Deb in the URL wins (a CPA can bookmark their own view); otherwise the last choice on this browser.
+function readFilter() {
+  try {
+    const q = new URLSearchParams(window.location.search).get('reviewer')
+    if (VALID_FILTER(q)) {
+      localStorage.setItem(FILTER_KEY, q)
+      return q
+    }
+    const v = localStorage.getItem(FILTER_KEY)
+    return VALID_FILTER(v) ? v : 'all'
+  } catch {
+    return 'all'
+  }
+}
+function reviewedBy(tool, signoffs, cpa) {
+  return (signoffs[tool.id] || []).some((s) => s.cpa === cpa)
+}
+function matchesFilter(tool, signoffs, filter) {
+  if (filter === 'all') return true
+  if (filter === 'none') return !(signoffs[tool.id] || []).length
+  return reviewedBy(tool, signoffs, filter)
+}
+
+// Who has signed off — shown under the card, outside it, so it reads at a glance.
+function ReviewStrip({ tool, signoffs }) {
+  const rows = signoffs[tool.id] || []
+  const done = new Set(rows.map((s) => s.cpa))
+  const when = (cpa) => {
+    const r = rows.find((s) => s.cpa === cpa)
+    return r?.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+  }
+  return (
+    <div className="reviewers" aria-label={done.size ? `Reviewed by ${[...done].join(', ')}` : 'Not yet reviewed'}>
+      <span className={`rev-dot${done.size ? ' is-done' : ''}`} title={done.size ? `Reviewed by ${[...done].join(', ')}` : 'No CPA has signed off yet'} />
+      {CPAS.map((cpa) => (
+        <span key={cpa} className={`rev-pill${done.has(cpa) ? ' is-done' : ''}`} title={done.has(cpa) ? `${cpa} tested this tool and signed off on ${when(cpa)}` : `${cpa} has not signed off yet`}>
+          {done.has(cpa) ? <Check size={11} strokeWidth={3} /> : null}
+          {cpa}
+        </span>
+      ))}
+    </div>
+  )
+}
 import { useSignoffs } from '../lib/useSignoffs.js'
 import { useUsage } from '../lib/useUsage.js'
 
@@ -17,6 +65,7 @@ function ToolCard({ tool, signoffs, usage }) {
   const testing = !ready
   const cpa = false
   return (
+    <div className="tcell">
     <Link
       to={tool.path}
       className={`tcard${testing ? ' is-testing' : ''}${cpa ? ' is-cpa' : ''}`}
@@ -31,7 +80,6 @@ function ToolCard({ tool, signoffs, usage }) {
               <Link2 size={11} /> Client Shareable
             </span>
           ) : null}
-          {ready ? <span className="live-chip" title={who.length ? `Tested and signed off by ${who.join(", ")}` : "Reviewed with Grott Luker & Co."}>Ready{who.length ? ` · ${who.join(", ")}` : ""}</span> : <span className="status-chip" title="No Grott Luker CPA has signed off on this tool yet. Not client ready.">Not reviewed</span>}
         </span>
       </div>
       <h3>{tool.title}</h3>
@@ -45,17 +93,19 @@ function ToolCard({ tool, signoffs, usage }) {
         </span>
       </div>
     </Link>
+    <ReviewStrip tool={tool} signoffs={signoffs} />
+    </div>
   )
 }
 
-function GroupSection({ group, tools, signoffs, usage }) {
+function GroupSection({ group, tools, total, signoffs, usage }) {
   return (
     <section className="tgroup" data-group={group.id}>
       <div className="ribbon">
         <h2>{group.title}</h2>
         <span className="ribbon-desc">{group.description}</span>
         <span className="ribbon-count">
-          {tools.length} {tools.length === 1 ? 'tool' : 'tools'}
+          {total && total !== tools.length ? `${tools.length} of ${total} ${total === 1 ? 'tool' : 'tools'}` : `${tools.length} ${tools.length === 1 ? 'tool' : 'tools'}`}
         </span>
         {group.id === 'client-intake' ? (
           <Link to="/client-results" className="ribbon-action">
@@ -75,7 +125,17 @@ function GroupSection({ group, tools, signoffs, usage }) {
 export default function Dashboard() {
   const { signoffs } = useSignoffs()
   const usage = useUsage()
-  const filtered = TOOLS
+  const [filter, setFilterState] = useState(readFilter)
+  const setFilter = (v) => {
+    setFilterState(v)
+    try {
+      localStorage.setItem(FILTER_KEY, v)
+    } catch {
+      /* ignore */
+    }
+  }
+  const filtered = TOOLS.filter((t) => matchesFilter(t, signoffs, filter))
+  const filterLabel = filter === 'all' ? '' : filter === 'none' ? 'not yet reviewed by anyone' : `reviewed by ${filter}`
 
   return (
     <div className="dash">
@@ -149,19 +209,39 @@ export default function Dashboard() {
       </section>
 
       <div className="dash-bar">
+        <div className="rfilter" role="group" aria-label="Filter tools by reviewer">
+          <span className="rfilter-lead">Show tools reviewed by</span>
+          <button type="button" className={filter === 'all' ? 'is-on' : ''} onClick={() => setFilter('all')}>All tools</button>
+          {CPAS.map((cpa) => (
+            <button key={cpa} type="button" className={filter === cpa ? 'is-on' : ''} onClick={() => setFilter(cpa)}>
+              {cpa}
+            </button>
+          ))}
+          <button type="button" className={filter === 'none' ? 'is-on' : ''} onClick={() => setFilter('none')}>No one yet</button>
+        </div>
         <div className="dash-bar-right">
           <span className="dev-note">
-            <span className="status-chip">Not reviewed</span> not client ready
-            <span className="live-chip">Ready</span> a CPA has tested it and signed off
-            {(() => { try { return localStorage.getItem('gl-staff') === '1' } catch { return false } })() ? <span className="staff-note">· this browser is staff: your opens are not counted</span> : null}
+            The names under each card show which Grott Luker CPAs have tested it and signed off. A dashed card has no sign-off yet and is not client ready.
+            {(() => { try { return localStorage.getItem('gl-staff') === '1' } catch { return false } })() ? <span className="staff-note"> · This browser is staff: your opens are not counted.</span> : null}
           </span>
         </div>
       </div>
+      {filter !== 'all' ? (
+        <div className="rfilter-status">
+          {filtered.length
+            ? `Showing ${filtered.length} ${filtered.length === 1 ? 'tool' : 'tools'} ${filterLabel}.`
+            : filter === 'none'
+              ? 'Every tool has at least one sign-off.'
+              : `${filter} has not signed off on any tool yet. Open a tool and use the sign-off panel at the bottom of the page.`}{' '}
+          <button type="button" className="linkish" onClick={() => setFilter('all')}>Show all tools</button>
+        </div>
+      ) : null}
 
       {GROUP_ORDER.map((gid) => {
         const tools = filtered.filter((t) => t.group === gid)
         if (!tools.length) return null
-        return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} signoffs={signoffs} usage={usage} />
+        const total = TOOLS.filter((t) => t.group === gid).length
+        return <GroupSection key={gid} group={GROUPS[gid]} tools={tools} total={total} signoffs={signoffs} usage={usage} />
       })}
 
       <div className="sbs-wrap">
