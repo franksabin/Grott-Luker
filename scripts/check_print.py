@@ -1,6 +1,6 @@
 """Print a tool page from the running dev server to PDF and check the report fits.
 
-Usage:  python check_print.py <route-slug> <expected-pages> <page-file-basename> [out-tag]
+Usage:  python check_print.py <route-slug> <expected-pages> <page-file-basename> [out-tag] [query-string]
   e.g.  python check_print.py estimated-tax 2 EstimatedTax
 
 What it does
@@ -40,7 +40,10 @@ if not syntax.startswith("OK"):
 # 2. print to PDF (retry on blank)
 import fitz  # PyMuPDF
 pdf = OUT / f"{tag}.pdf"
-url = f"http://localhost:5174/tools/{slug}?sample=1"
+# Optional 5th argument: a raw query string, e.g. "view=year&sample=1" or "view=year&state=<base64 json>".
+# Without it the page loads with ?sample=1.
+query = sys.argv[5] if len(sys.argv) > 5 else "sample=1"
+url = f"http://localhost:5174/tools/{slug}?{query}"
 attempts = 0
 doc = None
 while attempts < 5:

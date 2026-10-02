@@ -152,7 +152,7 @@ const IRMAA_TIERS = {
     { upTo: 137000, partB: 81.2, partD: 14.5 },
     { upTo: 171000, partB: 202.9, partD: 37.5 },
     { upTo: 205000, partB: 324.6, partD: 60.4 },
-    { upTo: 500000, partB: 446.3, partD: 83.3 },
+    { upTo: 500000, exclusive: true, partB: 446.3, partD: 83.3 }, // CMS: less than $500,000
     { upTo: Infinity, partB: 487.0, partD: 91.0 },
   ],
   married: [
@@ -160,7 +160,7 @@ const IRMAA_TIERS = {
     { upTo: 274000, partB: 81.2, partD: 14.5 },
     { upTo: 342000, partB: 202.9, partD: 37.5 },
     { upTo: 410000, partB: 324.6, partD: 60.4 },
-    { upTo: 750000, partB: 446.3, partD: 83.3 },
+    { upTo: 750000, exclusive: true, partB: 446.3, partD: 83.3 }, // CMS: less than $750,000
     { upTo: Infinity, partB: 487.0, partD: 91.0 },
   ],
 }
@@ -229,8 +229,14 @@ export function seniorDeduction(magi, filing, seniors = 1) {
   if (seniors <= 0) return 0
   const f = normalizeFiling(filing)
   const over = Math.max(0, Math.max(0, magi) - SENIOR_DEDUCTION.phaseStart[f])
-  return Math.max(0, SENIOR_DEDUCTION.amount * seniors - SENIOR_DEDUCTION.phaseRate * over)
+  // The $6,000 amount is reduced first (§151(d)(5)(C)); the result is then allowed once per qualified
+  // individual (Schedule 1-A, Part V). A joint couple of two seniors loses all of it at $250,000 of MAGI.
+  return seniors * Math.max(0, SENIOR_DEDUCTION.amount - SENIOR_DEDUCTION.phaseRate * over)
 }
+
+// §63(f) additional standard deduction for each taxpayer age 65 or older — 2026 (Rev. Proc. 2025-32 §3.14(3)):
+// $1,650 each when married, $2,050 when unmarried. Allowed only with the standard deduction.
+export const ADDITIONAL_STANDARD = { single: 2050, married: 1650 }
 
 // §24 child tax credit (2026): $2,200 per qualifying child under 17, reduced by
 // $50 for each $1,000 (or part) of MAGI over $200,000 ($400,000 MFJ).
@@ -296,12 +302,15 @@ export function irmaaHeadroom(magi, filing) {
   const people = f === 'married' ? 2 : 1
   const m = Math.max(0, magi)
   for (let i = 0; i < tiers.length; i++) {
-    if (m <= tiers[i].upTo) {
+    if (tiers[i].exclusive ? m < tiers[i].upTo : m <= tiers[i].upTo) {
       const next = tiers[i + 1]
       if (!next) return { atTop: true, headroom: null, threshold: null, stepUp: 0, currentAnnual: (tiers[i].partB + tiers[i].partD) * 12 * people }
       const cur = (tiers[i].partB + tiers[i].partD) * 12 * people
       const nxt = (next.partB + next.partD) * 12 * people
-      return { atTop: false, headroom: tiers[i].upTo - m, threshold: tiers[i].upTo, stepUp: nxt - cur, currentAnnual: cur, nextAnnual: nxt }
+      // `exclusive`: the surcharge steps up AT the threshold (MAGI of exactly $500,000 is already the next tier),
+      // so the highest MAGI that stays in this tier is one dollar below it; otherwise it is the threshold itself.
+      const exclusive = !!tiers[i].exclusive
+      return { atTop: false, headroom: tiers[i].upTo - m, threshold: tiers[i].upTo, exclusive, limit: exclusive ? tiers[i].upTo - 1 : tiers[i].upTo, stepUp: nxt - cur, currentAnnual: cur, nextAnnual: nxt }
     }
   }
   return { atTop: true, headroom: null, threshold: null, stepUp: 0, currentAnnual: 0 }
@@ -313,7 +322,7 @@ export function irmaaSurcharge(magi, filing) {
   const m = Math.max(0, magi)
   let tier = tiers[0]
   for (const t of tiers) {
-    if (m <= t.upTo) {
+    if (t.exclusive ? m < t.upTo : m <= t.upTo) {
       tier = t
       break
     }

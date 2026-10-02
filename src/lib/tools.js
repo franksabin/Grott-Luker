@@ -87,7 +87,7 @@ export const TOOLS = [
     title: 'Roth Conversion & RMD Planner',
     short: 'Roth & RMD Planner',
     description:
-      'This year\'s conversion cost (tax and IRMAA) and the whole plan to the end: RMDs from 73 or 75, Social Security, conversions that fill a bracket or run at a set amount, and what the heirs keep — do nothing vs. act.',
+      'This year only: the Q4 Roth conversion and what it costs. Or plan to the end: RMDs and heirs.',
   },
   {
     id: 'exchange-1031',

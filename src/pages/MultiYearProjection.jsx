@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import ToolShell from '../components/ToolShell.jsx'
 import {
   Panel,
@@ -20,9 +21,11 @@ import {
 import { LineChart, TONE } from '../components/charts.jsx'
 import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeature, PrintTiles, PrintRows, PrintTable, PrintProse, PrintNote, PrintInputs, PrintAssumptions, PrintFooter, PrintCols } from '../components/PrintReport.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
-import { TAX_YEAR, rmdStartAge } from '../lib/tax.js'
+import { TAX_YEAR, rmdStartAge, ADDITIONAL_STANDARD, SENIOR_DEDUCTION } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 import { computeMultiYear, TAXABLE_DRAG } from '../lib/multiYear.js'
+import ViewSwitch, { requestViewFocus } from '../components/ViewSwitch.jsx'
+import OneYearConversion, { clearOneYearCache } from './OneYearConversion.jsx'
 
 const FILING = [
   { value: 'married', label: 'Married filing jointly' },
@@ -128,23 +131,36 @@ function BracketBars({ rows, height = 200 }) {
   )
 }
 
-export default function MultiYearProjection() {
+const clampN = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
+
+// The plan view's form survives a switch to the one-year view (the wrapper clears it when the tool is left).
+let planFormCache = null
+
+// The tool has two views: the plan to the end (this component) and the one-year Q4 estimator
+// (OneYearConversion.jsx). Only one is mounted at a time, because each one prints.
+function PlanView({ onView }) {
   // ?sample=1 opens the page with the sample loaded (handy for screenshots and review links).
-  const [form, setForm] = useState(() => (new URLSearchParams(window.location.search).get('sample') ? SAMPLE : BLANK))
+  const [form, setForm] = useState(() => (new URLSearchParams(window.location.search).get('sample') ? SAMPLE : planFormCache || BLANK))
+  useEffect(() => {
+    planFormCache = form
+  }, [form])
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
 
   const st = getState(form.state)
-  const birthYear = Math.round(toNumber(form.birthYear)) || TAX_YEAR - 63
+  // A bogus year of birth would build thousands of table rows (or exhaust memory): outside 1900 to this year, fall back to the default.
+  const birthRaw = Math.round(toNumber(form.birthYear))
+  const birthOk = birthRaw >= 1900 && birthRaw <= TAX_YEAR
+  const birthYear = birthOk ? birthRaw : TAX_YEAR - 63
   const startAge = TAX_YEAR - birthYear
   const rmdAge = rmdStartAge(birthYear)
   const inputs = useMemo(() => ({
     birthYear,
     filing: form.filing,
-    endAge: Math.max(startAge + 1, Math.round(toNumber(form.endAge)) || 95),
-    retireAge: Math.round(toNumber(form.retireAge)) || startAge,
+    endAge: Math.min(startAge + 80, Math.max(startAge + 1, Math.round(toNumber(form.endAge)) || 95)),
+    retireAge: clampN(Math.round(toNumber(form.retireAge)) || startAge, 0, 120),
     wages: toNumber(form.wages),
     ssAnnual: toNumber(form.ssAnnual),
-    ssStartAge: Math.round(toNumber(form.ssStartAge)) || 67,
+    ssStartAge: clampN(Math.round(toNumber(form.ssStartAge)) || 67, 0, 120),
     pension: toNumber(form.pension),
     otherIncome: toNumber(form.otherIncome),
     pretax: toNumber(form.pretax),
@@ -169,7 +185,7 @@ export default function MultiYearProjection() {
 
   const steps = useMemo(() => [
     { label: 'Ages and RMD start', formula: `born ${birthYear} → age ${startAge} in ${TAX_YEAR}; RMDs begin at ${rmdAge} (${birthYear >= 1960 ? 'born 1960 or later' : 'born 1951–1959'})`, result: `${startAge} → ${inputs.endAge}` },
-    { label: 'Method', formula: `each year: income − standard deduction${inputs.index ? ` (indexed ${percent(inputs.infl * 100, 1)}/yr with the brackets)` : ' (flat)'} → tax by bracket; RMD = balance ÷ Uniform Lifetime divisor; Social Security taxed by the provisional-income test`, result: `${plan.years} years` },
+    { label: 'Method', formula: `each year: income − standard deduction (plus the additional amount from 65)${inputs.index ? ` (indexed ${percent(inputs.infl * 100, 1)}/yr with the brackets)` : ' (flat)'} → tax by bracket; RMD = balance ÷ Uniform Lifetime divisor; Social Security taxed by the provisional-income test`, result: `${plan.years} years` },
     ...(hasPlan ? [{ label: 'Conversion rule', formula: form.mode === 'fill' ? `convert enough each year to reach the top of the ${form.fillBracket}% bracket, through age ${inputs.fillUntilAge}` : `convert ${money(inputs.flatAmount)} a year for ${inputs.flatYears} years`, result: `${money(plan.totalConverted)} converted in total` }] : []),
     ...plan.rows.filter((row) => row.conversion > 0 || row.rmd > 0).slice(0, 40).map((row) => ({
       label: `${row.year} · age ${row.age}`,
@@ -190,7 +206,7 @@ export default function MultiYearProjection() {
     { label: 'Difference', formula: 'plan − do nothing', result: money(r.delta) },
   ], [r, plan, none, thisYear, inputs, form.mode, form.fillBracket, birthYear, startAge, rmdAge, hasPlan])
 
-  const ready = inputs.pretax > 0 && toNumber(form.birthYear) > 0
+  const ready = inputs.pretax > 0 && birthOk
   const chartRows = plan.rows
   const label = hasPlan ? (form.mode === 'fill' ? `Fill to ${form.fillBracket}%` : 'Convert each year') : 'As entered'
   // Breakeven: the first age from which the plan's after-tax family wealth stays at or above
@@ -253,7 +269,7 @@ export default function MultiYearProjection() {
   )
 
   const assumptions = [
-    `${TAX_YEAR} federal brackets, standard deduction, and senior deduction (65+, through 2028). With indexing on, brackets, deduction, Social Security, pension, and other income grow with inflation each year; with it off, the ${TAX_YEAR} tables are held flat.`,
+    `${TAX_YEAR} federal brackets and standard deduction. From age 65 the additional standard deduction applies, ${money(ADDITIONAL_STANDARD.married)} for each spouse when married and ${money(ADDITIONAL_STANDARD.single)} when single; both spouses are assumed to be the same age. The senior deduction (${money(SENIOR_DEDUCTION.amount)} per person 65 or older, through ${SENIOR_DEDUCTION.lastYear}) is reduced by ${Math.round(SENIOR_DEDUCTION.phaseRate * 100)}% of MAGI over ${money(SENIOR_DEDUCTION.phaseStart.single)} single or ${money(SENIOR_DEDUCTION.phaseStart.married)} joint, separately for each person, so a married couple loses all of it at ${money(SENIOR_DEDUCTION.phaseStart.married + SENIOR_DEDUCTION.amount / SENIOR_DEDUCTION.phaseRate)} of MAGI. With indexing on, brackets, standard deduction (additional amount included), Social Security, pension, and other income grow with inflation each year, while the senior deduction and its phase-out thresholds stay at the statutory dollars; with indexing off, the ${TAX_YEAR} tables are held flat.`,
     'RMDs begin at 73 for clients born 1951–1959 and 75 for those born 1960 or later, using the IRS Uniform Lifetime Table on the prior year-end balance. RMDs cannot be converted; conversions come on top of the RMD.',
     'Social Security is taxed through the provisional-income test each year; wages stop at the retirement age entered.',
     'Fill-a-bracket conversions are sized so taxable income reaches the top of the chosen bracket after Social Security taxation and the senior deduction phase-out, limited by the pre-tax balance.',
@@ -266,7 +282,7 @@ export default function MultiYearProjection() {
 
   // ---- Print report (fixed Letter pages; replaces the screen layout when printing) ----
   const printInputs = [
-    ['Year of birth', form.birthYear ? `${form.birthYear} (age ${startAge})` : '—'],
+    ['Year of birth', birthOk ? `${birthYear} (age ${startAge})` : '—'],
     ['Filing status', filingLabel],
     ['Project through age', String(inputs.endAge)],
     ['Pre-tax IRA / 401(k)', money(inputs.pretax)],
@@ -433,7 +449,7 @@ export default function MultiYearProjection() {
           />
         </PrintSection>
         {showIncomeTable ? (
-          <PrintSection title="How taxable income is built, each year" note={`${hasPlan ? 'with the plan · ' : ''}deductions = standard deduction${plan.rows.some((row) => row.senior > 0) ? ' + senior deduction' : ''}`}>
+          <PrintSection title="How taxable income is built, each year" note={`${hasPlan ? 'with the plan · ' : ''}deductions = standard deduction${startAge + plan.years - 1 >= 65 ? ' (additional amount from 65)' : ''}${plan.rows.some((row) => row.senior > 0) ? ' + senior deduction' : ''}`}>
             <PrintTable
               head={['Year', 'Age', 'Wages', 'Taxable SS', 'Pension & other', 'RMD', 'Conversion', 'AGI', 'Deductions', 'Taxable income']}
               widths={['8%', '7%', '11%', '11%', '12%', '10%', '11%', '11%', '10%', '9%']}
@@ -493,9 +509,10 @@ export default function MultiYearProjection() {
     >
       <div className="tool-grid">
         <div>
+          <ViewSwitch view="plan" onChange={onView} />
           <Panel title="The client">
             <div className="field-row">
-              <NumberField label="Year of birth" value={form.birthYear} onChange={set('birthYear')} hint={form.birthYear ? `Age ${startAge} in ${TAX_YEAR} · RMDs begin at ${rmdAge}` : 'Sets today’s age and the RMD start age (73 or 75).'} />
+              <NumberField label="Year of birth" value={form.birthYear} onChange={set('birthYear')} hint={birthOk ? `Age ${startAge} in ${TAX_YEAR} · RMDs begin at ${rmdAge}` : form.birthYear ? `Enter a year from 1900 to ${TAX_YEAR}.` : 'Sets today’s age and the RMD start age (73 or 75).'} />
               <SegmentedField label="Filing status" value={form.filing} onChange={set('filing')} options={FILING} />
             </div>
             <PillField label="Project through age" value={form.endAge} onChange={set('endAge')} options={END_AGE} info="The end of the plan. Whatever is still pre-tax at this point is taxed at the heirs’ rate below." />
@@ -637,4 +654,27 @@ export default function MultiYearProjection() {
       <Assumptions items={assumptions} />
     </ToolShell>
   )
+}
+
+// ?view=year opens the one-year estimator; anything else is the plan. The view lives in the URL (replace, not push)
+// so a switch does not add history entries and a reload keeps the view.
+export default function MultiYearProjection() {
+  const [params, setParams] = useSearchParams()
+  const view = params.get('view') === 'year' ? 'year' : 'plan'
+  // Leaving the tool forgets both forms; switching views keeps them.
+  useEffect(() => () => {
+    planFormCache = null
+    clearOneYearCache()
+  }, [])
+  const onView = (next) => {
+    requestViewFocus() // the view that mounts next puts focus back on its switch
+    const p = new URLSearchParams(params)
+    if (next === 'year') p.set('view', 'year')
+    else p.delete('view')
+    // The sample and test-state links apply to the first load only; a later switch uses the forms as edited.
+    p.delete('sample')
+    p.delete('state')
+    setParams(p, { replace: true })
+  }
+  return view === 'year' ? <OneYearConversion onView={onView} /> : <PlanView onView={onView} />
 }

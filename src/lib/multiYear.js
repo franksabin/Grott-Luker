@@ -12,16 +12,19 @@ import {
   rmdDivisor,
   rmdStartAge,
   irmaaSurcharge,
+  ADDITIONAL_STANDARD,
+  capitalGainsTax,
+  niitTax,
 } from './tax.js'
 
 export const BRACKET_TOPS = { 12: 0.12, 22: 0.22, 24: 0.24 }
 export const TAXABLE_DRAG = 0.2 // tax drag on returns in the taxable account
 
 // Ordinary tax on `taxable` with brackets scaled by `idx` (inflation indexing).
-function bracketsFor(filing, idx) {
+export function bracketsFor(filing, idx) {
   return ORDINARY_BRACKETS[filing].map((b) => ({ upTo: b.upTo === Infinity ? Infinity : b.upTo * idx, rate: b.rate }))
 }
-function taxWith(brackets, taxable) {
+export function taxWith(brackets, taxable) {
   let tax = 0
   let last = 0
   const inc = Math.max(0, taxable)
@@ -35,9 +38,60 @@ function taxWith(brackets, taxable) {
   }
   return { tax, fill }
 }
-function topOf(brackets, ratePct) {
+export function topOf(brackets, ratePct) {
   const b = brackets.find((x) => Math.round(x.rate * 100) === ratePct)
   return b ? b.upTo : 0
+}
+
+// One year's income tax for a given income before conversion and a conversion amount.
+// Shared by the multi-year projection and the one-year estimator so the two cannot disagree.
+// ctx: { filing, brackets, std, ordinaryBefore, ssY, seniors, stateRate, idx = 1, ltcg = 0, itemized = 0, taxExempt = 0, nii = 0 }
+//   ordinaryBefore  ordinary income before any conversion (wages, pension, other, RMD), without Social Security
+//   ssY             gross Social Security benefits for the year
+//   seniors         how many taxpayers get the senior deduction (age 65+, through 2028)
+//   ltcg, itemized  optional: long-term gains/qualified dividends, and itemized deductions (used when larger than std)
+//   taxExempt       optional: tax-exempt interest (counts toward Social Security taxation, not toward AGI)
+//   nii             optional: net investment income for the 3.8% tax (NIIT applies above $200,000 / $250,000 of MAGI)
+export function taxYear(ctx, conversion = 0) {
+  const { filing, brackets, std, ordinaryBefore, ssY, seniors, stateRate, idx = 1, ltcg = 0, itemized = 0, taxExempt = 0, nii = 0 } = ctx
+  const ordinary = ordinaryBefore + conversion
+  const taxableSS = taxableSocialSecurity(ssY, ordinary + ltcg, taxExempt, filing)
+  const ordinaryAGI = ordinary + taxableSS
+  const agi = ordinaryAGI + ltcg
+  const senior = seniorDeduction(agi, filing, seniors)
+  const deduction = Math.max(std, itemized)
+  const ordinaryTaxable = Math.max(0, ordinaryAGI - deduction - senior)
+  // Whatever deduction the ordinary income cannot absorb spills onto the gains.
+  const ltcgTaxable = Math.max(0, ltcg - Math.max(0, deduction + senior - ordinaryAGI))
+  const taxable = ordinaryTaxable + ltcgTaxable
+  const { tax: fedOrdinary, fill } = taxWith(brackets, ordinaryTaxable)
+  const fedGains = ltcgTaxable > 0 ? capitalGainsTax(ltcgTaxable / idx, ordinaryTaxable / idx, filing) * idx : 0
+  const niit = nii > 0 ? niitTax(nii, agi, filing) : 0
+  const fedTax = fedOrdinary + fedGains + niit
+  const stateTax = taxable * stateRate
+  const tax = fedTax + stateTax
+  const filled = fill.filter((f) => f.amount > 0.5)
+  const marginal = filled.length ? filled[filled.length - 1].rate : brackets[0].rate
+  return { ordinary, taxableSS, agi, senior, deduction, taxable, ordinaryTaxable, ltcgTaxable, fedOrdinary, fedGains, niit, fedTax, stateTax, tax, fill, marginal }
+}
+
+// Conversion that takes ordinary taxable income exactly to `top`. Taxable income rises with the
+// conversion by more than a dollar per dollar where Social Security becomes taxable and where the
+// senior deduction phases out, so a fixed-point iteration can overshoot there; bisect instead.
+// Taxable income never falls as the conversion grows, so the largest conversion that stays at or
+// under `top` is well defined.
+export function fillConversion(ctx, top) {
+  const t0 = taxYear(ctx, 0).ordinaryTaxable
+  if (t0 >= top) return 0
+  let lo = 0
+  let hi = Math.max(1, top - t0)
+  for (let k = 0; k < 60 && taxYear(ctx, hi).ordinaryTaxable <= top; k++) hi *= 2
+  for (let k = 0; k < 50; k++) {
+    const mid = (lo + hi) / 2
+    if (taxYear(ctx, mid).ordinaryTaxable <= top) lo = mid
+    else hi = mid
+  }
+  return lo
 }
 
 // Run one scenario.
@@ -73,7 +127,9 @@ export function runScenario(i, withPlan) {
     const year = TAX_YEAR + t
     const idx = Math.pow(g, t)
     const brackets = bracketsFor(filing, idx)
-    const std = STANDARD_DEDUCTION[filing] * idx
+    // Additional standard deduction for each taxpayer 65 or older (both spouses are assumed the same age).
+    const aged = age >= 65 ? people : 0
+    const std = (STANDARD_DEDUCTION[filing] + aged * ADDITIONAL_STANDARD[filing]) * idx
 
     const wagesY = age < i.retireAge ? i.wages * idx : 0
     const ssY = age >= i.ssStartAge ? i.ssAnnual * idx : 0
@@ -84,41 +140,20 @@ export function runScenario(i, withPlan) {
 
     // Income before any conversion.
     const ordinaryBefore = wagesY + pensionY + otherY + rmd
-    const taxableSSBefore = taxableSocialSecurity(ssY, ordinaryBefore, 0, filing)
     const seniors = age >= 65 && year <= SENIOR_DEDUCTION.lastYear ? people : 0
-    const agiBefore = ordinaryBefore + taxableSSBefore
-    const seniorBefore = seniorDeduction(agiBefore, filing, seniors)
-    const taxableBefore = Math.max(0, agiBefore - std - seniorBefore)
+    const ctx = { filing, brackets, std, ordinaryBefore, ssY, seniors, stateRate: i.stateRate, idx }
+    const before = taxYear(ctx, 0)
 
     // Conversion for the year.
     let conversion = 0
     if (withPlan && i.mode === 'flat' && t < i.flatYears) conversion = i.flatAmount
     if (withPlan && i.mode === 'fill' && age <= i.fillUntilAge) {
-      // Fill to the top of the chosen bracket. Social Security taxation and the
-      // senior phase-out move with income, so iterate a few times.
-      const top = topOf(brackets, i.fillBracket)
-      conversion = Math.max(0, top - taxableBefore)
-      for (let k = 0; k < 4; k++) {
-        const ord = ordinaryBefore + conversion
-        const tss = taxableSocialSecurity(ssY, ord, 0, filing)
-        const agi = ord + tss
-        const sen = seniorDeduction(agi, filing, seniors)
-        const taxable = Math.max(0, agi - std - sen)
-        conversion = Math.max(0, conversion + (top - taxable))
-      }
+      // Fill to the top of the chosen bracket.
+      conversion = fillConversion(ctx, topOf(brackets, i.fillBracket))
     }
     conversion = Math.min(conversion, Math.max(0, pretax - rmd))
 
-    const ordinary = ordinaryBefore + conversion
-    const taxableSS = taxableSocialSecurity(ssY, ordinary, 0, filing)
-    const agi = ordinary + taxableSS
-    const senior = seniorDeduction(agi, filing, seniors)
-    const taxable = Math.max(0, agi - std - senior)
-    const { tax: fedTax, fill } = taxWith(brackets, taxable)
-    const stateTax = taxable * i.stateRate
-    const tax = fedTax + stateTax
-    const filled = fill.filter((f) => f.amount > 0.5)
-    const marginal = filled.length ? filled[filled.length - 1].rate : brackets[0].rate
+    const { taxableSS, agi, senior, taxable, fedTax, stateTax, tax, fill, marginal } = taxYear(ctx, conversion)
     lifetimeTax += tax
     totalConverted += conversion
 
@@ -136,8 +171,7 @@ export function runScenario(i, withPlan) {
     // track — identically in both scenarios. Only the extra tax caused by the
     // conversion is charged to the conversion: taxable account first, then
     // withheld from the conversion itself.
-    const { tax: fedBefore } = taxWith(brackets, taxableBefore)
-    const baselineTax = fedBefore + taxableBefore * i.stateRate
+    const baselineTax = before.tax
     const convTax = Math.max(0, tax - baselineTax)
     pretax -= rmd + conversion
     side += rmd

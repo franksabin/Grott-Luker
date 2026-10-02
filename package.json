@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:engine": "node scripts/test-oneyear.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.436.0",

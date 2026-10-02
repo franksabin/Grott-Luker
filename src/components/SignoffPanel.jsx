@@ -72,6 +72,11 @@ export default function SignoffPanel({ tool }) {
           </span>
         ))}
       </div>
+      {tool.id === 'multi-year-projection' ? (
+        <div style={{ flex: '0 0 100%', fontSize: 12, color: 'var(--muted)' }}>
+          This sign-off covers both views: Plan to the end and This year only.
+        </div>
+      ) : null}
       {error ? <div className="form-error" style={{ marginTop: 8 }}>{error}</div> : null}
     </div>
   )

@@ -163,6 +163,26 @@ export const EMAIL_REQUESTS = {
     ],
   },
 
+  // The one-year (Q4) view of the Roth Conversion & RMD Planner; ToolShell selects this with requestKey.
+  'multi-year-projection-year': {
+    subject: 'Information needed to price a Roth conversion this year',
+    intro:
+      'We are estimating what a Roth conversion would cost you before December 31, against your income for the whole year. Please reply with the following:',
+    questions: [
+      'Your age and your spouse’s (if married), as of December 31 of this year, and your filing status',
+      'Wages or net self-employment income expected for the year',
+      'Pension income (the taxable amount)',
+      'Other ordinary income for the year, including interest, rental income, and any IRA distributions such as this year’s required minimum distribution',
+      'Social Security benefits for the year (gross)',
+      'Long-term capital gains and qualified dividends for the year',
+      'Tax-exempt interest for the year (for example, municipal bond interest)',
+      'Net investment income for the year (interest, dividends, gains, rents), if different from the gains and dividends above',
+      'Itemized deductions, if you expect to itemize instead of taking the standard deduction',
+      'The pre-tax IRA balance available to convert, after this year’s required minimum distribution',
+      'Your state of residence',
+    ],
+  },
+
   'qbi-optimizer': {
     subject: 'Information needed for your QBI deduction analysis',
     intro:

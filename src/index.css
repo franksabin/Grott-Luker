@@ -2711,3 +2711,55 @@ html, body { overflow-x: hidden; }
 .signoff-grp { display: inline-flex; align-items: center; gap: 6px; padding-left: 12px; margin-left: 4px; border-left: 1px solid #e3d9d4; }
 .signoff-grp-label { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
 @media (max-width: 760px) { .rfilter-grp, .signoff-grp { border-left: 0; padding-left: 0; margin-left: 0; } }
+
+/* ------- Roth planner: one-year view ------- */
+.view-switch { margin: 0 0 16px; }
+.view-switch button { white-space: normal; line-height: 1.25; padding: 10px 10px; font-size: 13px; }
+.oy-hint { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; line-height: 1.45; }
+.data-table.oy-ladder td { padding: 9px 8px; font-size: 13.5px; }
+.data-table.oy-ladder th { padding: 8px; font-size: 11px; line-height: 1.25; }
+.data-table.oy-ladder td:first-child { white-space: nowrap; font-weight: 600; color: var(--navy); }
+.data-table tr.is-chosen td { background: #eef3fa; font-weight: 700; color: var(--navy); border-bottom-color: var(--navy-500, #4f7cae); }
+.oy-tag { display: block; font-size: 11.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.oy-chart .chart-bar-glabel { white-space: pre-line; line-height: 1.3; }
+@media (max-width: 560px) {
+  .data-table.oy-ladder td, .data-table.oy-ladder th { padding-left: 6px; padding-right: 6px; }
+  .data-table.oy-ladder td { font-size: 12.5px; }
+}
+.oy-sit .result-row { gap: 12px; }
+.oy-sit .result-value { white-space: normal; text-align: right; }
+@media (max-width: 900px) { .oy-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .oy-chart .chart-bars-plot { gap: 6px; }
+  .oy-chart .chart-bar-group { min-width: 0; }
+  .oy-chart .chart-bar-glabel { font-size: 10.5px; overflow-wrap: anywhere; }
+  .oy-chart .chart-bar-val { font-size: 10px; }
+}
+
+/* ------- Roth planner: one-year view, round 2 ------- */
+.callout-info { background: var(--bg-2); border: 1px solid var(--border); }
+.callout-info .callout-value { color: var(--navy); font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; }
+.callout-info .callout-value:empty { display: none; }
+.callout .oy-sub { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 3px; line-height: 1.35; font-variant-numeric: normal; }
+.oy-why { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: -6px 0 14px; }
+@media print { .oy-inputs .pr-inputs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 12px; } }
+
+/* ------- Roth planner: one-year view, round 3 ------- */
+.oy-muted { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: 8px 0 0; }
+@media print {
+  /* Every chart label is two lines (a short tag, then the amount) so the bars share one baseline; six bars need the tighter plot. */
+  .pr-chart.oy-chart .chart-bars-plot { padding: 0 24px; gap: 14px; }
+  .pr-chart.oy-chart .chart-bar-glabel { font-size: 10px; white-space: pre-line; line-height: 1.3; margin-top: 8px; }
+  .pr-chart.oy-chart .chart-bar-val { font-size: 11px; }
+  .pr-note .oy-also { margin-top: 4px; font-size: 8.5px; line-height: 1.3; }
+  .pr-note .oy-also ul { margin: 1px 0 0; padding-left: 14px; }
+  .pr-note .oy-also li { margin: 0 0 1px; }
+  .pr-section.oy-tight .pr-table { font-size: 8.5px; }
+  .pr-section.oy-tight .pr-table td { padding-top: 0; padding-bottom: 0; }
+  .pr-section.oy-tight .pr-table th { padding-top: 2px; padding-bottom: 2px; }
+  .pr-section.oy-tight .pr-table { margin-top: 2px; margin-bottom: 2px; }
+}
+
+/* One-year view: prose that follows a list of rows gets a little air */
+@media print { .pr-rows + .pr-prose { margin-top: 6px; } }
+.oy-roomgap { margin-top: 6px; }

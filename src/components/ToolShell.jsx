@@ -23,6 +23,7 @@ export default function ToolShell({
   inputsSummary, // [[label, value], ...] printed as "Inputs used in this estimate"
   printReport, // a <PrintDoc> tree: replaces the screen layout when printing
   planned = false, // a roadmap entry with no calculator yet: no "baseline model" banner
+  requestKey, // optional: picks the client-information email from EMAIL_REQUESTS (defaults to the tool's id)
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -35,7 +36,7 @@ export default function ToolShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const tool = TOOLS.find((t) => t.path === pathname)
-  const emailSpec = tool ? EMAIL_REQUESTS[tool.id] : null
+  const emailSpec = tool ? EMAIL_REQUESTS[requestKey || tool.id] : null
   const clientLink = tool?.clientPath ? `${window.location.origin}${tool.clientPath}` : null
   const templateLink = tool?.template ? `${window.location.origin}${tool.template}` : null
   const [emailMode, setEmailMode] = useState('form')
