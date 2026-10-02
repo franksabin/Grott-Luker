@@ -4,7 +4,7 @@
 
 Writes to public/templates/. Rates and categories are read from the web tool's
 source (src/lib/mileage.js, expenseGuide.js, knowYourNumbers.js) so the two stay
-in step; re-run after changing either. Grott Luker branding only.
+in step; re-run after changing either. Grott Luker branding with a quiet BlueLine co-brand.
 """
 import datetime
 import pathlib
@@ -81,6 +81,9 @@ ABOUT = [
     ("Grott Luker & Co.", f_section),
     ("Certified Public Accountants · Portsmouth, New Hampshire · Accounting | Tax Planning | Advisory", f_body),
     ("Questions about this workbook go to your Grott Luker CPA.", f_body),
+    ("", f_body),
+    ("Powered by BlueLine Advisors", f_bold),
+    ("The Client Decision Support Toolkit and its templates are built and maintained for Grott Luker & Co. by BlueLine Advisors, LLC, an SEC-registered investment adviser in Exeter, NH (registration does not imply any particular level of skill). Using this workbook does not create an advisory relationship with BlueLine.", f_note),
 ]
 
 
@@ -149,7 +152,7 @@ def band(ws, cols, title, sub):
     t = ws.cell(row=2, column=cols, value=title)
     t.font = f_band_title
     t.alignment = Alignment(horizontal="right", vertical="center")
-    s = ws.cell(row=3, column=cols, value=sub)
+    s = ws.cell(row=3, column=cols, value=f"{sub}   ·   Powered by BlueLine Advisors")
     s.font = f_band_sub
     s.alignment = Alignment(horizontal="right", vertical="top")
     ws.row_dimensions[4].height = 10
