@@ -21,6 +21,7 @@ export default function ToolShell({
   disclosure = STANDARD_DISCLOSURE,
   steps,
   inputsSummary, // [[label, value], ...] printed as "Inputs used in this estimate"
+  printReport, // a <PrintDoc> tree: replaces the screen layout when printing
   planned = false, // a roadmap entry with no calculator yet: no "baseline model" banner
 }) {
   const [modalOpen, setModalOpen] = useState(false)
@@ -61,7 +62,8 @@ export default function ToolShell({
   const u = tool ? usage[tool.id] : null
 
   return (
-    <div>
+    <>
+    <div className={printReport ? 'no-print' : undefined}>
       <Link to="/" className="backlink no-print">
         <ArrowLeft size={15} /> Back to toolkit
       </Link>
@@ -160,5 +162,7 @@ export default function ToolShell({
 
       <RequestInfoModal open={modalOpen} onClose={() => setModalOpen(false)} spec={emailSpec} link={clientLink} templateLink={templateLink} toolTitle={title} mode={emailMode} />
     </div>
+    {printReport || null}
+    </>
   )
 }

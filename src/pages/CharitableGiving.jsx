@@ -17,6 +17,7 @@ import {
   Narrative,
 } from '../components/ui.jsx'
 import { BarCompare, TONE } from '../components/charts.jsx'
+import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeature, PrintTiles, PrintRows, PrintTable, PrintProse, PrintNote, PrintInputs, PrintAssumptions, PrintFooter } from '../components/PrintReport.jsx'
 import { money, toNumber, percent } from '../lib/format.js'
 import { ordinaryTax, STANDARD_DEDUCTION, TAX_YEAR, saltCap, CHARITY_AGI_FLOOR, NONITEMIZER_CHARITY, itemizedAfterCap, seniorDeduction } from '../lib/tax.js'
 
@@ -150,6 +151,120 @@ export default function CharitableGiving() {
     { label: 'Best route', formula: 'largest tax saved', result: r.best.label },
   ], [r])
 
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const inputs = [
+    ['Filing status', form.filing === 'single' ? 'Single' : 'Married filing jointly'],
+    ['Adjusted gross income (before gifts)', money(r.income)],
+    ['Charitable giving per year', money(r.giving)],
+    ['Age', form.age || '—'],
+    ['Annual IRA required distribution', money(r.rmd)],
+    ['State & local taxes paid', money(toNumber(form.saltPaid))],
+    ['Mortgage interest', money(toNumber(form.mortgageInterest))],
+    ['Other itemized deductions', money(toNumber(form.otherItemized))],
+    ['Bunching window', `${r.N} years`],
+  ]
+  const assumptions = [
+    `${TAX_YEAR} federal brackets and standard deduction; state tax not modeled.`,
+    '2026 law changes modeled: SALT cap of $40,400 phased down 30% of AGI over $505,000 (floor $10,000); itemized charitable gifts deductible only above 0.5% of AGI; itemized deductions limited to a 35% benefit for 37%-bracket filers; $1,000 / $2,000 cash-gift deduction for non-itemizers; $6,000 senior deduction at 65+ (one person).',
+    'Gifts are assumed to be cash to public charities within AGI limits; appreciated securities are not modeled here.',
+    `QCD limited to the lesser of giving, the annual RMD entered, and ${money(QCD_LIMIT)} per person; married clients may each make a QCD from their own IRA.`,
+    'Income is held constant across the window; tax saved is the difference from a no-giving, standard-deduction baseline.',
+  ]
+  const printReport = (
+    <PrintDoc>
+      <PrintPage>
+        <PrintBand
+          title="Charitable Giving Comparison"
+          subtitle="Give annually, bunch into a donor-advised fund, or give from the IRA — same gifts, different tax result."
+          meta={`${r.N}-year view · ${money(r.totalGiving)} given either way · ${form.filing === 'single' ? 'Single' : 'Married filing jointly'}`}
+          metaRight={today}
+        />
+        <PrintFeature
+          label={`Most tax saved over ${r.N} years`}
+          value={money(r.best.saved)}
+          note={`${r.best.label} · vs. ${money(r.savedAnnual)} giving annually`}
+        />
+        <PrintTiles
+          items={r.options.map((o) => ({ label: o.label, value: money(o.saved), note: o.note, best: o.id === r.best.id }))}
+        />
+        <PrintSection title="How the routes compare" note="tax saved over the window">
+          <PrintRows
+            rows={[
+              { label: 'Give annually — same amount each year', value: money(r.savedAnnual) },
+              { label: `Bunch ${r.N} years into one (donor-advised fund)`, value: money(r.savedBunch) },
+              ...(r.qcdEligible ? [{ label: 'Qualified charitable distribution from the IRA', value: money(r.savedQcd) }] : []),
+              { label: 'Marginal rate used (approx.)', value: percent(r.marginal * 100, 0), sub: true },
+            ]}
+          />
+        </PrintSection>
+        <PrintSection title="What this means">
+          <PrintProse>
+            Other itemized deductions total {money(r.otherItemized)} (SALT capped at {money(r.saltCapApplied)}) against a {money(r.std)} standard deduction, and only gifts above the {money(r.annual.floor)} floor (0.5% of AGI) count when itemizing, so{' '}
+            {r.itemizesAnnually
+              ? `giving ${money(r.giving)} a year does push the client over the standard deduction each year.`
+              : `giving ${money(r.giving)} a year never clears the standard deduction — spread out, the gifts earn only the ${money(r.annual.nonItemizer)} non-itemizer deduction.`}{' '}
+            Bunching {r.N} years of gifts into one year creates a {money(r.dedBunchY1)} deduction in that year and the standard deduction after, saving about {money(r.savedBunch)} over the window.
+            {r.qcdEligible
+              ? ` Because the client is ${r.age}, a qualified charitable distribution of ${money(r.qcdAmt)} a year comes straight out of the IRA before income is counted — worth about ${money(r.savedQcd)} over ${r.N} years, and it keeps the standard deduction intact.`
+              : ' Qualified charitable distributions become available at 70½ and are often the strongest route once RMDs begin.'}
+          </PrintProse>
+        </PrintSection>
+        <PrintSection title="Deduction detail" note="per year unless noted">
+          <PrintRows
+            rows={[
+              { label: 'Standard deduction', value: money(r.std) },
+              { label: 'Other itemized deductions (SALT capped, mortgage, other)', value: money(r.otherItemized) },
+              { label: 'Charitable floor — 0.5% of AGI, not deductible', value: money(r.annual.floor), sub: true },
+              { label: 'Give annually — deduction used each year', value: money(r.annual.deduction) },
+              { label: `Bunch ${r.N} years — year-1 deduction · off-year deduction`, value: `${money(r.bunchY1.deduction)} · ${money(r.off.deduction)}` },
+              ...(r.qcdEligible ? [{ label: 'QCD — excluded from income each year', value: money(r.qcdAmt) }] : []),
+            ]}
+          />
+        </PrintSection>
+        <PrintSection title="Tax saved by route" className="pr-chart">
+          <BarCompare height={120} legend={false} groups={r.options.map((o) => ({ label: o.label, bars: [{ label: 'Tax saved', value: Math.max(0, o.saved), color: o.tone }] }))} />
+        </PrintSection>
+        <PrintFooter page={1} pages={2} />
+      </PrintPage>
+      <PrintPage last>
+        <PrintPageHead title="Charitable Giving Comparison" right={today} />
+        <PrintSection title="Donor-advised fund vs. giving from the IRA">
+          <PrintProse>
+            A DAF is a <em>deduction</em>: it only helps if the client itemizes. A QCD is an <em>exclusion</em>: the money leaves the IRA and is never counted as income, so it works whether or not the client itemizes and it satisfies the RMD dollar for dollar.
+          </PrintProse>
+          <PrintTable
+            head={['', 'Donor-advised fund', 'QCD from an IRA']}
+            widths={['22%', '39%', '39%']}
+            rows={[
+              ['Who can use it', 'Anyone', 'IRA owners 70½ or older (not from a 401(k) or an active SEP/SIMPLE)'],
+              ['How the tax benefit works', 'Itemized deduction in the year funded; nothing if the client takes the standard deduction', `Excluded from income; no deduction needed. Up to ${money(QCD_LIMIT)} per person per year`],
+              ['Effect on the RMD', 'None — the RMD is still taxable income', 'Counts toward the RMD; the distribution is not taxed'],
+              ['Effect on AGI', 'None — only taxable income falls', 'Lowers AGI, which can reduce IRMAA surcharges, Social Security taxation, and the 0.5% charitable floor'],
+              ['Appreciated stock', 'Yes — deduct fair value and avoid the capital gain; the strongest DAF use', 'No — QCDs are cash from the IRA only'],
+              ['Timing of the gift', 'Deduct now, grant to charities over years', 'Goes directly to the charity in the year made; a DAF cannot receive a QCD'],
+              ['Best fit', 'Under 70½, itemizing anyway, or holding appreciated securities', '70½ or older with an RMD the client does not need for spending'],
+            ]}
+          />
+          <PrintProse>
+            {r.qcdEligible
+              ? `For this client, a QCD of ${money(r.qcdAmt)} a year against a ${money(r.rmd)} RMD is modeled; any giving beyond the QCD can still be bunched through a DAF.`
+              : 'This client is under 70½, so the QCD route is not yet available; bunching through a DAF is the relevant comparison until then.'}
+          </PrintProse>
+        </PrintSection>
+        <PrintNote title="Reading the result">
+          Bunching helps when itemized deductions hover near the standard deduction. A donor-advised fund lets the client take the deduction in the bunching year and still grant to charities on their usual schedule. A QCD counts toward the RMD, never touches AGI, and does not require itemizing — for most clients past 70½ it beats both other routes.
+        </PrintNote>
+        <PrintSection title="Inputs used in this estimate">
+          <PrintInputs items={inputs} />
+        </PrintSection>
+        <PrintSection title="Assumptions">
+          <PrintAssumptions items={assumptions} />
+        </PrintSection>
+        <PrintFooter page={2} pages={2} />
+      </PrintPage>
+    </PrintDoc>
+  )
+
   return (
     <ToolShell
       title="Charitable Giving Optimizer"
@@ -157,6 +272,7 @@ export default function CharitableGiving() {
       onReset={() => setForm(BLANK)}
       onSample={() => setForm(SAMPLE)}
       steps={steps}
+      printReport={printReport}
       inputsSummary={[
         ['Filing status', form.filing === 'single' ? 'Single' : 'Married filing jointly'],
         ['Adjusted gross income (before gifts)', money(r.income)],

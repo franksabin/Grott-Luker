@@ -2569,3 +2569,69 @@ html, body { overflow-x: hidden; }
   .report-footer { margin-top: 6px; }
   .note { padding: 8px 12px; }
 }
+
+/* ------- Print report (fixed Letter pages, replaces the screen layout when printing) ------- */
+.pr-doc { display: none; }
+@media print {
+  body.has-print-report .print-footer, body.has-print-report .site-header, body.has-print-report .site-footer { display: none !important; }
+  body.has-print-report .main { padding: 0; }
+  body.has-print-report .container { padding: 0; max-width: none; }
+  body.has-print-report { font-size: 10.5px; }
+  @page { size: letter; margin: 0.5in; }
+  .pr-doc { display: block !important; }
+  .pr-page { width: 7.5in; height: 10in; overflow: hidden; display: flex; flex-direction: column; break-after: page; page-break-after: always; position: relative; }
+  .pr-page.is-last { break-after: auto; page-break-after: auto; }
+  .pr-band { background: #0f2440; color: #fff; padding: 16px 20px 12px; border-radius: 6px; margin-bottom: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-band-row { display: flex; align-items: center; gap: 22px; }
+  .pr-logo { height: 46px; width: auto; flex: 0 0 auto; }
+  .pr-band-title { border-left: 1px solid rgba(255,255,255,0.25); padding-left: 22px; }
+  .pr-band-eyebrow { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #c9d6e6; margin-bottom: 4px; }
+  .pr-band h1 { font-family: var(--font-serif); font-size: 21px; font-weight: 600; color: #fff; margin: 0; line-height: 1.15; }
+  .pr-band-sub { font-size: 10px; color: #c9d6e6; margin-top: 4px; }
+  .pr-band-meta { display: flex; justify-content: space-between; font-size: 9.5px; color: #c9d6e6; margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.18); }
+  .pr-pagehead { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #726d63; border-bottom: 1px solid #0f2440; padding-bottom: 6px; margin-bottom: 14px; }
+  .pr-feature { background: #0f2440; color: #fff; border-radius: 6px; padding: 12px 18px 11px; margin-bottom: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-feature-label { font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #c9d6e6; }
+  .pr-feature-value { font-family: var(--font-serif); font-size: 28px; font-weight: 700; line-height: 1.1; margin: 3px 0 2px; font-variant-numeric: lining-nums tabular-nums; }
+  .pr-feature-note { font-size: 10px; color: #dfe8f5; }
+  .pr-tiles { display: grid; gap: 8px; margin-bottom: 12px; }
+  .pr-tile { background: #f4f0e6; border: 1px solid #e6e0d2; border-radius: 6px; padding: 8px 10px; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-tile.is-best { background: #eef6f1; border-color: #bcd9c7; }
+  .pr-tile-label { font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #726d63; font-weight: 600; }
+  .pr-tile-value { font-family: var(--font-serif); font-size: 17px; font-weight: 700; color: #0f2440; margin: 2px 0; font-variant-numeric: lining-nums tabular-nums; }
+  .pr-tile.is-best .pr-tile-value { color: #2e7d5b; }
+  .pr-tile-note { font-size: 8.5px; color: #726d63; }
+  .pr-section { margin-bottom: 10px; }
+  .pr-section-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1.5px solid #c4a054; padding-bottom: 3px; margin-bottom: 6px; }
+  .pr-section-head h2 { font-family: var(--font-serif); font-size: 12.5px; font-weight: 700; color: #0f2440; margin: 0; }
+  .pr-section-head span { font-size: 9px; color: #726d63; font-style: italic; }
+  .pr-rows { display: flex; flex-direction: column; }
+  .pr-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid #efeae0; font-size: 10.5px; }
+  .pr-row b { font-variant-numeric: lining-nums tabular-nums; color: #0f2440; }
+  .pr-row.is-sub { font-size: 9.5px; color: #726d63; }
+  .pr-row.is-sub b { color: #726d63; font-weight: 500; }
+  .pr-row.is-total { border-top: 1px solid #0f2440; border-bottom: 0; font-weight: 700; }
+  .pr-table { width: 100%; border-collapse: collapse; font-size: 9.5px; margin: 6px 0; }
+  .pr-table th { text-align: left; font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: #726d63; border-bottom: 1px solid #0f2440; padding: 3px 6px 4px; }
+  .pr-table td { padding: 4px 6px; border-bottom: 1px solid #efeae0; vertical-align: top; line-height: 1.35; }
+  .pr-table td:first-child { font-weight: 600; color: #0f2440; }
+  .pr-prose { font-size: 10.5px; line-height: 1.5; color: #26262b; margin: 0 0 6px; }
+  .pr-note { background: #f4f0e6; border-left: 3px solid #c4a054; padding: 8px 12px; margin: 8px 0 10px; font-size: 10px; line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-note-title { font-weight: 700; color: #0f2440; margin-bottom: 2px; }
+  .pr-inputs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 16px; margin: 0; }
+  .pr-inputs > div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid #efeae0; padding: 3px 0; font-size: 9.5px; }
+  .pr-inputs dt { color: #5b6472; }
+  .pr-inputs dd { margin: 0; font-weight: 600; color: #0f2440; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+  .pr-assumptions { margin: 0; padding-left: 14px; font-size: 9px; line-height: 1.4; color: #454650; }
+  .pr-assumptions li { margin-bottom: 2px; }
+  .pr-chart .chart-bars { margin: 0; }
+  .pr-chart .chart-bar-val { font-size: 9px; }
+  .pr-chart .chart-bar-glabel { font-size: 9px; }
+  .pr-chart .chart-bar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-footer { margin-top: auto; padding-top: 8px; border-top: 1px solid #d8d1bf; }
+  .pr-footer-row { display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #5b6472; }
+  .pr-footer-powered { display: inline-flex; align-items: center; gap: 6px; color: #8a8377; }
+  .pr-footer-powered img { width: 64px; height: 22px; object-fit: cover; object-position: center; }
+  .pr-footer-disc { font-size: 7.5px; line-height: 1.45; color: #8a8377; margin: 6px 0 0; text-align: justify; }
+  .pr-footer-page { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 8px; color: #8a8377; text-align: right; margin-top: 4px; }
+}
