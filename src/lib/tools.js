@@ -179,11 +179,9 @@ export const TOOLS = [
     description:
       'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
   },
-
-  // ---------- Business Owner Planning ----------
   {
     id: 'owner-comp',
-    group: 'business-owner',
+    group: 'cpa',
     status: 'testing',
     path: '/tools/owner-comp',
     icon: Wallet,
@@ -192,6 +190,8 @@ export const TOOLS = [
     description:
       'Compare owner compensation strategies — reasonable salary vs. distributions for an S-corporation — including payroll and self-employment tax, QBI effects, and estimated total tax by strategy.',
   },
+
+  // ---------- Business Owner Planning ----------
   {
     id: 'cash-balance',
     group: 'business-owner',
