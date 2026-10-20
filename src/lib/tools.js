@@ -68,28 +68,6 @@ export const GROUP_ORDER = ['cpa', 'business-owner', 'individual-family', 'clien
 export const TOOLS = [
   // ---------- CPA Tools ----------
   {
-    id: 'estimated-tax',
-    group: 'cpa',
-    status: 'testing',
-    path: '/tools/estimated-tax',
-    icon: CalendarClock,
-    title: 'Estimated Tax & Safe Harbor Planner',
-    short: 'Estimated Tax & Safe Harbor',
-    description:
-      'Project the year’s tax, test the safe-harbor thresholds, account for withholding, and calculate the remaining quarterly payments needed to avoid an underpayment penalty.',
-  },
-  {
-    id: 'multi-year-projection',
-    group: 'cpa',
-    status: 'cpa-testing',
-    path: '/tools/multi-year-projection',
-    icon: LineChart,
-    title: 'Roth Conversion & RMD Planner',
-    short: 'Roth & RMD Planner',
-    description:
-      'This year only: the Q4 Roth conversion and what it costs. Or plan to the end: RMDs and heirs.',
-  },
-  {
     id: 'exchange-1031',
     group: 'cpa',
     status: 'cpa-testing',
@@ -101,53 +79,15 @@ export const TOOLS = [
       'Like-kind exchange with up to three properties on each side (1-for-2, 2-for-1, 3-for-2), default closing costs, cash taken out or brought in, boot and recapture, carryover basis by property, and equipment such as tractors taxed correctly outside the exchange.',
   },
   {
-    id: 'retirement-tax-map',
+    id: 'multi-year-projection',
     group: 'cpa',
-    status: 'testing',
-    path: '/tools/retirement-tax-map',
-    icon: Map,
-    title: 'Retirement Income Tax Map',
-    short: 'Retirement Income Tax Map',
+    status: 'cpa-testing',
+    path: '/tools/multi-year-projection',
+    icon: LineChart,
+    title: 'Roth Conversion & RMD Planner',
+    short: 'Roth & RMD Planner',
     description:
-      'See how each retirement income source contributes to taxable income, how Social Security becomes taxable, and where IRMAA and after-tax cash flow land — with a second scenario for comparison.',
-  },
-  {
-    id: 'withholding-checkup',
-    group: 'cpa',
-    status: 'testing',
-    path: '/tools/withholding-checkup',
-    icon: FileCheck,
-    title: 'Withholding Checkup (W-4)',
-    short: 'Withholding Checkup',
-    description:
-      'Will this client owe in April? Compare year-to-date withholding against projected tax and get the W-4 adjustment that closes the gap before year-end.',
-    plan:
-      'A mid-year answer to the most common client question. Projects full-year tax from YTD pay stubs, compares it to withholding to date, and translates any shortfall into an extra-per-paycheck amount for the remaining pay periods.',
-    planInputs: [
-      'Filing status and state',
-      'YTD wages and federal withholding (from a recent pay stub)',
-      'Pay frequency and remaining pay periods',
-      'Other income, deductions, and credits expected',
-    ],
-  },
-  {
-    id: 'capital-gains-harvesting',
-    group: 'individual-family',
-    status: 'testing',
-    path: '/tools/capital-gains-harvesting',
-    icon: TrendingUp,
-    title: 'Capital Gains & Loss Harvesting Planner',
-    short: 'Gains & Loss Harvesting',
-    description:
-      'How much gain can be realized this year inside the 0% or 15% bracket, and which losses are worth harvesting against it — with the wash-sale window flagged.',
-    plan:
-      'A Q4 planning tool: shows the headroom left in the current capital-gains bracket, the tax on realizing a given gain, and the offset from harvesting losses, including the $3,000 ordinary-income limit and carryforward.',
-    planInputs: [
-      'Filing status, ordinary taxable income, and state',
-      'Unrealized gains and losses by position (long vs. short)',
-      'Planned realizations this year',
-      'Loss carryforward from prior years',
-    ],
+      'This year only: the Q4 Roth conversion and what it costs. Or plan to the end: RMDs and heirs.',
   },
   {
     id: 'charitable-giving-optimizer',
@@ -178,6 +118,66 @@ export const TOOLS = [
     short: 'QBI Deduction Optimizer',
     description:
       'Estimate the Section 199A qualified business income deduction, including the taxable-income thresholds, W-2 wage and property limitations, and how planning moves change the deduction.',
+  },
+  {
+    id: 'estimated-tax',
+    group: 'cpa',
+    status: 'testing',
+    path: '/tools/estimated-tax',
+    icon: CalendarClock,
+    title: 'Estimated Tax & Safe Harbor Planner',
+    short: 'Estimated Tax & Safe Harbor',
+    description:
+      'Project the year’s tax, test the safe-harbor thresholds, account for withholding, and calculate the remaining quarterly payments needed to avoid an underpayment penalty.',
+  },
+  {
+    id: 'capital-gains-harvesting',
+    group: 'individual-family',
+    status: 'testing',
+    path: '/tools/capital-gains-harvesting',
+    icon: TrendingUp,
+    title: 'Capital Gains & Loss Harvesting Planner',
+    short: 'Gains & Loss Harvesting',
+    description:
+      'How much gain can be realized this year inside the 0% or 15% bracket, and which losses are worth harvesting against it — with the wash-sale window flagged.',
+    plan:
+      'A Q4 planning tool: shows the headroom left in the current capital-gains bracket, the tax on realizing a given gain, and the offset from harvesting losses, including the $3,000 ordinary-income limit and carryforward.',
+    planInputs: [
+      'Filing status, ordinary taxable income, and state',
+      'Unrealized gains and losses by position (long vs. short)',
+      'Planned realizations this year',
+      'Loss carryforward from prior years',
+    ],
+  },
+  {
+    id: 'retirement-tax-map',
+    group: 'cpa',
+    status: 'testing',
+    path: '/tools/retirement-tax-map',
+    icon: Map,
+    title: 'Retirement Income Tax Map',
+    short: 'Retirement Income Tax Map',
+    description:
+      'See how each retirement income source contributes to taxable income, how Social Security becomes taxable, and where IRMAA and after-tax cash flow land — with a second scenario for comparison.',
+  },
+  {
+    id: 'withholding-checkup',
+    group: 'cpa',
+    status: 'testing',
+    path: '/tools/withholding-checkup',
+    icon: FileCheck,
+    title: 'Withholding Checkup (W-4)',
+    short: 'Withholding Checkup',
+    description:
+      'Will this client owe in April? Compare year-to-date withholding against projected tax and get the W-4 adjustment that closes the gap before year-end.',
+    plan:
+      'A mid-year answer to the most common client question. Projects full-year tax from YTD pay stubs, compares it to withholding to date, and translates any shortfall into an extra-per-paycheck amount for the remaining pay periods.',
+    planInputs: [
+      'Filing status and state',
+      'YTD wages and federal withholding (from a recent pay stub)',
+      'Pay frequency and remaining pay periods',
+      'Other income, deductions, and credits expected',
+    ],
   },
   {
     id: 'owner-comp',
