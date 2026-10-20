@@ -131,25 +131,6 @@ export const TOOLS = [
       'Project the year’s tax, test the safe-harbor thresholds, account for withholding, and calculate the remaining quarterly payments needed to avoid an underpayment penalty.',
   },
   {
-    id: 'capital-gains-harvesting',
-    group: 'individual-family',
-    status: 'testing',
-    path: '/tools/capital-gains-harvesting',
-    icon: TrendingUp,
-    title: 'Capital Gains & Loss Harvesting Planner',
-    short: 'Gains & Loss Harvesting',
-    description:
-      'How much gain can be realized this year inside the 0% or 15% bracket, and which losses are worth harvesting against it — with the wash-sale window flagged.',
-    plan:
-      'A Q4 planning tool: shows the headroom left in the current capital-gains bracket, the tax on realizing a given gain, and the offset from harvesting losses, including the $3,000 ordinary-income limit and carryforward.',
-    planInputs: [
-      'Filing status, ordinary taxable income, and state',
-      'Unrealized gains and losses by position (long vs. short)',
-      'Planned realizations this year',
-      'Loss carryforward from prior years',
-    ],
-  },
-  {
     id: 'retirement-tax-map',
     group: 'cpa',
     status: 'testing',
@@ -200,6 +181,25 @@ export const TOOLS = [
     short: 'Paying Your Kids',
     description:
       'Put a child on the payroll and the wages move from the owner’s bracket to the child’s — often tax-free up to the standard deduction — and open the door to a Roth IRA and, where the plan allows, the company 401(k). What it saves, and what it costs in payroll tax and paperwork.',
+  },
+  {
+    id: 'capital-gains-harvesting',
+    group: 'cpa',
+    status: 'testing',
+    path: '/tools/capital-gains-harvesting',
+    icon: TrendingUp,
+    title: 'Capital Gains & Loss Harvesting Planner',
+    short: 'Gains & Loss Harvesting',
+    description:
+      'How much gain can be realized this year inside the 0% or 15% bracket, and which losses are worth harvesting against it — with the wash-sale window flagged.',
+    plan:
+      'A Q4 planning tool: shows the headroom left in the current capital-gains bracket, the tax on realizing a given gain, and the offset from harvesting losses, including the $3,000 ordinary-income limit and carryforward.',
+    planInputs: [
+      'Filing status, ordinary taxable income, and state',
+      'Unrealized gains and losses by position (long vs. short)',
+      'Planned realizations this year',
+      'Loss carryforward from prior years',
+    ],
   },
 
   // ---------- Business Owner Planning ----------
