@@ -190,6 +190,17 @@ export const TOOLS = [
     description:
       'Compare owner compensation strategies — reasonable salary vs. distributions for an S-corporation — including payroll and self-employment tax, QBI effects, and estimated total tax by strategy.',
   },
+  {
+    id: 'paying-your-kids',
+    group: 'cpa',
+    status: 'testing',
+    path: '/tools/paying-your-kids',
+    icon: Users,
+    title: 'What If I Pay My Kids Through the Business?',
+    short: 'Paying Your Kids',
+    description:
+      'Put a child on the payroll and the wages move from the owner’s bracket to the child’s — often tax-free up to the standard deduction — and open the door to a Roth IRA and, where the plan allows, the company 401(k). What it saves, and what it costs in payroll tax and paperwork.',
+  },
 
   // ---------- Business Owner Planning ----------
   {
@@ -232,17 +243,6 @@ export const TOOLS = [
       'Number of employees and whether they must be covered',
       'Desired contribution level',
     ],
-  },
-  {
-    id: 'paying-your-kids',
-    group: 'business-owner',
-    status: 'testing',
-    path: '/tools/paying-your-kids',
-    icon: Users,
-    title: 'What If I Pay My Kids Through the Business?',
-    short: 'Paying Your Kids',
-    description:
-      'Put a child on the payroll and the wages move from the owner’s bracket to the child’s — often tax-free up to the standard deduction — and open the door to a Roth IRA and, where the plan allows, the company 401(k). What it saves, and what it costs in payroll tax and paperwork.',
   },
 
   // ---------- Individual & Family Planning ----------
