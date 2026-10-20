@@ -280,17 +280,6 @@ export const TOOLS = [
       'Illustrate the after-tax consequences of a proposed property division across any mix of assets — cash, investments, real estate, retirement, HSA, 529s, and more — and how embedded taxes shift an equalized split.',
   },
   {
-    id: 'concentrated-wealth',
-    group: 'individual-family',
-    status: 'testing',
-    path: '/tools/concentrated-wealth',
-    icon: Layers,
-    title: 'Concentrated Wealth Exposure Analyzer',
-    short: 'Concentrated Wealth Exposure',
-    description:
-      'Illustrate how much of a client’s wealth and income rests on a single source, how much is liquid, and how a simple shock would affect net worth.',
-  },
-  {
     id: 'social-security-timing',
     group: 'individual-family',
     status: 'testing',
@@ -308,6 +297,17 @@ export const TOOLS = [
       'Planned claiming ages to compare',
       'Life-expectancy assumption and an optional discount rate',
     ],
+  },
+  {
+    id: 'concentrated-wealth',
+    group: 'individual-family',
+    status: 'testing',
+    path: '/tools/concentrated-wealth',
+    icon: Layers,
+    title: 'Concentrated Wealth Exposure Analyzer',
+    short: 'Concentrated Wealth Exposure',
+    description:
+      'Illustrate how much of a client’s wealth and income rests on a single source, how much is liquid, and how a simple shock would affect net worth.',
   },
 
   {
