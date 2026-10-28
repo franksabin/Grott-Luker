@@ -2323,14 +2323,14 @@ button.backlink {
 .pill[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .pill:focus-visible { outline: 2px solid var(--navy-500); outline-offset: 2px; }
 
-.refine { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin: 0 0 20px; }
-.refine summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 14px; color: var(--ink); }
-.refine summary::-webkit-details-marker { display: none; }
-.refine summary b { font-weight: 600; white-space: nowrap; }
-.refine summary span { color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.refine-chev { margin-left: auto; flex: 0 0 auto; color: var(--muted); transition: transform 0.2s ease; }
-.refine[open] .refine-chev { transform: rotate(180deg); }
-.refine-body { padding: 6px 16px 14px; }
+/* Refine the estimate: always visible (it used to be a collapsed <details>), offset by an indent and a left rule. */
+.refine { margin: 6px 0 20px 14px; padding: 2px 0 2px 18px; border-left: 3px solid var(--border-strong); }
+.refine-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 14px; font-size: 14px; color: var(--ink); }
+.refine-head svg { align-self: center; flex: 0 0 auto; color: var(--muted); }
+.refine-head b { font-weight: 600; }
+.refine-head span { color: var(--muted); font-size: 13px; }
+@media (max-width: 600px) { .refine { margin-left: 4px; padding-left: 12px; } }
+.refine-body { padding: 0; }
 .refine-body .field:last-child { margin-bottom: 0; }
 .refine-body .field-row:last-child .field { margin-bottom: 0; }
 
@@ -2789,9 +2789,6 @@ html, body { overflow-x: hidden; }
   .oc-chart .chart-bar-val { font-size: 10px; }
   .oc-chart .chart-bar-glabel { font-size: 11.5px; }
 }
-/* A long Refine summary must be ellipsized, not widen the page column on a phone (width 0 + flex 1 keeps the look, drops the intrinsic width). */
-.refine summary span { width: 0; }
-
 /* Owner Compensation: assumptions in effect, visible beside the result */
 .oc-assume { border: 1px solid var(--border-strong); border-left: 3px solid #c4a054; border-radius: var(--radius-sm); background: #fffdf7; padding: 12px 14px 12px; margin: 14px 0 6px; }
 .oc-assume-head { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--navy); margin-bottom: 8px; }

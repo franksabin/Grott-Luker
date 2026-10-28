@@ -1,4 +1,4 @@
-import { HelpCircle, Settings2, ChevronDown, Star } from 'lucide-react'
+import { HelpCircle, Settings2, Star } from 'lucide-react'
 import { money, percent as pct, toNumber, clampPct } from '../lib/format.js'
 
 /* Inline explanation for unfamiliar financial terms. */
@@ -308,18 +308,18 @@ export function PillField({ label, info, value, onChange, options, hint }) {
   )
 }
 
-/* Second-order inputs, collapsed by default so the tool answers with its defaults first. */
-export function RefinePanel({ title = 'Refine the estimate', summary, children, defaultOpen = false }) {
+/* Second-order inputs. Always visible, set apart from the primary inputs by an indent and a left rule;
+   every field carries a default, so the tool still answers before any of them is touched. */
+export function RefinePanel({ title = 'Refine the estimate', summary, children }) {
   return (
-    <details className="refine" open={defaultOpen || undefined}>
-      <summary>
+    <section className="refine" aria-label={title}>
+      <div className="refine-head">
         <Settings2 size={15} strokeWidth={1.9} />
         <b>{title}</b>
         {summary ? <span>— {summary}</span> : null}
-        <ChevronDown className="refine-chev" size={16} />
-      </summary>
+      </div>
       <div className="refine-body">{children}</div>
-    </details>
+    </section>
   )
 }
 
