@@ -30,9 +30,12 @@ export const EMAIL_REQUESTS = {
     questions: [
       'Unrealized gains and losses by position in taxable (non-retirement) accounts, noting which were held more than one year',
       'Any sales already made this year and the gain or loss on each',
-      'Approximate other income for the year (wages, pensions, IRA distributions, interest, dividends)',
-      'Loss carryforward from last year’s return, if any (we can look this up)',
       'Any positions you would want to keep regardless of tax result',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Approximate other income for the year (wages, pensions, IRA distributions, interest, dividends); last year’s return is a good guide',
+      'Loss carryforward from last year’s return, if any (we can look this up)',
     ],
   },
   'retirement-plan-comparison': {
@@ -41,10 +44,13 @@ export const EMAIL_REQUESTS = {
       'We are comparing a SEP IRA, a Solo 401(k), and a SIMPLE IRA to see which lets you put away the most on the best terms. Please reply with the following:',
     questions: [
       'How the business pays you — Schedule C profit, or W-2 wages from an S-corporation — and roughly how much this year',
-      'Your age',
       'Whether the business has any employees other than you (and your spouse), and their approximate hours',
       'Roughly how much you would like to contribute this year',
       'Whether Roth contributions or the ability to borrow from the plan matter to you',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your age',
     ],
   },
 
@@ -54,10 +60,14 @@ export const EMAIL_REQUESTS = {
       'We are comparing a few ways to structure your charitable giving so the same gifts produce the best tax result. Please reply with the following:',
     questions: [
       'Approximate charitable giving per year, and whether it varies much year to year',
-      'Your age (and your spouse’s), and whether you are taking required IRA distributions — the annual amount if so',
-      'State and local taxes paid, mortgage interest, and any other itemized deductions',
+      'Whether you are taking required IRA distributions, and the annual amount if so',
       'Whether you hold appreciated stock or funds you would consider gifting instead of cash',
       'Any charities you give to regularly (a donor-advised fund may be worth discussing)',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your age (and your spouse’s)',
+      'State and local taxes paid, mortgage interest, and any other itemized deductions (last year’s Schedule A is a good guide)',
     ],
   },
   'social-security-timing': {
@@ -66,10 +76,13 @@ export const EMAIL_REQUESTS = {
       'We are looking at when it makes the most sense to start Social Security. Please reply with the following (your statement at ssa.gov/myaccount has the first item):',
     questions: [
       'Your estimated monthly benefit at full retirement age from your Social Security statement (and your spouse’s)',
-      'Birth year for you and your spouse',
       'Whether either of you plans to keep working past 62, and roughly what you would earn',
       'Any health or family-longevity considerations you want reflected',
       'Other retirement income sources and when they begin (pension, annuity, retirement account withdrawals)',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Birth year for you and your spouse',
     ],
   },
 
@@ -83,6 +96,9 @@ export const EMAIL_REQUESTS = {
       'The same two year-to-date figures from your spouse’s pay stub, if filing jointly',
       'Any bonus, commission, or stock vesting still expected this year',
       'Other income without withholding — interest, dividends, side income, retirement distributions',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
       'Whether you expect to itemize, and any credits you usually claim (children, dependent care, education)',
     ],
   },
@@ -143,9 +159,12 @@ export const EMAIL_REQUESTS = {
       'We are projecting your tax for the year and calculating the estimated payments needed to stay in the safe harbor and avoid an underpayment penalty. Please reply with:',
     questions: [
       'Your total expected income for this year (all sources)',
-      'Your total tax from last year’s return (used for the safe-harbor test)',
       'Federal tax withholding expected this year (from wages, pensions, etc.)',
       'Estimated tax payments you have already made this year, and on what dates',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your total tax from last year’s return (used for the safe-harbor test)',
       'Your filing status (married filing jointly or single) and state of residence',
     ],
   },
@@ -155,14 +174,16 @@ export const EMAIL_REQUESTS = {
     intro:
       'We are building a multi-year tax projection to identify planning opportunities such as low-bracket years for Roth conversions or capital gains. Please reply with the following:',
     questions: [
-      'Your year of birth (and your spouse’s, if applicable) and filing status',
       'Current balances: pre-tax IRA / 401(k), Roth, and taxable savings',
       'Expected wages or business income, and the year you plan to stop working',
       'The age(s) at which you plan to begin Social Security, and the expected benefit',
-      'Current Traditional IRA / 401(k) balances (for RMD projection)',
       'Any Roth conversions you are considering, and in which years',
       'Who inherits the retirement accounts, and roughly what tax bracket they are in',
       'Any large expected events — a business sale, large capital gain, or major charitable gift — and the year',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your year of birth (and your spouse’s, if applicable) and filing status',
     ],
   },
 
@@ -172,7 +193,6 @@ export const EMAIL_REQUESTS = {
     intro:
       'We are estimating what a Roth conversion would cost you before December 31, against your income for the whole year. Please reply with the following:',
     questions: [
-      'Your age and your spouse’s (if married), as of December 31 of this year, and your filing status',
       'Wages or net self-employment income expected for the year',
       'Pension income (the taxable amount)',
       'Other ordinary income for the year, including interest, rental income, and any IRA distributions such as this year’s required minimum distribution',
@@ -182,6 +202,10 @@ export const EMAIL_REQUESTS = {
       'Net investment income for the year (interest, dividends, gains, rents), if different from the gains and dividends above',
       'Itemized deductions, if you expect to itemize instead of taking the standard deduction',
       'The pre-tax IRA balance available to convert, after this year’s required minimum distribution',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your age and your spouse’s (if married), as of December 31 of this year, and your filing status',
       'Your state of residence',
     ],
   },
@@ -192,10 +216,14 @@ export const EMAIL_REQUESTS = {
       'We are estimating your Section 199A qualified business income (QBI) deduction and how planning moves might affect it. Please reply with the following:',
     questions: [
       'Your qualified business income (net business profit) for the year',
-      'The type of business (and whether it is a “specified service” business such as law, accounting, consulting, health, or financial services)',
       'Total W-2 wages the business pays to employees',
       'The unadjusted basis of qualified business property the business owns (UBIA), if significant',
-      'Your expected total taxable income and filing status (married filing jointly or single)',
+      'Your expected total taxable income for the year',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'The type of business (and whether it is a “specified service” business such as law, accounting, consulting, health, or financial services)',
+      'Your filing status (married filing jointly or single)',
     ],
   },
 
@@ -206,10 +234,13 @@ export const EMAIL_REQUESTS = {
       'We are reviewing the like-kind exchange so we can estimate the tax deferred, any boot, and the basis in what you buy. For each asset involved, please send:',
     questions: [
       'What is being sold: each property (and any equipment, vehicles, or other items included in the sale) with its expected sale price and any mortgage being paid off',
-      'For each asset sold: original cost plus improvements, and total depreciation taken',
       'What is being bought: each replacement property or item with its price and any new loan',
       'Whether you plan to take any cash out at closing, or bring cash in',
       'Expected closing date of the first sale',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'For each asset sold: original cost plus improvements, and total depreciation taken (your depreciation schedules have this)',
       'Approximate other taxable income for the year and your state of residence',
     ],
   },
@@ -244,11 +275,15 @@ export const EMAIL_REQUESTS = {
     intro:
       'We are preparing a snapshot of whether you are on track to retire comfortably. Approximate figures are perfectly fine. Please reply with:',
     questions: [
-      'Your current age and the age at which you would like to retire',
+      'The age at which you would like to retire',
       'Your total current retirement and investment savings',
       'Approximately how much you add to savings each year',
       'Your expected annual Social Security benefit (and any pension)',
       'Your estimated annual spending needs in retirement (in today’s dollars)',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your current age',
     ],
   },
 
@@ -257,10 +292,13 @@ export const EMAIL_REQUESTS = {
     intro:
       'We are reviewing whether a Cash Balance Plan may be worth discussing for your business. To prepare illustrative contribution and deduction ranges, please reply with:',
     questions: [
-      'Owner age',
       'Approximate annual income / W-2 compensation from the business',
-      'Entity type (sole proprietorship, LLC, partnership, S-corporation, or C-corporation)',
       'Number of employees (excluding owners)',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Owner age',
+      'Entity type (sole proprietorship, LLC, partnership, S-corporation, or C-corporation)',
       'Any existing retirement plans already in place (e.g., 401(k), profit sharing, SEP/SIMPLE)',
     ],
   },
@@ -274,8 +312,11 @@ export const EMAIL_REQUESTS = {
       'Whether you are still employed by the company that sponsors the plan',
       'The approximate annual fees or expense ratios in the current plan, if known',
       'Whether the plan holds any employer stock (this can have special tax treatment)',
-      'Your current age',
       'Whether you have an existing IRA the funds could be rolled into',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your current age',
     ],
   },
 
@@ -311,6 +352,76 @@ export const EMAIL_REQUESTS = {
       'Annual expenses (housing, living expenses, debt payments, other)',
       'Approximate amount you save or invest each year',
       'Life insurance coverage amount and any disability coverage (monthly benefit)',
+    ],
+  },
+
+  // ---------- Added so every calculator has a client information request ----------
+  'retirement-tax-map': {
+    subject: 'Information needed for your retirement income tax review',
+    intro:
+      'We are mapping where your retirement income will come from and how each source is taxed, including how much of your Social Security becomes taxable and whether Medicare premiums are affected. Approximate annual figures are fine. Please reply with the following:',
+    questions: [
+      'Annual Social Security benefits, for you and your spouse if applicable',
+      'Annual pension or annuity income',
+      'Annual withdrawals from Traditional IRA and 401(k) accounts, including the required minimum distribution if you are taking one',
+      'Annual withdrawals from Roth accounts',
+      'Annual income from taxable investment accounts, such as dividends and long-term gains',
+      'Net annual rental, business, or partnership (K-1) income',
+      'A second mix of withdrawals you would like compared, if any',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your filing status and state of residence',
+    ],
+  },
+
+  'paying-your-kids': {
+    subject: 'Information needed to review paying your children through the business',
+    intro:
+      'We are estimating the tax effect of putting your children on the payroll for real work in the business, including the payroll-tax rules for your type of business and whether a Roth IRA or 401(k) contribution is possible. Please reply with the following for each child:',
+    questions: [
+      'Each child’s age and the work they do or would do for the business',
+      'The hours they work, or expect to work, and the hourly rate you would pay (or the total wages for the year)',
+      'Whether the work is documented, for example with timesheets and a written job description',
+      'Whether the business’s 401(k) plan, if there is one, allows employees under 21 to participate',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your business’s entity type (sole proprietorship or spouses’ partnership, S-corporation, or C-corporation)',
+      'Your federal tax bracket and state of residence',
+    ],
+  },
+
+  'business-sale': {
+    subject: 'Information needed to estimate what you would keep from a business sale',
+    intro:
+      'We are estimating what you would keep after tax, transaction costs, and debt payoff if the business is sold. Approximate figures are fine. Please reply with the following:',
+    questions: [
+      'The expected sale price',
+      'Your cost basis in the business or assets being sold',
+      'The selling costs you expect, such as broker, legal, and advisory fees',
+      'Debt that will be paid off at closing',
+      'Whether the buyer is asking for an asset sale or a sale of the ownership interest, and whether you would take part of the price in payments over time',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'The entity type (sole proprietorship, LLC, partnership, S-corporation, or C-corporation)',
+      'Your filing status and state of residence',
+      'Other household taxable income expected for the year',
+    ],
+  },
+
+  'concentrated-wealth': {
+    subject: 'Information needed to measure how concentrated your wealth is',
+    intro:
+      'We are measuring how much of your net worth and income depends on a single asset or source, and what a sharp drop in the largest one would do. Approximate values are fine. Please reply with the following:',
+    questions: [
+      'The approximate value of each major asset: business interests, real estate, individual stocks, employer stock, deferred compensation, cryptocurrency, and anything else significant',
+      'Whether any of these assets has restrictions on selling, such as lock-ups, vesting schedules, or a buy-sell agreement',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Annual income by source: employment, business, investments, and other (last year’s return is a good guide)',
     ],
   },
 }
@@ -360,7 +471,8 @@ export function buildTemplateEmail(spec, toolTitle, templateLink, link) {
 // figures, and the numbered list becomes "what you'll be asked for".
 export function buildEmail(spec, link, templateLink) {
   if (!spec) return { subject: '', body: '' }
-  const numbered = spec.questions.map((q, i) => `${i + 1}. ${q}`).join('\n')
+  // The items the CPA most likely already has are listed last, so they can be deleted before sending.
+  const numbered = [...spec.questions, ...(spec.onFile || [])].map((q, i) => `${i + 1}. ${q}`).join('\n')
   const body = link
     ? [
         'Dear [Client Name],',

@@ -78,6 +78,12 @@ export default function RequestInfoModal({ open, onClose, spec, link, templateLi
             : 'This email lists exactly the information this tool needs. Personalize the client name and your signature, then copy it or open it in your email app. Your client can simply reply with their answers.'}
         </p>
 
+        {mode !== 'template' && !link && spec?.onFile?.length ? (
+          <p className="modal-intro">
+            <strong>Before you send:</strong> the last {spec.onFile.length === 1 ? 'item' : `${spec.onFile.length} items`} on the list {spec.onFile.length === 1 ? 'is one' : 'are ones'} you most likely already have, such as last year’s return. Delete {spec.onFile.length === 1 ? 'it' : 'any you do not need'} before sending.
+          </p>
+        ) : null}
+
         <label className="field-label">Subject</label>
         <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} />
 
