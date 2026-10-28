@@ -201,6 +201,23 @@ export default function OwnerComp() {
   const entityRows = useMemo(() => entityRowsFor(r), [r])
   const entityNames = entityOn ? entityNamesFor(r) : ''
   const th = nhThresholds()
+  // The assumptions the owner chose, shown beside the result (not only in the collapsed Refine panel).
+  // The third value flags the one most worth confirming.
+  const assumedRows = isNH && modeled
+    ? [
+        ['Owner-pay deduction for the sole proprietor', payMethodText(form, r.soleEntity), false],
+        ['Sole proprietor’s Business Profits Tax', r.soleEntity.bptDeductible ? 'deducted on Schedule C (Rev. Rul. 81-288)' : 'treated as a personal state tax, not deducted here', true],
+        ['Business Profits Tax rate', pct(r.soleEntity.bptRate), false],
+        ['Gross receipts', r.receiptsEntered ? money(toNumber(form.receipts)) : `not entered, assumed above ${money(th.bpt)}`, false],
+        ...(r.bizDiffers ? [[`${r.stateName} credit for the ${r.bizName} tax`, r.homeCredit ? 'applied' : 'none', false]] : []),
+      ]
+    : []
+  const openAssumptions = () => {
+    const el = document.getElementById('oc-nh-assumptions')
+    const d = el && el.closest('details')
+    if (d) d.open = true
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 
   const steps = useMemo(() => {
     const ent = r.bizInfo.status !== 'modeled'
@@ -425,7 +442,7 @@ export default function OwnerComp() {
 
   const entityBridge = modeled && (r.soleEntityTax !== 0 || r.scorpEntityTax !== 0)
   // Page 1 budget: the bridge row, tile notes and a longer narrative cost room, so the chart gives some back (never below 150).
-  const chartHeight = entityBridge ? 150 : entitySentence ? 190 : 230
+  const chartHeight = (entityBridge ? 150 : entitySentence ? 190 : 230) - (assumedRows.length ? (entityBridge ? 25 : 45) : 0) // the assumptions line takes a little of page 1
   const tight = hasState || modeled
 
   const printReport = (
@@ -449,6 +466,11 @@ export default function OwnerComp() {
             { label: 'S-corp distribution · no payroll tax', value: money(r.distribution) },
           ]}
         />
+        {assumedRows.length ? (
+          <div className="oc-pr-assume">
+            <b>Assumes:</b> the sole proprietor’s BPT {r.soleEntity.bptDeductible ? 'is deducted on Schedule C (Rev. Rul. 81-288)' : 'is not deducted federally'}; owner pay {String(form.nhPayMethod || 'salary') === 'salary' ? 'equals the S-corp salary' : String(form.nhPayMethod) === 'safe' ? 'is the $75,000 safe harbor' : String(form.nhPayMethod) === 'earned' ? 'is full earned income' : 'is a set amount'}; BPT {pct(r.soleEntity.bptRate)}. Changeable on screen.
+          </div>
+        ) : null}
         <PrintSection title="Where the difference comes from" note="estimated, this tax year">
           <PrintRows
             rows={[
@@ -622,7 +644,7 @@ export default function OwnerComp() {
               />
             ) : null}
             {isNH ? (
-              <div className="oc-group">
+              <div className="oc-group" id="oc-nh-assumptions">
                 <div className="oc-group-title">New Hampshire business taxes</div>
                 <NumberField
                   label="Business Profits Tax rate (%)"
@@ -678,6 +700,25 @@ export default function OwnerComp() {
                 { label: 'S-corp distribution', value: money(r.distribution), note: 'not subject to payroll tax' },
               ]}
             />
+            {assumedRows.length ? (
+              <div className="oc-assume">
+                <div className="oc-assume-head">
+                  <span>Assumptions in this estimate</span>
+                  <button type="button" className="oc-assume-change" onClick={openAssumptions}>Change</button>
+                </div>
+                {assumedRows.map(([k, v, flag]) => (
+                  <div key={k} className={`oc-assume-row${flag ? ' is-flag' : ''}`}>
+                    <span>{k}</span>
+                    <b>{v}</b>
+                  </div>
+                ))}
+                <p className="oc-assume-note">
+                  {assumedRows.some((x) => x[2])
+                    ? 'The Business Profits Tax treatment is the one to confirm: Rev. Rul. 81-288 dates from 1981. Changing it moves the S-corp advantage by a few thousand dollars.'
+                    : 'Each of these can be changed under Refine the estimate.'}
+                </p>
+              </div>
+            ) : null}
             <Narrative>{narrative}</Narrative>
             {bizNotes.length ? (
               <div className="note oc-notes">
