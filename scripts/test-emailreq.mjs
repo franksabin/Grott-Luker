@@ -47,7 +47,7 @@ for (const [id, spec] of Object.entries(EMAIL_REQUESTS)) {
 }
 
 // 3. The calculators where the CPA is most likely to already hold the figures actually use the list.
-for (const id of ['estimated-tax', 'qbi-optimizer', 'exchange-1031', 'multi-year-projection', 'withholding-checkup', 'capital-gains-harvesting', 'business-sale', 'paying-your-kids']) {
+for (const id of ['estimated-tax', 'qbi-optimizer', 'exchange-1031', 'multi-year-projection', 'withholding-checkup', 'capital-gains-harvesting', 'business-sale', 'paying-your-kids', 'owner-comp']) {
   ok((EMAIL_REQUESTS[id]?.onFile || []).length >= 1, `${id} lists items the CPA likely has`)
 }
 ok(/prior|last year/i.test((EMAIL_REQUESTS['estimated-tax'].onFile || []).join(' ')), 'estimated-tax puts last year’s tax in the on-file list')

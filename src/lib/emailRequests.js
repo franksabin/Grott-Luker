@@ -143,12 +143,16 @@ export const EMAIL_REQUESTS = {
       'We are reviewing how you pay yourself from your business to compare strategies and estimate the tax difference. Please reply with the following:',
     questions: [
       'Your business’s net profit for the year (before any owner salary/compensation)',
-      'Entity type (S-corporation, LLC, partnership, or sole proprietorship)',
+      'The business’s gross receipts (total sales before expenses) for the year, if you have them',
       'A reasonable salary estimate for your role and industry, if you have one in mind',
+      'If the business is in New Hampshire: what you are paid, or would pay yourself, for your own work (this sets the owner-pay deduction on the Business Profits Tax)',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Entity type (S-corporation, LLC, partnership, or sole proprietorship)',
       'Your tax filing status (married filing jointly or single) and the state where you live',
       'The state where the business operates, if it is different from the state where you live',
-      'The business’s gross receipts (total sales before expenses) for the year, if you have them',
-      'If the business is in New Hampshire: what you are paid, or would pay yourself, for your own work (this sets the owner-pay deduction on the Business Profits Tax), and whether a Business Profits Tax or Business Enterprise Tax return was filed last year',
+      'Whether a New Hampshire Business Profits Tax or Business Enterprise Tax return was filed last year',
       'Approximate other household taxable income (e.g., a spouse’s wages)',
     ],
   },
