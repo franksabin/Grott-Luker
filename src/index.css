@@ -2763,3 +2763,31 @@ html, body { overflow-x: hidden; }
 /* One-year view: prose that follows a list of rows gets a little air */
 @media print { .pr-rows + .pr-prose { margin-top: 6px; } }
 .oy-roomgap { margin-top: 6px; }
+
+/* ------- Owner compensation: by-state business taxes ------- */
+.oc-group { border: 1px solid var(--border-strong); border-left: 3px solid var(--navy); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin: 6px 0 16px; }
+.oc-group-title { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--navy); margin-bottom: 12px; }
+.oc-group .field:last-child { margin-bottom: 0; }
+.oc-notice { margin: 4px 0 16px; font-size: 12.5px; line-height: 1.5; }
+.oc-summary { margin: -6px 0 16px; line-height: 1.45; }
+.oc-notes { margin: 14px 0 0; }
+.oc-notes p { margin: 0 0 6px; }
+.oc-notes p:last-child { margin-bottom: 0; }
+@media print {
+  .oc-pr-note { margin: 2px 12px 0; font-size: 8.5px; line-height: 1.35; color: #5b6472; }
+  .oc-pr-note p { margin: 0 0 2px; }
+}
+@media print {
+  .oc-assump .pr-assumptions { font-size: 7.8px; line-height: 1.28; }
+  .oc-assump .pr-assumptions li { margin-bottom: 1px; }
+}
+/* Three bars per group (payroll, income, business taxes) must not widen the result column on a phone. */
+.oc-chart .chart-bar-group, .oc-chart .chart-bar-col { min-width: 0; }
+@media (max-width: 600px) {
+  .oc-chart .chart-bars-plot { gap: 12px; }
+  .oc-chart .chart-bar-cols { gap: 4px; }
+  .oc-chart .chart-bar-val { font-size: 10px; }
+  .oc-chart .chart-bar-glabel { font-size: 11.5px; }
+}
+/* A long Refine summary must be ellipsized, not widen the page column on a phone (width 0 + flex 1 keeps the look, drops the intrinsic width). */
+.refine summary span { width: 0; }
