@@ -42,6 +42,11 @@ const SE_BASE = [
   { value: 'above', label: 'About $200,000 or more' },
 ]
 
+const QBI_OPTIONS = [
+  { value: 'yes', label: 'Yes, the full 20%' },
+  { value: 'no', label: 'No' },
+]
+
 const blankKid = (i) => ({ id: `k${i}`, age: '', hours: '', rate: '' })
 
 // Roth projections run 40+ years at one steady rate, so show them to the nearest $100: exact digits would imply a precision the assumption cannot support.
@@ -55,6 +60,7 @@ const BLANK = {
   state: 'NH',
   planMinAge: '21',
   seBase: 'below',
+  qbi: 'yes',
   ...ROTH_DEFAULTS,
   kids: [blankKid(1), blankKid(2), blankKid(3)],
 }
@@ -64,6 +70,7 @@ const SAMPLE = {
   state: 'NH',
   planMinAge: '21',
   seBase: 'above',
+  qbi: 'no', // a 32% sole proprietor with about $200,000 of profit is usually above the QBI threshold
   ...ROTH_DEFAULTS,
   kids: [
     { id: 'k1', age: '17', hours: '500', rate: '16' },
@@ -103,7 +110,7 @@ export default function PayingKids() {
 
   const steps = useMemo(() => [
     ...r.kids.map((k, i) => ({ label: `Child ${i + 1} (age ${k.age}) wages`, formula: `${form.kids.find((x) => x.id === k.id).hours} hours × ${money(toNumber(form.kids.find((x) => x.id === k.id).rate), 2)}`, result: money(k.wages, 2) })),
-    { label: 'Owner income tax saved', formula: `${money(r.wages, 2)} × (${percent(r.ownerFed * 100, 0)} federal + ${percent(r.st.wage, 1)} ${r.st.name})`, result: money(r.ownerIncomeTax, 2) },
+    { label: 'Owner income tax saved', formula: `(${money(r.wages, 2)}${r.entity === 'soleprop' ? ` − ½ × ${money(r.ownerSe, 2)} SE tax saved` : ''}) × ${percent(r.ownerFed * 100, 0)} federal${r.qbiShare ? ' × (1 − 20% QBI deduction)' : ''} + ${money(r.wages, 2)} × ${percent(r.st.wage, 1)} ${r.st.name}`, result: money(r.ownerIncomeTax, 2) },
     ...(r.entity === 'soleprop' ? [{
       label: 'Owner self-employment tax saved',
       formula: r.seAbove
@@ -142,7 +149,7 @@ export default function PayingKids() {
   const featureNote = [
     `${money(r.wages)} of wages moved from a ${percent(r.ownerFed * 100, 0)} bracket to the children`,
     ...(r.entity === 'soleprop' ? [`owner’s profit ${r.seAbove ? 'about $200,000 or more' : 'under about $200,000'}`] : []),
-    r.entity === 'ccorp' ? 'assumes the owner would otherwise have been paid these dollars' : 'before the QBI and half-SE-tax effects',
+    r.entity === 'ccorp' ? 'assumes the owner would otherwise have been paid these dollars' : r.qbiShare ? 'assumes the full 20% QBI deduction' : 'no QBI deduction assumed',
   ].join(' · ')
   // Blank-state planning table: hours a child can work before owing income tax, at common rates.
   const headroomRows = [15, 18, 20, 25, 30].map((rate) => [
@@ -153,7 +160,7 @@ export default function PayingKids() {
   ])
   const assumptions = [
     `${TAX_YEAR} single standard deduction of ${money(STANDARD_DEDUCTION.single)} and ordinary brackets for each child, with no other income; earned income is not subject to the kiddie tax.`,
-    `Owner saving is the wages × the owner’s federal bracket plus a flat state rate. A sole proprietor also saves self-employment tax: 15.3% × 92.35% below the Social Security wage base (${money(SS_WAGE_BASE)}), 3.8% × 92.35% above it (net profit of about $200,000 or more is above; you choose). Not modeled: the lost deduction for half the self-employment tax and the lost QBI deduction (up to 20% of the shifted income) lower the saving, and the deductible employer share of payroll tax raises it. For an S- or C-corporation the dollars are assumed to have reached the owner at that bracket; a C-corporation that would have kept them saves only 21%.`,
+    `Owner saving is the wages × the owner’s federal bracket plus a flat state rate. A sole proprietor also saves self-employment tax: 15.3% × 92.35% below the Social Security wage base (${money(SS_WAGE_BASE)}), 3.8% × 92.35% above it (net profit of about $200,000 or more is above; you choose). The saving also reflects the deduction for half the self-employment tax and, if you choose it, the 20% QBI deduction, both of which shrink as profit falls (QBI is assumed fully available; above about $200,000 of taxable income single or $400,000 joint it can be limited). Not modeled: the deductible employer share of payroll tax, which raises the saving. For an S- or C-corporation the dollars are assumed to have reached the owner at that bracket; a C-corporation that would have kept them saves only 21%.`,
     'Wages to a child under 18 from a parent’s sole proprietorship, a parents-only partnership, or a single-member LLC without a corporate election (T.D. 9554) are exempt from Social Security and Medicare, and from FUTA under 21; an S- or C-corporation pays 15.3% and FUTA on every employee. Age is entered as one number for the year; wages after an 18th birthday are taxable.',
     `Roth room is the lesser of wages and the ${money(IRA_LIMIT)} limit; anyone may contribute if the child had that much earned income. Earnings are tax-free after five years and age 59½ (or for death, disability or a first home up to $10,000); contributions can be withdrawn at any time; a child under 18 needs a custodial Roth IRA.`,
     `Roth illustration: each year the child puts in the lesser of wages and the limit, from this year through age ${r.rothPlan.stopAge}, at year-end and held flat, at a steady ${pct(r.rothPlan.growth)} with no fees or down years: a what-if, not a forecast. Income is the balance at ${r.rothPlan.retireAge} × ${pct(r.rothPlan.incomeRate)}, a planning rule for about 30 years, not a promise for life. Today’s dollars use ${pct(r.rothPlan.inflation)} inflation.`,
@@ -166,6 +173,7 @@ export default function PayingKids() {
     ['State', r.st.name],
     ['401(k) plan minimum age', `${r.planMinAge} years`],
     ...(r.entity === 'soleprop' ? [['Owner’s net business profit', r.seAbove ? 'about $200,000 or more' : 'under about $200,000']] : []),
+    ...(r.entity !== 'ccorp' ? [['QBI deduction', r.qbiShare ? 'full 20% assumed' : 'none assumed']] : []),
     ['Roth: paid through · retire at', `age ${r.rothPlan.stopAge} (at least this year) · ${r.rothPlan.retireAge}`],
     ['Growth · income rate · inflation', `${pct(r.rothPlan.growth)} · ${pct(r.rothPlan.incomeRate)} · ${pct(r.rothPlan.inflation)}`],
     // Only the children that were entered; a blank row says nothing on paper.
@@ -447,6 +455,16 @@ export default function PayingKids() {
                 info={`Self-employment tax is 15.3% up to the Social Security wage base (${money(SS_WAGE_BASE)} of earnings, about $200,000 of net profit) and only 2.9% Medicare above it, plus 0.9% Additional Medicare over $200,000 single or $250,000 married. Wages shifted to a child come off the top, so they save the rate that applies at the margin. Near $200,000 neither choice is exact: run both and use the lower figure.`}
               />
             ) : null}
+            {form.entity !== 'ccorp' ? (
+              <PillField
+                label="Owner gets the QBI deduction"
+                value={form.qbi}
+                onChange={set('qbi')}
+                options={QBI_OPTIONS}
+                hint="Below about $200,000 of taxable income (single) or $400,000 (joint) it is usually yes. Above that it depends on the business: choose No for a specified service business, a loss year, or if wages and property do not support it."
+                info="Wages paid to the children reduce the owner’s qualified business income, so the 20% deduction under section 199A shrinks with it and the tax saved is smaller. A C-corporation has no QBI deduction."
+              />
+            ) : null}
           </Panel>
           <Panel title="The children">
             {form.kids.map((k, i) => (
@@ -488,7 +506,6 @@ export default function PayingKids() {
               value={money(r.net)}
               note={featureNote}
             />
-            {r.entity !== 'ccorp' ? <div className="hint feature-hint">The QBI deduction and the deduction for half of self-employment tax are not modeled; they can lower the owner’s income-tax saving, by roughly 15–25% in the 22% and 24% brackets.</div> : null}
             <StatTiles
               items={[
                 { label: 'Owner taxes saved', value: money(r.ownerIncomeTax + r.ownerSe), tone: 'good', note: r.entity === 'soleprop' ? 'income + self-employment tax' : 'income tax on the deduction' },

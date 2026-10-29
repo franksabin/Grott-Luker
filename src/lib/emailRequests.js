@@ -399,6 +399,7 @@ export const EMAIL_REQUESTS = {
       'Your business’s entity type (sole proprietorship or spouses’ partnership, single-member LLC, S-corporation, or C-corporation)',
       'Your federal tax bracket and state of residence',
       'If you are a sole proprietor: your net self-employment earnings, and whether they are above the Social Security wage base ($184,500)',
+      'Whether you expect the full 20% QBI deduction (taxable income under about $200,000 single or $400,000 joint, and not a specified service business)',
     ],
   },
 

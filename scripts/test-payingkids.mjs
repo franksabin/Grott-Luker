@@ -9,21 +9,25 @@ const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return se
 const pickOne = (a) => a[Math.floor(rnd() * a.length)]
 
 const K = (age, hours, rate, i = 1) => ({ id: `k${i}`, age: String(age), hours: String(hours), rate: String(rate) })
-const F = (o) => ({ entity: 'soleprop', bracket: '32', state: 'NH', planMinAge: '21', seBase: 'below', ...ROTH_DEFAULTS, kids: [], ...o })
+// The baseline tests assume no QBI deduction (qbi: 'no'); section 7 covers QBI.
+const F = (o) => ({ entity: 'soleprop', bracket: '32', state: 'NH', planMinAge: '21', seBase: 'below', qbi: 'no', ...ROTH_DEFAULTS, kids: [], ...o })
+// A sole proprietor's federal saving on wages w: the wages come off taxable income less the half-SE-tax deduction that shrinks with them,
+// and, with QBI, 20% of what is left.
+const soleFed = (w, bracket, seRate, q = 0) => bracket * (w - (w * 0.9235 * seRate) / 2) * (1 - q)
 
 // ---------- 1. The sample: sole proprietor, 32%, NH ----------
 {
   const kids = [K(17, 500, 16, 1), K(15, 400, 15, 2)]
   const above = computeKids(F({ seBase: 'above', kids }))
   ok(near(above.wages, 14000), 'wages 14,000', above.wages)
-  ok(near(above.ownerIncomeTax, 14000 * 0.32), 'owner income tax saved 4,480', above.ownerIncomeTax)
+  ok(near(above.ownerIncomeTax, soleFed(14000, 0.32, 0.038)), 'owner income tax saved 4,401.39 (wages less half the SE tax saved, x 32%)', above.ownerIncomeTax)
   ok(near(above.ownerSe, 14000 * 0.9235 * 0.038), 'above the wage base: SE saved at 3.8% x 92.35% = 491.30', above.ownerSe)
   ok(above.fica === 0 && above.futa === 0 && above.childFed === 0 && above.childState === 0, 'under 18: no payroll tax, no income tax')
-  ok(near(above.net, 4480 + 491.302), 'net 4,971.30', above.net)
+  ok(near(above.net, soleFed(14000, 0.32, 0.038) + 491.302), 'net 4,892.69', above.net)
   ok(near(above.roth, 7500 + 6000), 'Roth room 13,500', above.roth)
   const below = computeKids(F({ seBase: 'below', kids }))
   ok(near(below.ownerSe, 14000 * 0.9235 * 0.153), 'below the wage base: SE saved at 15.3% x 92.35% = 1,978.14', below.ownerSe)
-  ok(near(below.net, 4480 + 1978.137), 'net 6,458.14', below.net)
+  ok(near(below.net, soleFed(14000, 0.32, 0.153) + 1978.137), 'net 6,141.64', below.net)
   // The SE choice is explicit: nothing is inferred from the bracket, and an old saved value falls back to "below"
   ok(near(computeKids(F({ seBase: 'below', bracket: '37', kids })).ownerSe, below.ownerSe), 'a 37% bracket does not change the SE choice')
   ok(near(computeKids(F({ seBase: 'auto', kids })).ownerSe, below.ownerSe) && near(computeKids(F({ seBase: undefined, kids })).ownerSe, below.ownerSe), '"auto" or missing falls back to below')
@@ -37,8 +41,8 @@ const F = (o) => ({ entity: 'soleprop', bracket: '32', state: 'NH', planMinAge: 
   ok(near(sp(18).fica, 1836) && sp(18).futa === 0, 'sole prop age 18: FICA 1,836, still no FUTA', [sp(18).fica, sp(18).futa])
   ok(near(sp(20).fica, 1836) && sp(20).futa === 0, 'sole prop age 20: FUTA exempt until 21')
   ok(near(sp(21).fica, 1836) && near(sp(21).futa, 42), 'sole prop age 21: FUTA 0.6% of the first 7,000 = 42', sp(21).futa)
-  ok(near(sp(18).net, 12000 * 0.24 + 12000 * 0.9235 * 0.153 - 1836), 'sole prop age 18 net 2,739.56', sp(18).net)
-  ok(near(sp(17).net, 12000 * 0.24 + 12000 * 0.9235 * 0.153), 'sole prop age 17 net 4,575.55', sp(17).net)
+  ok(near(sp(18).net, soleFed(12000, 0.24, 0.153) + 12000 * 0.9235 * 0.153 - 1836), 'sole prop age 18 net 2,536.09', sp(18).net)
+  ok(near(sp(17).net, soleFed(12000, 0.24, 0.153) + 12000 * 0.9235 * 0.153), 'sole prop age 17 net 4,372.09', sp(17).net)
   for (const entity of ['scorp', 'ccorp']) {
     const r = at(entity, 15)
     ok(near(r.fica, 1836) && near(r.futa, 42) && r.ownerSe === 0, `${entity}: a corporation pays FICA and FUTA on a 15-year-old and the owner saves no SE tax`, [r.fica, r.futa, r.ownerSe])
@@ -54,7 +58,7 @@ const F = (o) => ({ entity: 'soleprop', bracket: '32', state: 'NH', planMinAge: 
   ok(none.childFed === 0 && none.childState === 0, 'wages equal to the standard deduction: no tax')
   const pa = computeKids(F({ state: 'PA', kids: [K(17, 1000, 20)] }))
   ok(near(pa.childState, 3900 * getState('PA').wage / 100), 'state tax on the wages above the federal standard deduction', pa.childState)
-  ok(near(pa.ownerIncomeTax, 20000 * (0.32 + getState('PA').wage / 100)), 'owner state saving uses the same flat rate')
+  ok(near(pa.ownerIncomeTax, soleFed(20000, 0.32, 0.153) + 20000 * getState('PA').wage / 100), 'owner state saving uses the same flat rate on the wages')
 }
 
 // ---------- 4. Roth room, blanks and bracket ----------
@@ -63,7 +67,7 @@ const F = (o) => ({ entity: 'soleprop', bracket: '32', state: 'NH', planMinAge: 
   ok(near(computeKids(F({ kids: [K(17, 100, 20)] })).roth, 2000), 'Roth room is the wages when under the cap')
   const blanks = computeKids(F({ kids: [K(17, 600, 15, 1), { id: 'k2', age: '', hours: '', rate: '' }, { id: 'k3', age: '12', hours: '', rate: '' }] }))
   ok(blanks.kids.length === 1, 'blank rows and a child with no wages are ignored')
-  ok(near(computeKids(F({ bracket: '12', kids: [K(17, 600, 15)] })).ownerIncomeTax, 9000 * 0.12), 'a 12% bracket works')
+  ok(near(computeKids(F({ bracket: '12', kids: [K(17, 600, 15)] })).ownerIncomeTax, soleFed(9000, 0.12, 0.153)), 'a 12% bracket works')
   ok(computeKids(F({ kids: [K(17, 600, 15)] })).eligibleKids === 0 && computeKids(F({ kids: [K(22, 600, 15)] })).eligibleKids === 1, '401(k) eligibility uses the plan minimum age')
 }
 
@@ -83,11 +87,40 @@ const F = (o) => ({ entity: 'soleprop', bracket: '32', state: 'NH', planMinAge: 
   ok(near(old.rothIncomeReal, old.kids[1].proj.incomeReal), 'combined today-dollar income counts only the children with a projection')
 }
 
+// ---------- 7. QBI and the half-SE-tax deduction ----------
+{
+  // Independent full-return figure from the review: single sole proprietor, 22% bracket, 12,000 of wages, profit under the wage base
+  const yes = computeKids(F({ bracket: '22', qbi: 'yes', kids: [K(15, 600, 20)] }))
+  ok(near(yes.ownerIncomeTax, 1962.79, 0.01) && near(yes.ownerSe, 1695.55, 0.01), '22%, QBI yes: income tax 1,962.79 + SE 1,695.55', [yes.ownerIncomeTax, yes.ownerSe])
+  ok(near(yes.ownerIncomeTax + yes.ownerSe, 3658.34, 0.02), 'matches the independent full-return total, about 3,658.34', yes.ownerIncomeTax + yes.ownerSe)
+  const no = computeKids(F({ bracket: '22', qbi: 'no', kids: [K(15, 600, 20)] }))
+  ok(near(no.ownerIncomeTax, 2453.49, 0.01), 'QBI no: income tax 2,453.49 (only the half-SE deduction)', no.ownerIncomeTax)
+  ok(yes.ownerIncomeTax < no.ownerIncomeTax, 'QBI lowers the saving')
+  // Unset counts as yes; an old saved state has no qbi field
+  const unset = computeKids({ ...F({ bracket: '22', kids: [K(15, 600, 20)] }), qbi: undefined })
+  ok(near(unset.ownerIncomeTax, yes.ownerIncomeTax), 'qbi unset counts as yes')
+  // S-corp: no SE tax and no half-SE deduction, but QBI still applies
+  const sc = computeKids(F({ entity: 'scorp', bracket: '32', qbi: 'yes', kids: [K(15, 600, 20)] }))
+  ok(near(sc.ownerIncomeTax, 12000 * 0.32 * 0.8) && sc.kids[0].halfSe === 0, 'S-corp 32%, QBI yes: 3,072', sc.ownerIncomeTax)
+  ok(near(computeKids(F({ entity: 'scorp', bracket: '32', qbi: 'no', kids: [K(15, 600, 20)] })).ownerIncomeTax, 12000 * 0.32), 'S-corp, QBI no: 3,840')
+  // C-corp: no QBI, whatever the choice
+  const cc = computeKids(F({ entity: 'ccorp', bracket: '32', qbi: 'yes', kids: [K(15, 600, 20)] }))
+  ok(cc.qbiShare === 0 && near(cc.ownerIncomeTax, 12000 * 0.32), 'C-corp has no QBI deduction', cc.ownerIncomeTax)
+  // State saving is the flat rate on the full wages, untouched by QBI or the half-SE deduction
+  const pa = computeKids(F({ state: 'PA', bracket: '22', qbi: 'yes', kids: [K(15, 600, 20)] }))
+  ok(near(pa.ownerIncomeTax, soleFed(12000, 0.22, 0.153, 0.2) + 12000 * getState('PA').wage / 100), 'state saving ignores QBI and the half-SE deduction', pa.ownerIncomeTax)
+  // Above the wage base the SE saving is smaller, so the half-SE deduction removes less
+  const above = computeKids(F({ bracket: '32', seBase: 'above', qbi: 'yes', kids: [K(15, 600, 20)] }))
+  ok(near(above.ownerIncomeTax, soleFed(12000, 0.32, 0.038, 0.2)), 'above the wage base: half of a smaller SE saving', above.ownerIncomeTax)
+}
+
+const ownerFedMax = (f, k) => k.wages * (Number(f.bracket) / 100)
+
 // ---------- 6. Random invariants ----------
 for (let i = 0; i < 500; i++) {
   const entity = pickOne(['soleprop', 'scorp', 'ccorp'])
   const kids = Array.from({ length: pickOne([1, 2, 3]) }, (_, k) => K(pickOne([3, 12, 16, 17, 18, 20, 21, 25, 40, 64, 70]), pickOne([0, 40, 300, 800, 2000, 90000]), pickOne([0, 8, 15, 30, 400]), k + 1))
-  const f = F({ entity, bracket: pickOne(['10', '12', '22', '24', '32', '37']), state: pickOne(['NH', 'CA', 'PA', 'MA']), seBase: pickOne(['below', 'above']), growth: pickOne(['', '0', '7', '12', '70']), retireAge: pickOne(['', '55', '65', '90', '9000']), stopAge: pickOne(['', '18', '22', '60']), kids })
+  const f = F({ entity, bracket: pickOne(['10', '12', '22', '24', '32', '37']), state: pickOne(['NH', 'CA', 'PA', 'MA']), seBase: pickOne(['below', 'above']), qbi: pickOne(['yes', 'no', undefined]), growth: pickOne(['', '0', '7', '12', '70']), retireAge: pickOne(['', '55', '65', '90', '9000']), stopAge: pickOne(['', '18', '22', '60']), kids })
   const r = computeKids(f)
   const tag = JSON.stringify(f).slice(0, 150)
   ok(Number.isFinite(r.net) && Number.isFinite(r.wages) && Number.isFinite(r.rothIncomeReal), 'random: totals are finite', tag)
@@ -97,6 +130,8 @@ for (let i = 0; i < 500; i++) {
   ok(r.kids.every((k) => (entity === 'soleprop' && k.age < 21 ? k.futa === 0 : near(k.futa, Math.min(k.wages, 7000) * 0.006, 1e-6))), 'random: FUTA rule', tag)
   ok(r.kids.every((k) => k.roth <= IRA_LIMIT + 1e-9 && k.roth <= k.wages + 1e-9), 'random: Roth room within limits', tag)
   ok(entity === 'soleprop' || r.ownerSe === 0, 'random: only a sole proprietor saves SE tax', tag)
+  ok(r.kids.every((k) => k.ownerFedTax <= ownerFedMax(f, k) + 1e-6 && k.ownerFedTax >= 0), 'random: the federal saving never exceeds bracket x wages', tag)
+  ok(r.kids.every((k) => entity !== 'ccorp' || f.qbi === undefined || near(k.ownerFedTax, k.wages * (Number(f.bracket) / 100), 1e-6)), 'random: a C-corporation ignores the QBI choice', tag)
   ok(r.kids.every((k) => !k.proj || (k.proj.balances.length === k.proj.retireAge - k.age + 1 && k.proj.balance >= 0 || f.growth === '-50')), 'random: projection series is consistent', tag)
 }
 

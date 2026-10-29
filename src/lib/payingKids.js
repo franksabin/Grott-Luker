@@ -14,6 +14,7 @@ export const SE_FACTOR = 0.9235
 // but only Medicare (2.9%) plus Additional Medicare (0.9%) once earnings are above it.
 export const SE_RATE_BELOW = 0.153
 export const SE_RATE_ABOVE = 0.038
+export const QBI_RATE = 0.2 // §199A deduction rate
 
 // The Roth illustration's defaults: the CPA changes these on screen.
 export const ROTH_DEFAULTS = { stopAge: '22', retireAge: '65', growth: '7', incomeRate: '4', inflation: '3' }
@@ -31,6 +32,10 @@ export function computeKids(form) {
   // The owner's net profit decides which self-employment rate applies at the margin; it is a choice, not inferred from the bracket.
   const seAbove = form.seBase === 'above'
   const seRate = seAbove ? SE_RATE_ABOVE : SE_RATE_BELOW
+  // QBI (IRC 199A): shifting wages out of a pass-through also shrinks the owner's qualified business income, so the
+  // deduction (20% of it) shrinks too. A C-corporation has no QBI. "No" is for a specified service business above the
+  // threshold, a loss year, or any owner who gets no deduction; unset counts as yes.
+  const qbiShare = entity !== 'ccorp' && form.qbi !== 'no' ? QBI_RATE : 0
   // Clamped so a stray keystroke cannot produce an absurd or page-breaking projection.
   const rothPlan = {
     stopAge: clamp(pick(form.stopAge, 22), 0, 120),
@@ -54,21 +59,24 @@ export function computeKids(form) {
       const childTaxable = Math.max(0, wages - std)
       const childFed = ordinaryTax(childTaxable, 'single')
       const childState = childTaxable * stateRate
-      // Owner's saving: the wages are a business deduction.
-      const ownerIncomeTax = wages * (ownerFed + stateRate)
       // Sole proprietor also saves self-employment tax on the shifted income, at the rate that applies at the margin.
       const ownerSe = entity === 'soleprop' ? wages * SE_FACTOR * seRate : 0
+      // Owner's federal saving: the wages come off taxable income, less the deduction for half of the SE tax that shrinks
+      // with it, and less 20% of what is left when the QBI deduction shrinks. The state saving is the flat rate on the wages.
+      const halfSe = ownerSe / 2
+      const ownerFedTax = ownerFed * (wages - halfSe) * (1 - qbiShare)
+      const ownerIncomeTax = ownerFedTax + wages * stateRate
       const roth = Math.min(wages, IRA_LIMIT)
       const proj = projectRoth({ age, annual: roth, ...rothPlan })
       const planEligible = age >= planMinAge
       const net = ownerIncomeTax + ownerSe - childFed - childState - fica - futa
-      return { ...k, age, wages, ficaExempt, futaExempt, fica, futa, childTaxable, childFed, childState, ownerIncomeTax, ownerSe, roth, proj, planEligible, net }
+      return { ...k, age, wages, ficaExempt, futaExempt, fica, futa, childTaxable, childFed, childState, ownerIncomeTax, ownerFedTax, halfSe, ownerSe, roth, proj, planEligible, net }
     })
     .filter(Boolean)
 
   const sum = (f) => kids.reduce((s, k) => s + f(k), 0)
   return {
-    entity, ownerFed, st, stateRate, planMinAge, std, kids, seAbove, seRate, rothPlan,
+    entity, ownerFed, st, stateRate, planMinAge, std, kids, seAbove, seRate, qbiShare, rothPlan,
     wages: sum((k) => k.wages),
     // Each child reaches retirement on a different date, so only the today's-dollar income adds up honestly.
     rothIncomeReal: sum((k) => (k.proj ? k.proj.incomeReal : 0)),
