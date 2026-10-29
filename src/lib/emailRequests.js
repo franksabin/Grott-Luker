@@ -53,7 +53,8 @@ export const EMAIL_REQUESTS = {
     // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
     onFile: [
       'Your age',
-      'Your federal tax bracket and the state or states where the business has employees',
+      'Your federal tax bracket and the state where you live',
+      'If you are paid through an S-corporation: your W-2 wages from it for last year',
     ],
   },
 

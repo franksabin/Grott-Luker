@@ -2803,9 +2803,9 @@ html, body { overflow-x: hidden; }
 @media print { .oc-pr-assume { margin: 0 0 6px; padding: 3px 10px; border-left: 2px solid #c4a054; background: #fbf7ea; font-size: 8.5px; line-height: 1.35; color: #454650; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .oc-pr-assume b { color: #0f2440; } }
 
 /* Retirement Plan Comparison: employee rows and the plan-by-plan table */
-.emp-grid { display: grid; grid-template-columns: minmax(0, 1fr) 76px 64px 32px; gap: 10px; align-items: center; margin: 0 0 8px; }
+.emp-grid { display: grid; grid-template-columns: minmax(0, 1fr) 64px 32px; gap: 10px; align-items: center; margin: 0 0 8px; }
 .emp-head { font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
-.emp-head span:nth-child(3), .emp-cov { text-align: center; justify-self: center; }
+.emp-head span:nth-child(2), .emp-cov { text-align: center; justify-self: center; }
 .emp-grid .input { padding: 9px 10px; font-size: 14px; min-width: 0; }
 .emp-cov input { width: 18px; height: 18px; accent-color: var(--navy); }
 .emp-add { margin: 4px 0 10px; }
@@ -2828,3 +2828,7 @@ html, body { overflow-x: hidden; }
 /* Phones: a wide table or chart label scrolls inside its card instead of widening the whole page column. */
 .tool-grid > div { min-width: 0; }
 .report { overflow-x: auto; }
+.emp-grid .input-money input { padding-left: 26px; }
+.emp-intro { margin: 0 0 12px; }
+/* Phones: toggles with long labels stack instead of running past the card. */
+@media (max-width: 480px) { .segmented { flex-wrap: wrap; } .segmented button { flex: 1 1 100%; } }

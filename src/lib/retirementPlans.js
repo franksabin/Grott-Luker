@@ -7,6 +7,7 @@
 import { selfEmploymentTax } from './tax.js'
 import { toNumber } from './format.js'
 import { getState } from './states.js'
+import { mandateFor } from './stateMandates.js'
 
 // 2026 limits per IRS Notice 2025-67 (indexed annually — verify each January).
 export const LIMITS = {
@@ -65,9 +66,10 @@ export function staffOf(form) {
       .map((e) => ({ wage: Math.max(0, num(e.wage)), covered: e.covered !== false }))
       .filter((e) => e.wage > 0)
   } else {
-    const n = Math.max(0, Math.round(num(form.empCount)))
+    const n = Math.min(100000, Math.max(0, Math.round(num(form.empCount))))
     const wage = Math.max(0, num(form.empWage))
-    const coveredN = String(form.empCovered ?? '').trim() === '' ? n : Math.min(n, Math.max(0, Math.round(num(form.empCovered))))
+    // Anything without a digit (the placeholder word "all", for example) means everyone is covered.
+    const coveredN = !/\d/.test(String(form.empCovered ?? '')) ? n : Math.min(n, Math.max(0, Math.round(num(form.empCovered))))
     list = Array.from({ length: n }, (_, i) => ({ wage, covered: i < coveredN }))
   }
   const covered = list.filter((e) => e.covered)
@@ -82,7 +84,7 @@ export function staffOf(form) {
     payroll: covered.reduce((s, e) => s + Math.min(e.wage, LIMITS.compCap), 0), // covered wages up to the compensation cap
     payrollRaw: covered.reduce((s, e) => s + e.wage, 0),
     paidMin: list.filter(countsAtMin).length,
-    highlyPaid: covered.filter((e) => e.wage >= LIMITS.hce).length,
+    highlyPaid: covered.filter((e) => e.wage > LIMITS.hce).length,
   }
 }
 
@@ -102,7 +104,6 @@ export function computePlans(form) {
   const stateRate = getState(form.state || 'NH').wage / 100
   const t = { fed, state: stateRate, rate: fed + stateRate }
 
-  const sepPlanRate = Math.min(LIMITS.sepRate, Math.max(0, pick(form.sepRate, 25) / 100))
   const maxRate = ownerRate(entity, LIMITS.sepRate) // the 401(k) employer piece is not tied to the SEP rate input
   const catch401 = age >= 60 && age <= 63 ? LIMITS.superCatchUp401k : age >= 50 ? LIMITS.catchUp401k : 0
 
@@ -141,9 +142,31 @@ export function computePlans(form) {
   const participation = Math.min(1, Math.max(0, pick(form.participation, 100) / 100))
 
   // Owner-side maximums for one plan, from that plan's compensation base.
-  const sepOwner = (b) => (entity === 'se'
-    ? Math.min(b.adjNet * (sepPlanRate / (1 + sepPlanRate)), LIMITS.compCap * sepPlanRate, LIMITS.total415c)
-    : Math.min(sepPlanRate * b.comp, LIMITS.total415c))
+  const sepOwnerAt = (b, rate) => (entity === 'se'
+    ? Math.min(b.adjNet * (rate / (1 + rate)), LIMITS.compCap * rate, LIMITS.total415c)
+    : Math.min(rate * b.comp, LIMITS.total415c))
+  // A SEP gives every eligible employee the same percentage of pay; no employee's contribution can pass 72,000.
+  const sepStaffAt = (rate) => staff.covered.reduce((sum, e) => sum + Math.min(rate * Math.min(e.wage, LIMITS.compCap), LIMITS.total415c), 0)
+  const sepCostsAt = (rate) => sepStaffAt(rate) + feeFor('sep')
+
+  // The SEP rate. Typed by the CPA, or by default the lowest rate that already gives the owner the 72,000 limit
+  // (above it a higher percentage only costs more for staff), never more than 25%.
+  const sepTyped = String(form.sepRate ?? '').trim() !== ''
+  let sepPlanRate = LIMITS.sepRate
+  let sepDefaulted = false
+  if (sepTyped) {
+    sepPlanRate = Math.min(LIMITS.sepRate, Math.max(0, num(form.sepRate) / 100))
+  } else if (sepOwnerAt(baseFor(sepCostsAt(LIMITS.sepRate)), LIMITS.sepRate) >= LIMITS.total415c - 0.01) {
+    let lo = 0
+    let hi = LIMITS.sepRate
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2
+      if (sepOwnerAt(baseFor(sepCostsAt(mid)), mid) >= LIMITS.total415c - 0.01) hi = mid
+      else lo = mid
+    }
+    sepPlanRate = Math.min(LIMITS.sepRate, Math.ceil(hi * 10000) / 10000) // round up to 0.01% so the owner still reaches the limit
+    sepDefaulted = true
+  }
   const k401Owner = (b) => {
     const employerMax = b.comp * maxRate
     const deferral = Math.min(b.comp, LIMITS.deferral401k + catch401)
@@ -182,11 +205,11 @@ export function computePlans(form) {
   }
 
   // SEP: the same percentage of pay for every eligible employee as for the owner.
-  const sepStaff = sepPlanRate * staff.payroll
+  const sepStaff = sepStaffAt(sepPlanRate)
   const sepBase = baseFor(sepStaff + feeFor('sep'))
   const sep = finish({
     id: 'sep', label: 'SEP IRA', available: true,
-    employer: sepOwner(sepBase), employee: 0, staffCost: sepStaff, base: sepBase,
+    employer: sepOwnerAt(sepBase, sepPlanRate), employee: 0, staffCost: sepStaff, base: sepBase,
   })
 
   // Solo 401(k) — employer piece limited by the §415(c) dollar ceiling (catch-up sits outside it)
@@ -246,6 +269,9 @@ export function computePlans(form) {
   // A tie only means something once there is compensation to contribute from.
   const tie = pre.comp > 0 && !hasStaff && sep.total === solo.total
 
+  // State auto-IRA mandates are about employee headcount, covered by the plan or not.
+  const mandate = mandateFor(form.state || 'NH', staff.headcount)
+
   const warnings = []
   if (hasStaff) {
     warnings.push({ id: 'solo', level: 'block', text: solo.reason })
@@ -253,17 +279,19 @@ export function computePlans(form) {
     warnings.push({ id: 'excluded', level: 'info', text: 'All of the employees are marked as not covered, so a Solo 401(k) is still shown as available. Confirm with the plan document that each one can be excluded (under 21 or under 1,000 hours a year, for example).' })
   }
   if (!simpleOk) warnings.push({ id: 'simple', level: 'block', text: simple.reason })
+  if (mandate) warnings.push({ id: 'state', level: 'info', text: mandate.text })
   if (hasStaff && staff.payroll === 0) warnings.push({ id: 'wage', level: 'warn', text: 'Enter the employees’ wages: without them the cost of covering staff shows as $0.' })
-  if (hasStaff) warnings.push({ id: 'sep', level: 'warn', text: `A SEP must give every eligible employee the same percentage of pay as the owner (${+(sepPlanRate * 100).toFixed(1)}%): that is the cost shown.` })
+  if (hasStaff) warnings.push({ id: 'sep', level: 'warn', text: `A SEP must give every eligible employee the same percentage of pay as the owner (${+(sepPlanRate * 100).toFixed(1)}%${sepDefaulted ? ', the lowest rate that gives the owner the 72,000 limit' : ''}): that is the cost shown.` })
+  if (hasStaff && simpleOk) warnings.push({ id: 'simple-one-plan', level: 'info', text: 'A SIMPLE IRA cannot be used if the business or a related business has any other retirement plan, such as a 401(k), profit-sharing plan or SEP, and a new one can start only from January 1 through October 1.' })
   if (simpleOk && simpleCount > LIMITS.simpleSmallEmployerMax) warnings.push({ id: 'simple26', level: 'info', text: `With ${simpleCount} employees paid $5,000 or more (owner included) the SIMPLE IRA uses the standard limits. A written election to give a 4% match or 3% non-elective contribution would unlock the higher ${LIMITS.simpleDeferralSmall.toLocaleString('en-US')} limit.` })
-  if (staff.highlyPaid > 0) warnings.push({ id: 'hce', level: 'info', text: `${staff.highlyPaid} covered employee${staff.highlyPaid > 1 ? 's earn' : ' earns'} at least ${LIMITS.hce.toLocaleString('en-US')} and would be highly compensated like the owner; the testing rules for them are not modeled.` })
-  if (hasStaff && rothCatchOf(soloAmt.deferral) > 0) warnings.push({ id: 'roth', level: 'info', text: `An S-corp owner paid over ${LIMITS.rothCatchWage.toLocaleString('en-US')} must make 401(k) catch-up contributions as Roth in 2026, so the catch-up earns no deduction and is left out of the tax deferred.` })
+  if (staff.highlyPaid > 0) warnings.push({ id: 'hce', level: 'info', text: `${staff.highlyPaid} covered employee${staff.highlyPaid > 1 ? 's earn' : ' earns'} more than ${LIMITS.hce.toLocaleString('en-US')} and would be highly compensated like the owner; the testing rules for them are not modeled.` })
+  if (rothCatchOf(soloAmt.deferral) > 0) warnings.push({ id: 'roth', level: 'info', text: `If the S-corp owner's 2025 W-2 Social Security wages from this business were over ${LIMITS.rothCatchWage.toLocaleString('en-US')} (the wages entered here stand in for that), the 401(k) catch-up must be made as Roth in 2026, so it earns no deduction and is left out of the tax deferred.` })
 
   return {
     entity, earnings, age, seTax: pre.seTax, adjNet: pre.adjNet, comp: pre.comp,
-    employerRate: ownerRate(entity, sepPlanRate), employerMax: pre.comp * ownerRate(entity, sepPlanRate), sepPlanRate, maxRate, catch401, catchSimple,
+    employerRate: ownerRate(entity, sepPlanRate), employerMax: pre.comp * ownerRate(entity, sepPlanRate), sepPlanRate, sepDefaulted, maxRate, catch401, catchSimple,
     simpleSmall, simpleCount, simpleLimit, simpleCatchBase, participation,
-    staff, hasStaff, t, participants, feeDefaults,
+    staff, hasStaff, t, participants, feeDefaults, mandate,
     sep, solo, simple, sh401k, plans, usable, best, bestByTotal, tie,
     soloBlocked: hasStaff && solo.total > best.total,
     warnings,

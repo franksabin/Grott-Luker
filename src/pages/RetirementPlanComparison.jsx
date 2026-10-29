@@ -34,7 +34,7 @@ const STAFF_MODE = [
   { value: 'avg', label: 'Number and average wage' },
   { value: 'each', label: 'Each employee' },
 ]
-const BRACKET = [22, 24, 32, 35, 37].map((b) => ({ value: String(b), label: `${b}%` }))
+const BRACKET = [10, 12, 22, 24, 32, 35, 37].map((b) => ({ value: String(b), label: `${b}%` }))
 
 const blankEmp = (id) => ({ id, wage: '', covered: true })
 
@@ -49,7 +49,7 @@ const BLANK = {
   emps: [blankEmp('e1'), blankEmp('e2')],
   bracket: '32',
   state: 'NH',
-  sepRate: '25',
+  sepRate: '',
   feeSep: '',
   feeSolo: '',
   feeSimple: '',
@@ -98,6 +98,7 @@ export default function RetirementPlanComparison() {
   const best = r.best
   const netLabel = best.net >= 0 ? 'Net first-year benefit of the best plan' : 'Net first-year cost of the best plan'
   const employeeWord = `${staff.coveredCount} covered employee${staff.coveredCount > 1 ? 's' : ''}`
+  const staffWord = hasStaff ? employeeWord : staff.headcount ? `${staff.headcount} employee${staff.headcount > 1 ? 's' : ''}, none covered` : 'no employees'
   const optionText = (p) => (p.id === 'simple' && hasStaff ? (p.option === 'nec' ? '2% non-elective' : '3% match') : '')
   // Short name and a small second line for the on-screen table.
   const planName = (p) => (p.id === 'sh401k' ? '401(k)' : p.id === 'simple' ? 'SIMPLE IRA' : p.label)
@@ -144,19 +145,33 @@ export default function RetirementPlanComparison() {
       ]
     }
     const v = r.simple.variants
+    const planSteps = (p, ownerFormula) => [
+      ...(r.entity === 'se' ? [
+        { label: `${planHead(p)} — profit after staff cost and fees`, formula: `${money(r.earnings, 2)} − ${money(p.staffCost, 2)} staff − ${money(p.fees, 2)} fees`, result: money(p.base.e, 2) },
+        { label: `${planHead(p)} — net earnings after ½ SE tax`, formula: `${money(p.base.e, 2)} − ½ × ${money(p.base.seTax, 2)} self-employment tax`, result: money(p.base.adjNet, 2) },
+      ] : []),
+      { label: `${planHead(p)} — owner shelters`, formula: ownerFormula, result: money(p.total, 2) },
+      {
+        label: `${planHead(p)} — net`,
+        formula: `${money(p.total - p.rothCatch, 2)} deductible × ${pct0(t.rate)} − (${money(p.staffCost, 2)} staff + ${money(p.fees, 2)} fees − the tax those costs save)`,
+        result: signed(p.net),
+        note: p.rothCatch ? `${money(p.rothCatch)} of Roth catch-up earns no deduction.` : undefined,
+      },
+    ]
+    const sep = r.sep
+    const sh = r.sh401k
     return [
-      ...base,
       { label: 'Covered payroll', formula: `${staff.coveredCount} employees, each wage capped at ${money(LIMITS.compCap)}`, result: money(staff.payroll, 2) },
       { label: 'Tax rate on the owner’s contribution', formula: `${percent(t.fed * 100, 0)} federal + ${percent(t.state * 100, 1)} ${STATES.find((s) => s.code === form.state)?.name || 'state'}`, result: pct0(t.rate) },
-      { label: 'SEP — staff cost', formula: `${pct0(r.sepPlanRate)} × ${money(staff.payroll, 2)} (the same percentage for every eligible employee)`, result: money(r.sep.staffCost, 2) },
+      { label: 'SEP — staff cost', formula: `${pct0(r.sepPlanRate)} × each employee’s pay (capped at ${money(LIMITS.compCap)} and ${money(LIMITS.total415c)} a person): the same percentage for every eligible employee`, result: money(sep.staffCost, 2) },
+      ...planSteps(sep, r.entity === 'se'
+        ? `min(${pct0(r.sepPlanRate)} ÷ (1 + ${pct0(r.sepPlanRate)}) × ${money(sep.base.adjNet, 2)}, ${money(LIMITS.total415c)})`
+        : `min(${pct0(r.sepPlanRate)} × ${money(sep.base.comp, 2)} W-2 wages, ${money(LIMITS.total415c)})`),
       { label: 'SIMPLE — staff cost, 3% match', formula: `every employee defers at least 3% × ${money(staff.payrollRaw, 2)} (the most the match can cost)`, result: money(v.match.staffCost, 2) },
       { label: 'SIMPLE — staff cost, 2% non-elective', formula: `2% × ${money(staff.payroll, 2)} (every eligible employee)`, result: money(v.nec.staffCost, 2), note: `The owner takes the ${optionText(r.simple)} option: it leaves more after cost.` },
-      { label: '401(k) safe harbor — staff cost', formula: `3% non-elective × ${money(staff.payroll, 2)}`, result: money(r.sh401k.staffCost, 2) },
-      ...r.plans.filter((p) => p.available).map((p) => ({
-        label: `${planHead(p)} — net`,
-        formula: `${money(p.total - p.rothCatch, 2)} deductible × ${pct0(t.rate)} − (${money(p.staffCost, 2)} staff + ${money(p.fees, 2)} fees) × (1 − ${pct0(t.rate)})`,
-        result: signed(p.net),
-      })),
+      ...planSteps(r.simple, `${money(r.simple.employee, 2)} deferral (min(SIMPLE pay ${money(r.entity === 'se' ? 0.9235 * r.simple.base.e : r.earnings, 2)}, ${money(r.simpleLimit)}${r.catchSimple ? ` + catch-up ${money(r.catchSimple)}` : ''})) + ${money(r.simple.employer, 2)} ${optionText(r.simple)}`),
+      { label: '401(k) safe harbor — staff cost', formula: `3% non-elective × ${money(staff.payroll, 2)}`, result: money(sh.staffCost, 2) },
+      ...planSteps(sh, `${money(sh.employee, 2)} deferral (min(pay, ${money(LIMITS.deferral401k)}${r.catch401 ? ` + catch-up ${money(r.catch401)}` : ''})) + ${money(sh.employer, 2)} (3% safe-harbor contribution)`),
       { label: 'Best net result', formula: 'highest net among the plans available', result: best.label },
     ]
   }, [r, form.state]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -175,7 +190,9 @@ export default function RetirementPlanComparison() {
       {r.solo.total > r.sep.total ? ` The Solo 401(k) advantage over the SEP (${money(r.solo.total - r.sep.total)}) is the employee deferral — it matters most at moderate income, and it disappears once compensation is high enough that the employer piece alone reaches the ${money(LIMITS.total415c)} cap.` : ''}
       {r.tie ? ` The SEP and the Solo 401(k) tie at ${money(r.sep.total)}: compensation is high enough that the employer contribution alone reaches the ${money(LIMITS.total415c)} cap, so the employee deferral adds nothing — the SEP wins on simplicity unless Roth or loan features matter.` : ''}
       {r.solo.compCapped ? ` The Solo 401(k) employer piece is held to ${money(r.solo.employer)} because total contributions cannot exceed 100% of compensation.` : ''}
-      {' '}With no employees, all three are available and the comparison above is the whole picture. Add employees under Employees to see what covering them costs.
+      {staff.headcount === 0
+        ? ' With no employees, all three are available and the comparison above is the whole picture. Add employees under Employees to see what covering them costs.'
+        : ' Every employee is marked not covered, so all three plans are shown as available. That holds only if each employee can properly be left out of each plan.'}
     </>
   )
 
@@ -187,7 +204,7 @@ export default function RetirementPlanComparison() {
     [r.entity === 'se' ? 'Net self-employment earnings' : 'Owner W-2 wages', money(r.earnings)],
     ['Owner age', form.age || '—'],
     ['Employees (other than owner/spouse)', staff.headcount ? `${staff.headcount}${staff.coveredCount !== staff.headcount ? `, ${staff.coveredCount} covered` : ''}` : 'none'],
-    ...(staff.headcount ? [['Covered payroll', money(staff.payroll)], ['Average covered wage', money(staff.coveredCount ? staff.payrollRaw / staff.coveredCount : 0)]] : []),
+    ...(hasStaff ? [['Covered payroll', money(staff.payroll)], ['Average covered wage', money(staff.coveredCount ? staff.payrollRaw / staff.coveredCount : 0)]] : []),
     ...(hasStaff ? [['Owner’s tax rate', `${percent(t.fed * 100, 0)} federal + ${stateName}`]] : []),
   ]
   const assumptions = [
@@ -198,10 +215,17 @@ export default function RetirementPlanComparison() {
       `Staff cost: a SEP gives every eligible employee the owner’s percentage of pay; a SIMPLE matches 3% of pay for employees who defer (every employee is assumed to, the most it can cost) or gives 2% to all; a safe-harbor 401(k) gives 3% to all. Pay above ${money(LIMITS.compCap)} is not counted; employees marked not covered are assumed properly excluded.`,
       `Net = tax deferred on what the owner shelters at ${rate} less the after-tax cost of staff contributions and fees (both deductible; for a Schedule C owner they also lower self-employment tax). Fees are estimates you can change. The tax saved is a deferral; the staff cost is permanent. Not modeled: cross-tested profit sharing (an administrator can sometimes cut the staff cost for an older owner with much younger staff), SECURE 2.0 small-employer credits, vesting, forfeitures, QBI effects and state rules.`,
     ] : ['Employee-coverage costs appear once employees are entered under Employees.']),
+    ...(r.mandate ? [r.mandate.short] : []),
     'Deadlines and features are summarized; plan documents and payroll timing govern.',
   ]
 
   const blocks = r.warnings.filter((w) => w.level === 'block' || w.level === 'warn')
+  // What the printed report must say: what is not available, and the notes that change a dollar figure or a plan's availability.
+  const printNotes = [
+    ...blocks.filter((w) => w.level === 'block').map((w) => cap(w.text.replace(/^Not available: /, ''))),
+    ...r.warnings.filter((w) => ['roth', 'excluded', 'wage', 'simple-one-plan'].includes(w.id)).map((w) => w.text),
+    ...(hasStaff ? ['The 401(k) is shown with the 3% safe-harbor contribution only. A profit-sharing contribution at the same percentage of pay for everyone can raise the owner toward 72,000 plus catch-up, at the staff cost shown for the SEP.'] : []),
+  ]
   const infos = r.warnings.filter((w) => w.level === 'info')
   const shownPlans = r.plans // available first in display order; unavailable plans show as not available
   const tableHead = ['', ...shownPlans.map((p) => planHead(p))]
@@ -211,20 +235,20 @@ export default function RetirementPlanComparison() {
     : null
 
   const practical = [
-    ['Set-up deadline', 'Return due date incl. extensions', 'Return due date (deferrals need year-end election)', 'October 1', 'Safe harbor: by year-end'],
-    ['Employees', 'Same % for all eligible', 'Owner (and spouse) only', 'Match 3% or give 2% to all', 'Safe harbor 3% to all'],
+    ['Set-up deadline', 'Return due date incl. extensions', 'Employer part by the return due date; S-corp deferrals by Dec 31', 'October 1 (a new plan)', 'Safe harbor: about 3 months before year-end (a new plan)'],
+    ['Employees', 'Same % for all eligible', 'Owner (and spouse) only', 'Match 3% or give 2% to all; no other plan allowed', 'Safe harbor 3% to all'],
     ['Roth option', 'Yes (since 2023)', 'Yes', 'Yes (since 2023)', 'Yes'],
     ['Loans', 'No', 'Yes, if plan allows', 'No', 'Yes, if plan allows'],
     ['Annual filing', 'None', 'Form 5500-EZ once assets exceed $250k', 'None', 'Form 5500 and testing'],
-    ['Best when', 'Simplicity; high income; late decision', 'Maximize at moderate income; want Roth or loans', 'Small payroll; modest contributions', 'Owner wants the most; staff are younger'],
+    ['Best when', 'Simplicity; high income; late decision', 'Maximize at moderate income; want Roth or loans', 'Small payroll; modest contributions', 'Owner wants to defer the most; staff cost is modest'],
   ]
 
   const feature = hasStaff
-    ? { label: netLabel, value: money(Math.abs(best.net)), note: `${best.label}${best.id === 'simple' ? ` (${optionText(best)})` : ''} · owner shelters ${money(best.total)} · staff funding ${money(best.staffCost)} · fees ${money(best.fees)} · at ${rate}` }
+    ? { label: netLabel, value: money(Math.abs(best.net)), note: `${best.label}${best.id === 'simple' ? ` (${optionText(best)})` : ''} · owner shelters ${money(best.total)} · staff funding ${money(best.staffCost)} · fees ${money(best.fees)} · at ${rate}${late ? ' · a new SIMPLE or 401(k) would start January 1, ' + (TAX_YEAR + 1) + '; only a SEP can still be set up for ' + TAX_YEAR : ''}` }
     : {
-        label: 'Largest deductible contribution',
+        label: r.bestByTotal.rothCatch > 0 ? 'Largest contribution' : 'Largest deductible contribution',
         value: money(r.bestByTotal.total),
-        note: `${r.bestByTotal.label}${r.tie ? ' (ties with the Solo 401(k))' : ''}${r.bestByTotal.employee ? ` · ${money(r.bestByTotal.employee)} employee + ${money(r.bestByTotal.employer)} employer` : ' · employer contribution only'}`,
+        note: `${r.bestByTotal.label}${r.tie ? ' (ties with the Solo 401(k))' : ''}${r.bestByTotal.employee ? ` · ${money(r.bestByTotal.employee)} employee + ${money(r.bestByTotal.employer)} employer` : ' · employer contribution only'}${r.bestByTotal.rothCatch > 0 ? ` · includes ${money(r.bestByTotal.rothCatch)} Roth catch-up, not deductible` : ''}`,
       }
 
   const printReport = (
@@ -233,7 +257,7 @@ export default function RetirementPlanComparison() {
         <PrintBand
           title="Retirement Plan Comparison"
           subtitle={hasStaff ? 'SEP, SIMPLE and 401(k) options with employees: what the owner can shelter, what covering staff costs, and the net result.' : 'SEP IRA vs. Solo 401(k) vs. SIMPLE IRA — the maximum deductible contribution under each plan.'}
-          meta={`Tax year ${TAX_YEAR} limits · ${entityLabel} · age ${form.age || '—'} · ${hasStaff ? employeeWord : 'no employees'}`}
+          meta={`Tax year ${TAX_YEAR} limits · ${entityLabel} · age ${form.age || '—'} · ${staffWord}`}
           metaRight={today}
         />
         <PrintFeature label={feature.label} value={feature.value} note={feature.note} />
@@ -245,9 +269,7 @@ export default function RetirementPlanComparison() {
             best: isBest(p),
           }))}
         />
-        {blocks.some((w) => w.level === 'block') ? (
-          <PrintNote title="Not available">{blocks.filter((w) => w.level === 'block').map((w) => cap(w.text.replace(/^Not available: /, ''))).join(' ')}</PrintNote>
-        ) : null}
+        {printNotes.length ? <PrintNote title={printNotes.length === 1 && blocks.some((w) => w.level === 'block') ? 'Not available' : 'Notes'}>{printNotes.join(' ')}</PrintNote> : null}
         {hasStaff ? (
           <PrintSection title="Plan by plan" note={`net = tax deferred at ${rate} − after-tax cost of staff and fees`}>
             <PrintTable
@@ -262,9 +284,9 @@ export default function RetirementPlanComparison() {
           <PrintSection title="Maximum contribution by plan" note={`compensation base ${money(r.comp)}`}>
             <PrintRows
               rows={[
-                { label: `SEP IRA — ${Math.round(r.employerRate * 1000) / 10}% of net earnings`, value: money(r.sep.total), total: isBest(r.sep) },
+                { label: `SEP IRA — ${Math.round(r.employerRate * 1000) / 10}% of ${r.entity === 'se' ? 'net earnings' : 'W-2 wages'}`, value: money(r.sep.total), total: isBest(r.sep) },
                 { label: `Solo 401(k) — ${money(r.solo.employee)} deferral + employer`, value: money(r.solo.total), total: isBest(r.solo) },
-                { label: `SIMPLE IRA — ${money(r.simple.employee)} deferral + 3% match`, value: money(r.simple.total), total: isBest(r.simple) },
+                { label: `SIMPLE IRA — ${money(r.simple.employee)} deferral + 3% match${r.simple.available ? '' : ' (not available: more than 100 employees)'}`, value: money(r.simple.total), total: isBest(r.simple) },
                 ...(r.solo.total > r.sep.total ? [{ label: 'Solo 401(k) advantage over SEP — the employee deferral', value: `+${money(r.solo.total - r.sep.total)}`, sub: true }] : []),
               ]}
             />
@@ -275,7 +297,7 @@ export default function RetirementPlanComparison() {
         </PrintSection>
         {hasStaff ? null : (
           <PrintSection title="Employee deferral and employer contribution by plan" note="a SEP has no employee deferral, so its employee bar is $0" className="pr-chart">
-            <BarCompare height={230} groups={r.plans.map((p) => ({ label: p.label, bars: [{ label: 'Employee deferral', value: p.employee, color: TONE.accent }, { label: 'Employer contribution', value: p.employer, color: TONE.navy }] }))} />
+            <BarCompare height={printNotes.length ? 165 : 230} groups={r.plans.map((p) => ({ label: p.label, bars: [{ label: 'Employee deferral', value: p.employee, color: TONE.accent }, { label: 'Employer contribution', value: p.employer, color: TONE.navy }] }))} />
           </PrintSection>
         )}
         <PrintFooter page={1} pages={2} />
@@ -284,7 +306,7 @@ export default function RetirementPlanComparison() {
         <PrintPageHead title="Retirement Plan Comparison" right={today} />
         {hasStaff ? (
           <PrintSection title="Tax deferred vs. what it costs after tax" note="staff contributions and fees, after the deduction" className="pr-chart">
-            <BarCompare height={150} groups={r.plans.filter((p) => p.available).map((p) => ({ label: planHead(p), bars: [{ label: 'Tax deferred', value: p.taxDeferred, color: TONE.net }, { label: 'After-tax cost', value: p.afterTaxCost, color: TONE.tax }] }))} />
+            <BarCompare height={125} groups={r.plans.filter((p) => p.available).map((p) => ({ label: planHead(p), bars: [{ label: 'Tax deferred', value: p.taxDeferred, color: TONE.net }, { label: 'After-tax cost', value: p.afterTaxCost, color: TONE.tax }] }))} />
           </PrintSection>
         ) : (
           <PrintSection title="How each maximum is built" note="employee deferral + employer contribution">
@@ -357,7 +379,7 @@ export default function RetirementPlanComparison() {
         <PrintNote title="Reading the result">
           {hasStaff
             ? `With ${employeeWord} on payroll the Solo 401(k) is not available, so the headline is the plan that leaves the owner the most after funding staff. Contributions for staff are deductible but are a real cost; the tax saved on the owner’s contribution is a deferral. SIMPLE figures use the ${simpleLimitLabel}. `
-            : 'With no employees, all three plans are available to this owner and the Solo 401(k) is the largest whenever the employee deferral adds to an employer piece that has not yet reached the cap. '}
+            : `${staff.headcount === 0 ? 'With no employees, all three plans are available to this owner' : 'With every employee marked not covered, all three plans are shown as available'} and the Solo 401(k) is the largest whenever the employee deferral adds to an employer piece that has not yet reached the cap. `}
           Once an owner wants to put away materially more than {money(LIMITS.total415c)} a year and has steady profits, a defined-benefit or cash balance plan is the next conversation — see the Cash Balance Plan Analyzer.
         </PrintNote>
         <PrintSection title="Assumptions">
@@ -387,10 +409,11 @@ export default function RetirementPlanComparison() {
               onChange={set('earnings')}
               info={r.entity === 'se' ? 'Net profit before the retirement contribution and before the deduction for half of self-employment tax.' : 'Only W-2 wages count as compensation for plan purposes — S-corp distributions do not.'}
             />
-            <NumberField label="Owner age" value={form.age} onChange={set('age')} hint={r.catch401 ? `Catch-up eligible: +${money(r.catch401)} 401(k) · +${money(r.catchSimple)} SIMPLE` : undefined} />
+            <NumberField label={`Owner age at December 31, ${TAX_YEAR}`} value={form.age} onChange={set('age')} hint={r.catch401 ? `Catch-up eligible: +${money(r.catch401)} 401(k) · +${money(r.catchSimple)} SIMPLE` : undefined} />
           </Panel>
 
           <Panel title="Employees (other than the owner and spouse)">
+            <div className="hint emp-intro">Include employees of any other business you own or control with others: they count toward the SIMPLE limits and the coverage rules, and a plan at that business counts as another plan.</div>
             <SegmentedField label="How to enter them" value={form.staffMode} onChange={set('staffMode')} options={STAFF_MODE} />
             {form.staffMode === 'each' ? (
               <>
@@ -407,7 +430,7 @@ export default function RetirementPlanComparison() {
                   </div>
                 ))}
                 <button type="button" className="btn btn-subtle btn-sm emp-add" onClick={addEmp}><Plus size={14} /> Add employee</button>
-                <div className="hint">Untick Covered for an employee the plan can exclude (under 21, or part-time under 1,000 hours a year).</div>
+                <div className="hint">Untick Covered only for someone the plan can properly leave out. The rules differ: a SEP allows under 21, fewer than 3 of the last 5 years of service, or pay under $800; a SIMPLE allows less than $5,000 of pay in two earlier years or this year; a 401(k) allows under 21 or under 1,000 hours.</div>
               </>
             ) : (
               <>
@@ -421,7 +444,7 @@ export default function RetirementPlanComparison() {
               </>
             )}
             {staffSummary ? <div className="hint emp-summary">{staffSummary}</div> : null}
-            {blocks.filter((w) => w.level === 'block' || w.id === 'wage').map((w) => (
+            {r.warnings.filter((w) => w.level === 'block' || w.id === 'wage' || w.id === 'excluded').map((w) => (
               <DisclosureBox key={w.id}>
                 <b>{w.level === 'block' ? 'Not available. ' : 'Note. '}</b>
                 {cap(w.text.replace(/^Not available: /, ''))}
@@ -433,7 +456,7 @@ export default function RetirementPlanComparison() {
             <PillField label="Owner’s federal bracket" value={form.bracket} onChange={set('bracket')} options={BRACKET} info="Used to value the tax deferred on the owner’s contribution and the deduction for staff contributions and fees." />
             <div className="field-row">
               <SelectField label="State" value={form.state} onChange={set('state')} options={STATES.map((s) => ({ value: s.code, label: s.name }))} info="A flat state rate on top of the federal bracket." />
-              <NumberField label="SEP contribution rate" value={form.sepRate} onChange={set('sepRate')} suffix="%" placeholder="25" hint="25% is the maximum. A lower rate costs less for staff." />
+              <NumberField label="SEP contribution rate" value={form.sepRate} onChange={set('sepRate')} suffix="%" placeholder={String(+(r.sepPlanRate * 100).toFixed(2))} hint={r.sepDefaulted ? 'Set to the lowest rate that gives the owner the 72,000 limit; a higher rate only costs more for staff.' : '25% is the maximum. Leave blank for the lowest rate that gives the owner the most.'} />
             </div>
             <div className="refine-sub">Annual plan fees (leave blank for the estimate)</div>
             <div className="field-row">
@@ -452,7 +475,7 @@ export default function RetirementPlanComparison() {
           <section className="report">
             <ReportHeader sectionTitle={hasStaff ? 'Plan Cost and Net Benefit' : 'Maximum Contribution by Plan'} meta={`Tax year ${TAX_YEAR} limits · compensation base ${money(r.comp)}${hasStaff ? ` · ${employeeWord}` : ''}`} metaRight={today} />
             {hasStaff
-              ? blocks.map((w) => (
+              ? blocks.filter((w) => w.level === 'warn' && w.id !== 'wage').map((w) => (
                   <DisclosureBox key={w.id}>
                     <b>{w.level === 'block' ? 'Not available. ' : 'Note. '}</b>
                     {cap(w.text.replace(/^Not available: /, ''))}
@@ -483,25 +506,25 @@ export default function RetirementPlanComparison() {
                   <thead>
                     <tr>
                       <th>Plan</th>
+                      <th className="num">Net</th>
                       <th className="num">Owner shelters</th>
                       <th className="num">Tax deferred</th>
                       <th className="num">After-tax cost</th>
-                      <th className="num">Net</th>
                     </tr>
                   </thead>
                   <tbody>
                     {shownPlans.map((p) => (p.available ? (
                       <tr key={p.id} className={p.id === best.id ? 'is-chosen' : ''}>
                         <td>{planName(p)}{planSub(p) ? <div className="plan-sub">{planSub(p)}</div> : null}</td>
+                        <td className="num"><b>{signed(p.net)}</b></td>
                         <td className="num">{money(p.total)}</td>
                         <td className="num">{money(p.taxDeferred)}</td>
                         <td className="num">{money(p.afterTaxCost)}</td>
-                        <td className="num">{signed(p.net)}</td>
                       </tr>
                     ) : (
                       <tr key={p.id}>
                         <td>{planName(p)}</td>
-                        <td colSpan={4} className="plan-na">{p.id === 'solo' ? 'Not available with covered employees' : 'Not available above 100 employees'}</td>
+                        <td colSpan={4} className="plan-na">{p.id === 'solo' ? 'Not available with covered employees' : 'Not available: more than 100 employees, owner included'}</td>
                       </tr>
                     )))}
                   </tbody>
@@ -510,9 +533,9 @@ export default function RetirementPlanComparison() {
               </div>
             ) : (
               <div className="result-list">
-                <ResultRow label={`SEP IRA — ${Math.round(r.employerRate * 1000) / 10}% of net earnings`} value={r.sep.total} total={isBest(r.sep)} />
+                <ResultRow label={`SEP IRA — ${Math.round(r.employerRate * 1000) / 10}% of ${r.entity === 'se' ? 'net earnings' : 'W-2 wages'}`} value={r.sep.total} total={isBest(r.sep)} />
                 <ResultRow label={`Solo 401(k) — ${money(r.solo.employee)} deferral + employer`} value={r.solo.total} total={isBest(r.solo)} />
-                <ResultRow label={`SIMPLE IRA — ${money(r.simple.employee)} deferral + 3% match`} value={r.simple.total} total={isBest(r.simple)} />
+                <ResultRow label={`SIMPLE IRA — ${money(r.simple.employee)} deferral + 3% match${r.simple.available ? '' : ' (not available: more than 100 employees)'}`} value={r.simple.total} total={isBest(r.simple)} />
               </div>
             )}
             <Narrative>{narrative}</Narrative>

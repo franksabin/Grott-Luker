@@ -1,5 +1,6 @@
 import { computePlans, staffOf, LIMITS, FEES } from '../src/lib/retirementPlans.js'
 import { selfEmploymentTax } from '../src/lib/tax.js'
+import { mandateFor, STATE_MANDATES } from '../src/lib/stateMandates.js'
 
 let pass = 0, fail = 0
 const ok = (cond, msg, extra) => { if (cond) pass++; else { fail++; console.log('FAIL:', msg, extra ?? '') } }
@@ -9,6 +10,7 @@ const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return se
 const pickOne = (a) => a[Math.floor(rnd() * a.length)]
 
 const F = (o) => ({ entity: 'scorp', earnings: '', age: '', staffMode: 'avg', empCount: '0', empWage: '', empCovered: '', emps: [], bracket: '32', state: 'NH', sepRate: '25', participation: '100', ...o })
+const Fd = (o) => F({ sepRate: '', ...o }) // SEP rate left blank: the engine picks the default
 const plan = (r, id) => r.plans.find((p) => p.id === id)
 
 // ---------- 1. Owner only, Schedule C 185,000, age 52 (hand-computed) ----------
@@ -172,6 +174,65 @@ const plan = (r, id) => r.plans.find((p) => p.id === id)
   // Schedule C SEP at a lower rate uses r / (1 + r)
   const sc = computePlans(F({ entity: 'se', earnings: '100000', age: '40', sepRate: '10' }))
   ok(near(sc.sep.total, sc.adjNet * (0.1 / 1.1)), 'Schedule C owner at 10% gets 9.0909%', sc.sep.total)
+}
+
+// ---------- 7a. Review fixes ----------
+{
+  // The SEP default is the lowest rate that already gives the owner 72,000; a typed rate always wins.
+  const hi = computePlans(Fd({ earnings: '500000', age: '45', empCount: '3', empWage: '50000' }))
+  ok(near(hi.sepPlanRate, 0.2, 1e-4) && hi.sepDefaulted, 'S-corp at 500,000: SEP defaults to 20%', hi.sepPlanRate)
+  ok(near(hi.sep.total, 72000) && near(hi.sep.staffCost, 30000, 1) && near(hi.sep.net, 2640, 1), 'S-corp 500k, 3 x 50k: SEP owner 72,000, staff 30,000, net +2,640', [hi.sep.total, hi.sep.staffCost, hi.sep.net])
+  const typed = computePlans(F({ earnings: '500000', age: '45', empCount: '3', empWage: '50000', sepRate: '25' }))
+  ok(typed.sepPlanRate === 0.25 && !typed.sepDefaulted && near(typed.sep.net, -2460), 'a typed 25% is respected (net -2,460)', [typed.sepPlanRate, typed.sep.net])
+  const mid = computePlans(Fd({ earnings: '120000', age: '45', empCount: '2', empWage: '40000' }))
+  ok(mid.sepPlanRate === 0.25 && !mid.sepDefaulted, 'at 120,000 the owner never reaches 72,000, so the default stays 25%')
+  const sc = computePlans(Fd({ entity: 'se', earnings: '500000', age: '45', empCount: '2', empWage: '50000' }))
+  ok(sc.sepDefaulted && near(sc.sep.total, 72000, 1) && sc.sepPlanRate < 0.25, 'Schedule C at 500,000: default is below 25% and the owner still gets 72,000', [sc.sepPlanRate, sc.sep.total])
+  const lowerStillHits = computePlans(F({ entity: 'se', earnings: '500000', age: '45', empCount: '2', empWage: '50000', sepRate: String(+((sc.sepPlanRate - 0.01) * 100).toFixed(2)) }))
+  ok(lowerStillHits.sep.total < 72000 - 1, 'one point lower and the owner falls short, so the default really is the lowest rate', lowerStillHits.sep.total)
+  // No employee's SEP contribution can pass 72,000
+  const big = computePlans(F({ earnings: '100000', age: '45', staffMode: 'each', emps: [{ id: 'a', wage: '400000', covered: true }, { id: 'b', wage: '50000', covered: true }] }))
+  ok(near(big.sep.staffCost, 72000 + 12500), 'SEP staff cost caps each employee at 72,000', big.sep.staffCost)
+  // Highly compensated means MORE than 160,000
+  ok(!computePlans(F({ earnings: '100000', empCount: '1', empWage: '160000' })).warnings.some((w) => w.id === 'hce'), '160,000 exactly is not highly compensated')
+  ok(computePlans(F({ earnings: '100000', empCount: '1', empWage: '160001' })).warnings.some((w) => w.id === 'hce'), '160,001 is highly compensated')
+  // Roth catch-up is flagged with or without staff
+  const noStaff = computePlans(F({ earnings: '200000', age: '52' }))
+  ok(noStaff.warnings.some((w) => w.id === 'roth') && near(noStaff.solo.rothCatch, 8000), 'Roth catch-up flagged for an S-corp owner with no employees', noStaff.solo.rothCatch)
+  ok(!computePlans(F({ earnings: '200000', age: '45' })).warnings.some((w) => w.id === 'roth'), 'no Roth flag under 50')
+  // The SIMPLE one-plan rule is stated whenever staff exist
+  ok(computePlans(F({ earnings: '120000', age: '45', empCount: '3', empWage: '40000' })).warnings.some((w) => w.id === 'simple-one-plan'), 'SIMPLE one-plan note with staff')
+  ok(!computePlans(F({ earnings: '120000', age: '45' })).warnings.some((w) => w.id === 'simple-one-plan'), 'no SIMPLE one-plan note without staff')
+  // "all" (the placeholder word) means everyone is covered; a number still limits it
+  ok(computePlans(F({ earnings: '100000', empCount: '4', empWage: '30000', empCovered: 'all' })).staff.coveredCount === 4, 'covered = "all" means everyone')
+  ok(computePlans(F({ earnings: '100000', empCount: '4', empWage: '30000', empCovered: '2' })).staff.coveredCount === 2, 'covered = 2')
+  // An absurd employee count must not hang or crash
+  const t0 = Date.now()
+  const huge = computePlans(F({ earnings: '100000', empCount: '2000000000', empWage: '30000' }))
+  ok(huge.staff.headcount === 100000 && Date.now() - t0 < 2000 && !huge.simple.available, 'huge count is clamped and fast', [huge.staff.headcount, Date.now() - t0])
+  // Brackets of 10% and 12% flow through
+  const b12 = computePlans(F({ earnings: '90000', age: '40', empCount: '2', empWage: '35000', bracket: '12' }))
+  ok(near(b12.t.rate, 0.12) && near(b12.sep.taxDeferred, b12.sep.total * 0.12), '12% bracket works')
+}
+
+// ---------- 7b. State auto-IRA mandates ----------
+{
+  const at = (state, n) => computePlans(F({ earnings: '120000', age: '45', state, empCount: String(n), empWage: '40000' }))
+  const flagged = (r) => r.warnings.some((w) => w.id === 'state')
+  ok(flagged(at('CA', 1)) && flagged(at('OR', 1)) && flagged(at('MD', 1)), 'CA, OR and MD apply at one employee')
+  ok(!flagged(at('NH', 40)) && !flagged(at('TX', 40)) && !flagged(at('FL', 40)), 'NH, TX and FL have no mandate at any size')
+  ok(!flagged(at('VT', 1)) && flagged(at('VT', 2)), 'Vermont starts at 2 employees')
+  ok(!flagged(at('CT', 4)) && flagged(at('CT', 5)), 'Connecticut starts at 5')
+  ok(!flagged(at('NV', 5)) && flagged(at('NV', 6)), 'Nevada is more than 5')
+  ok(!flagged(at('NJ', 9)) && flagged(at('NJ', 10)) && !flagged(at('NY', 9)) && flagged(at('NY', 10)), 'New Jersey and New York start at 10')
+  ok(!flagged(computePlans(F({ earnings: '120000', age: '45', state: 'CA' }))), 'no employees entered: no state flag')
+  // The flag follows the employee headcount even when the plan would not cover them
+  ok(flagged(computePlans(F({ earnings: '120000', age: '45', state: 'IL', empCount: '8', empWage: '40000', empCovered: '0' }))), 'headcount counts whether or not employees are covered')
+  ok(/not open yet/.test(mandateFor('WA', 20).text) && /not open yet/.test(mandateFor('HI', 2).text), 'enacted-but-not-open programs say so')
+  ok(!/not open yet/.test(mandateFor('CA', 3).text) && /CalSavers/.test(mandateFor('CA', 3).text), 'live programs name the program')
+  ok(mandateFor('NH', 50) === null && mandateFor('CA', 0) === null, 'null when nothing applies')
+  ok(Object.values(STATE_MANDATES).every((m) => m.name && m.program && m.min >= 1 && m.rule), 'every state entry is complete')
+  ok(Object.keys(STATE_MANDATES).length === 17, '17 states with a program')
 }
 
 // ---------- 8. Random invariants ----------
