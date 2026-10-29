@@ -232,16 +232,16 @@ export const TOOLS = [
     path: '/tools/retirement-plan-comparison',
     icon: Landmark,
     title: 'Retirement Plan Comparison',
-    short: 'SEP vs. Solo 401(k) vs. SIMPLE',
+    short: 'SEP vs. Solo 401(k) vs. SIMPLE vs. 401(k) with staff',
     description:
-      'Maximum contribution, cost, and complexity for a self-employed owner under a SEP, a Solo 401(k), and a SIMPLE IRA — side by side.',
+      'Maximum contribution under a SEP, a Solo 401(k), a SIMPLE IRA, and a 401(k) with employees — and, with staff, what covering them costs, the plan fees, and the net result for the owner. Plans that employees make unavailable are flagged immediately.',
     plan:
-      'The question every self-employed client asks. Computes the maximum deductible contribution under each plan type from net earnings and age, and notes deadlines and employee-coverage implications.',
+      'The question every business owner asks. Computes the maximum deductible contribution under each plan type from net earnings and age, then adds employees (a count and average wage, or each employee) to estimate the employer contribution required for staff, plan fees, small-employer credits and the net benefit or cost, and flags plans that are not available.',
     planInputs: [
       'Entity type and net self-employment earnings or W-2 wages',
       'Owner age (catch-up eligibility)',
-      'Number of employees and whether they must be covered',
-      'Desired contribution level',
+      'Employees: number and average wage, or each employee’s wage, age and whether the plan covers them',
+      'Owner’s tax rate, plan fee estimates, and whether this is a new plan (credits)',
     ],
   },
 

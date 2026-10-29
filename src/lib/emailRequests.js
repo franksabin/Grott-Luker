@@ -41,16 +41,19 @@ export const EMAIL_REQUESTS = {
   'retirement-plan-comparison': {
     subject: 'Information needed to compare retirement plan options for your business',
     intro:
-      'We are comparing a SEP IRA, a Solo 401(k), and a SIMPLE IRA to see which lets you put away the most on the best terms. Please reply with the following:',
+      'We are comparing a SEP IRA, a Solo 401(k), a SIMPLE IRA, and a 401(k) with employees to see which lets you put away the most once the cost of covering staff is counted. Please reply with the following:',
     questions: [
       'How the business pays you — Schedule C profit, or W-2 wages from an S-corporation — and roughly how much this year',
-      'Whether the business has any employees other than you (and your spouse), and their approximate hours',
+      'For each employee other than you and your spouse: annual wages, age, and hours worked (or just the number of employees with their average wage and average age)',
+      'Whether any employees are under 21, work part-time (under 1,000 hours a year), or are covered by a union agreement',
+      'Whether the business has had any retirement plan in the last three years (a SEP, SIMPLE, or 401(k)), and if so which one',
       'Roughly how much you would like to contribute this year',
       'Whether Roth contributions or the ability to borrow from the plan matter to you',
     ],
     // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
     onFile: [
       'Your age',
+      'Your federal tax bracket and the state or states where the business has employees',
     ],
   },
 

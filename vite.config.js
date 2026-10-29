@@ -10,5 +10,8 @@ export default defineConfig({
   server: {
     port: 5174,
     strictPort: false,
+    // scripts/check_print.py makes throwaway Chrome profiles here; watching their locked files
+    // (EBUSY on Windows) crashes the dev server.
+    watch: { ignored: ['**/scripts/print-out/**'] },
   },
 })
