@@ -21,7 +21,7 @@ import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeatu
 import { money, toNumber, percent, number } from '../lib/format.js'
 import { ordinaryTax, STANDARD_DEDUCTION, TAX_YEAR, SS_WAGE_BASE } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
-import { projectRoth } from '../lib/kidsRoth.js'
+import { computeKids as compute, IRA_LIMIT, FUTA_BASE, ROTH_DEFAULTS } from '../lib/payingKids.js'
 
 const ENTITY = [
   { value: 'soleprop', label: 'Sole proprietor / spouses’ partnership' },
@@ -29,34 +29,23 @@ const ENTITY = [
   { value: 'ccorp', label: 'C-corporation' },
 ]
 const BRACKET = [
+  { value: '10', label: '10%' },
+  { value: '12', label: '12%' },
   { value: '22', label: '22%' },
   { value: '24', label: '24%' },
   { value: '32', label: '32%' },
   { value: '35', label: '35%' },
   { value: '37', label: '37%' },
 ]
-const IRA_LIMIT = 7500 // 2026 IRA contribution limit (under 50)
-const FICA = 0.153 // employee 7.65% + employer 7.65%
-const FUTA_RATE = 0.006
-const FUTA_BASE = 7000
-const SE_FACTOR = 0.9235
-// Self-employment tax the owner saves on the margin: the full 15.3% below the Social Security wage base,
-// but only Medicare (2.9%) plus Additional Medicare (0.9%) once earnings are above it.
-const SE_RATE_BELOW = 0.153
-const SE_RATE_ABOVE = 0.038
-
 const SE_BASE = [
-  { value: 'auto', label: 'Based on the bracket (above the wage base at 32% and up)' },
-  { value: 'below', label: `Below the ${money(SS_WAGE_BASE)} Social Security wage base` },
-  { value: 'above', label: `Above the ${money(SS_WAGE_BASE)} Social Security wage base` },
+  { value: 'below', label: 'Under about $200,000' },
+  { value: 'above', label: 'About $200,000 or more' },
 ]
 
 const blankKid = (i) => ({ id: `k${i}`, age: '', hours: '', rate: '' })
 
-// The Roth illustration's defaults: the CPA changes these on screen.
-const ROTH_DEFAULTS = { stopAge: '22', retireAge: '65', growth: '7', incomeRate: '4', inflation: '3' }
-// A blank field means "use the default", so a typed 0 stays a real 0 (0% growth).
-const pick = (v, fallback) => (String(v ?? '').trim() === '' ? fallback : toNumber(v))
+// Roth projections run 40+ years at one steady rate, so show them to the nearest $100: exact digits would imply a precision the assumption cannot support.
+const about = (v) => money(Math.round(v / 100) * 100)
 // 0.07 → "7%", 0.025 → "2.5%".
 const pct = (v) => `${+(v * 100).toFixed(2)}%`
 
@@ -65,7 +54,7 @@ const BLANK = {
   bracket: '32',
   state: 'NH',
   planMinAge: '21',
-  seBase: 'auto',
+  seBase: 'below',
   ...ROTH_DEFAULTS,
   kids: [blankKid(1), blankKid(2), blankKid(3)],
 }
@@ -74,76 +63,13 @@ const SAMPLE = {
   bracket: '32',
   state: 'NH',
   planMinAge: '21',
-  seBase: 'auto',
+  seBase: 'above',
   ...ROTH_DEFAULTS,
   kids: [
     { id: 'k1', age: '17', hours: '500', rate: '16' },
     { id: 'k2', age: '15', hours: '400', rate: '15' },
     blankKid(3),
   ],
-}
-
-function compute(form) {
-  const entity = form.entity
-  const ownerFed = toNumber(form.bracket) / 100
-  const st = getState(form.state)
-  const stateRate = st.wage / 100
-  const planMinAge = toNumber(form.planMinAge) || 21
-  const std = STANDARD_DEDUCTION.single
-  const seAbove = form.seBase === 'above' || (form.seBase !== 'below' && ownerFed >= 0.32)
-  const seRate = seAbove ? SE_RATE_ABOVE : SE_RATE_BELOW
-  const rothPlan = {
-    stopAge: pick(form.stopAge, 22),
-    retireAge: pick(form.retireAge, 65),
-    growth: pick(form.growth, 7) / 100,
-    incomeRate: pick(form.incomeRate, 4) / 100,
-    inflation: pick(form.inflation, 3) / 100,
-  }
-
-  const kids = form.kids
-    .map((k) => {
-      const age = toNumber(k.age)
-      const wages = Math.max(0, toNumber(k.hours) * toNumber(k.rate))
-      if (!wages || !age) return null
-      // Payroll taxes on the child's wages.
-      const ficaExempt = entity === 'soleprop' && age < 18
-      const futaExempt = entity === 'soleprop' && age < 21
-      const fica = ficaExempt ? 0 : wages * FICA
-      const futa = futaExempt ? 0 : Math.min(wages, FUTA_BASE) * FUTA_RATE
-      // Child's own income tax: single filer, standard deduction, ordinary brackets.
-      const childTaxable = Math.max(0, wages - std)
-      const childFed = ordinaryTax(childTaxable, 'single')
-      const childState = childTaxable * stateRate
-      // Owner's saving: the wages are a business deduction.
-      const ownerIncomeTax = wages * (ownerFed + stateRate)
-      // Sole proprietor also saves self-employment tax on the shifted income, at the rate that applies at the margin.
-      const ownerSe = entity === 'soleprop' ? wages * SE_FACTOR * seRate : 0
-      const roth = Math.min(wages, IRA_LIMIT)
-      const proj = projectRoth({ age, annual: roth, ...rothPlan })
-      const planEligible = age >= planMinAge
-      const net = ownerIncomeTax + ownerSe - childFed - childState - fica - futa
-      return { ...k, age, wages, ficaExempt, futaExempt, fica, futa, childTaxable, childFed, childState, ownerIncomeTax, ownerSe, roth, proj, planEligible, net }
-    })
-    .filter(Boolean)
-
-  const sum = (f) => kids.reduce((s, k) => s + f(k), 0)
-  return {
-    entity, ownerFed, st, stateRate, planMinAge, std, kids, seAbove, seRate, rothPlan,
-    wages: sum((k) => k.wages),
-    // Each child reaches retirement on a different date, so only the today's-dollar income adds up honestly.
-    rothIncomeReal: sum((k) => (k.proj ? k.proj.incomeReal : 0)),
-    ownerIncomeTax: sum((k) => k.ownerIncomeTax),
-    ownerSe: sum((k) => k.ownerSe),
-    childFed: sum((k) => k.childFed),
-    childState: sum((k) => k.childState),
-    fica: sum((k) => k.fica),
-    futa: sum((k) => k.futa),
-    roth: sum((k) => k.roth),
-    net: sum((k) => k.net),
-    eligibleKids: kids.filter((k) => k.planEligible).length,
-    taxIfOwnerKeeps: sum((k) => k.ownerIncomeTax + k.ownerSe),
-    taxIfKidsPaid: sum((k) => k.childFed + k.childState + k.fica + k.futa),
-  }
 }
 
 // ?sample=1 wins (ToolShell also applies it); in dev, ?state=<base64 JSON> merges over BLANK
@@ -181,8 +107,8 @@ export default function PayingKids() {
     ...(r.entity === 'soleprop' ? [{
       label: 'Owner self-employment tax saved',
       formula: r.seAbove
-        ? `${money(r.wages, 2)} × 92.35% × 3.8% (2.9% Medicare + 0.9% Additional Medicare; the owner is above the ${money(SS_WAGE_BASE)} Social Security wage base)`
-        : `${money(r.wages, 2)} × 92.35% × 15.3% (the owner is below the ${money(SS_WAGE_BASE)} Social Security wage base)`,
+        ? `${money(r.wages, 2)} × 92.35% × 3.8% (2.9% Medicare + 0.9% Additional Medicare; net profit of about $200,000 or more puts the owner above the ${money(SS_WAGE_BASE)} Social Security wage base)`
+        : `${money(r.wages, 2)} × 92.35% × 15.3% (net profit under about $200,000 keeps the owner below the ${money(SS_WAGE_BASE)} Social Security wage base)`,
       result: money(r.ownerSe, 2),
     }] : []),
     ...r.kids.map((k, i) => ({ label: `Child ${i + 1} income tax`, formula: `${TAX_YEAR} single brackets on max(0, ${money(k.wages, 2)} − ${money(r.std)} standard deduction)${r.stateRate ? ` + ${percent(r.st.wage, 1)} state` : ''}`, result: money(k.childFed + k.childState, 2) })),
@@ -212,6 +138,12 @@ export default function PayingKids() {
   // Same formatter as the screen's ResultRow (money(-x) → "-$X"), so page 1 never mixes minus glyphs.
   const cost = (v) => money(v > 0 ? -v : 0)
   const ficaKids = r.kids.filter((k) => k.fica > 0).length
+  // What the headline number assumes, shown beside it on screen and on page 1 of the print.
+  const featureNote = [
+    `${money(r.wages)} of wages moved from a ${percent(r.ownerFed * 100, 0)} bracket to the children`,
+    ...(r.entity === 'soleprop' ? [`owner’s profit ${r.seAbove ? 'about $200,000 or more' : 'under about $200,000'}`] : []),
+    r.entity === 'ccorp' ? 'assumes the owner would otherwise have been paid these dollars' : 'before the QBI and half-SE-tax effects',
+  ].join(' · ')
   // Blank-state planning table: hours a child can work before owing income tax, at common rates.
   const headroomRows = [15, 18, 20, 25, 30].map((rate) => [
     `${money(rate, 2)}/hr`,
@@ -221,12 +153,11 @@ export default function PayingKids() {
   ])
   const assumptions = [
     `${TAX_YEAR} single standard deduction of ${money(STANDARD_DEDUCTION.single)} and ordinary brackets for each child, with no other income; earned income is not subject to the kiddie tax.`,
-    `Owner saving is the wages × the owner’s federal bracket plus a flat state rate. A sole proprietor also saves self-employment tax: 15.3% × 92.35% below the Social Security wage base (${money(SS_WAGE_BASE)}), 3.8% × 92.35% above it (32% and higher brackets are assumed above; change this under Refine the estimate). Not modeled: the lost deduction for half the self-employment tax and the lost QBI deduction (up to 20% of the shifted income) would lower the saving, and the deduction for the employer share of payroll tax would raise it. For an S- or C-corporation the dollars are assumed to have reached the owner as income at that bracket; a C-corporation that would have kept them saves only 21%, so the figure is overstated.`,
-    'Wages to a child under 18 from a parent’s sole proprietorship, a parents-only partnership, or a single-member LLC without a corporate election (T.D. 9554) are exempt from Social Security and Medicare, and from FUTA under 21; an S- or C-corporation pays 15.3% and FUTA on every employee. Age is the child’s age during the year; wages after an 18th birthday are taxable.',
-    `Roth room is the lesser of wages and the ${money(IRA_LIMIT)} limit; anyone may contribute if the child had that much earned income. Qualified withdrawals need five years and age 59½; a child under 18 needs a custodial Roth IRA.`,
-    `Roth illustration: each year the child puts in the lesser of wages and the limit, from this year through age ${r.rothPlan.stopAge}, at year-end and held flat. Growth is a steady ${pct(r.rothPlan.growth)} with no fees or down years, so the figures are a what-if, not a forecast. Income is the balance at ${r.rothPlan.retireAge} × ${pct(r.rothPlan.incomeRate)}, a planning rule for about 30 years, not a promise for life. Today’s dollars use ${pct(r.rothPlan.inflation)} inflation.`,
-    'Company 401(k) eligibility uses the plan’s minimum age as entered; service requirements are not modeled.',
-    'State unemployment, workers’ compensation, payroll fees, and the child’s own filing are not modeled.',
+    `Owner saving is the wages × the owner’s federal bracket plus a flat state rate. A sole proprietor also saves self-employment tax: 15.3% × 92.35% below the Social Security wage base (${money(SS_WAGE_BASE)}), 3.8% × 92.35% above it (net profit of about $200,000 or more is above; you choose). Not modeled: the lost deduction for half the self-employment tax and the lost QBI deduction (up to 20% of the shifted income) lower the saving, and the deductible employer share of payroll tax raises it. For an S- or C-corporation the dollars are assumed to have reached the owner at that bracket; a C-corporation that would have kept them saves only 21%.`,
+    'Wages to a child under 18 from a parent’s sole proprietorship, a parents-only partnership, or a single-member LLC without a corporate election (T.D. 9554) are exempt from Social Security and Medicare, and from FUTA under 21; an S- or C-corporation pays 15.3% and FUTA on every employee. Age is entered as one number for the year; wages after an 18th birthday are taxable.',
+    `Roth room is the lesser of wages and the ${money(IRA_LIMIT)} limit; anyone may contribute if the child had that much earned income. Earnings are tax-free after five years and age 59½ (or for death, disability or a first home up to $10,000); contributions can be withdrawn at any time; a child under 18 needs a custodial Roth IRA.`,
+    `Roth illustration: each year the child puts in the lesser of wages and the limit, from this year through age ${r.rothPlan.stopAge}, at year-end and held flat, at a steady ${pct(r.rothPlan.growth)} with no fees or down years: a what-if, not a forecast. Income is the balance at ${r.rothPlan.retireAge} × ${pct(r.rothPlan.incomeRate)}, a planning rule for about 30 years, not a promise for life. Today’s dollars use ${pct(r.rothPlan.inflation)} inflation.`,
+    'The state rate is one flat figure applied above the federal standard deduction, and FUTA assumes the full state unemployment credit. Not modeled: 401(k) service rules, state unemployment, workers’ compensation, payroll fees, the child’s own filing, and New Hampshire’s Business Profits and Business Enterprise Taxes (a profitable NH business also saves BPT on the wages).',
     'Baseline model. Not reviewed by Grott Luker & Co.',
   ]
   const inputs = [
@@ -234,9 +165,8 @@ export default function PayingKids() {
     ['Owner’s federal bracket', percent(r.ownerFed * 100, 0)],
     ['State', r.st.name],
     ['401(k) plan minimum age', `${r.planMinAge} years`],
-    ...(r.entity === 'soleprop' ? [['Owner’s self-employment earnings', r.seAbove ? 'above the Social Security wage base' : 'below the wage base']] : []),
-    ['Roth: paid through age', `${r.rothPlan.stopAge}`],
-    ['Roth: retire at age', `${r.rothPlan.retireAge}`],
+    ...(r.entity === 'soleprop' ? [['Owner’s net business profit', r.seAbove ? 'about $200,000 or more' : 'under about $200,000']] : []),
+    ['Roth: paid through · retire at', `age ${r.rothPlan.stopAge} (at least this year) · ${r.rothPlan.retireAge}`],
     ['Growth · income rate · inflation', `${pct(r.rothPlan.growth)} · ${pct(r.rothPlan.incomeRate)} · ${pct(r.rothPlan.inflation)}`],
     // Only the children that were entered; a blank row says nothing on paper.
     ...r.kids.map((k, i) => [
@@ -247,6 +177,7 @@ export default function PayingKids() {
   const narrative = ready ? (
     <>
       Paying {r.kids.length === 1 ? 'one child' : `${r.kids.length} children`} {money(r.wages)} for real work shifts that income out of the owner’s {percent(r.ownerFed * 100, 0)} bracket, saving about {money(r.ownerIncomeTax)} in income tax{r.entity === 'soleprop' ? ` and ${money(r.ownerSe)} in self-employment tax` : ''}.
+      {r.entity === 'ccorp' ? ' This assumes those dollars would otherwise have been paid to the owner at that bracket; if the corporation would have kept them, the saving is closer to 21% of the wages.' : ''}
       {' '}
       {r.childFed + r.childState > 0
         ? `The children owe about ${money(r.childFed + r.childState)} on the portion above the ${money(r.std)} standard deduction.`
@@ -266,13 +197,15 @@ export default function PayingKids() {
   const rothKids = r.kids.filter((k) => k.proj)
   const shown = rothKids[Math.min(Number(chartKid) || 0, rothKids.length - 1)]
   const sp = shown ? shown.proj : null
+  const taxFree = !sp || sp.retireAge >= 60 // earnings come out tax free only from age 59½
+  const rothMissing = r.kids.filter((k) => !k.proj)
   const shownName = shown ? `Child ${r.kids.indexOf(shown) + 1}` : ''
   const shownLabel = shown ? `${shownName}, age ${shown.age}` : ''
   const axisMoney = (v) => (v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `$${Math.round(v / 1e3)}k` : money(v))
   const rothLine = sp ? (
     <>
-      {rothKids.length > 1 ? `${shownName}’s` : 'The child’s'} {money(sp.annual)} a year, put in through age {sp.last}, comes to {money(sp.contributed)}. Growing at {pct(sp.growth)} a year it reaches about {money(sp.balance)} by age {sp.retireAge}. Taking {pct(sp.incomeRate)} of that each year would support about {money(sp.income)} a year, tax free, or about {money(sp.incomeReal)} in today’s dollars.
-      {rothKids.length > 1 ? ` Across all ${rothKids.length} children that is about ${money(r.rothIncomeReal)} a year in today’s dollars.` : ''}
+      {rothKids.length > 1 ? `${shownName}’s` : 'The child’s'} {money(sp.annual)} a year, put in through age {sp.last}, comes to {money(sp.contributed)}. Growing at {pct(sp.growth)} a year it reaches about {about(sp.balance)} by age {sp.retireAge}. Taking {pct(sp.incomeRate)} of that each year would support about {about(sp.income)} a year{taxFree ? ', tax free,' : ' (before any tax and early-withdrawal penalty)'} or about {about(sp.incomeReal)} in today’s dollars.
+      {rothKids.length > 1 ? ` Across the ${rothKids.length} children shown that is about ${about(r.rothIncomeReal)} a year in today’s dollars.` : ''}
     </>
   ) : null
   const rothLineChart = sp ? (
@@ -313,14 +246,14 @@ export default function PayingKids() {
         <PrintFeature
           label="Net family tax saved this year"
           value={money(r.net)}
-          note={`${money(r.wages)} of wages moved from a ${percent(r.ownerFed * 100, 0)} bracket to the children`}
+          note={featureNote}
         />
         <PrintTiles
           items={[
             { label: 'Owner taxes saved', value: money(r.ownerIncomeTax + r.ownerSe), note: r.entity === 'soleprop' ? 'income + self-employment tax' : 'income tax on the deduction', best: r.net > 0 },
             { label: 'Taxes the children pay', value: money(r.taxIfKidsPaid), note: 'income + payroll' },
             { label: 'Roth IRA room created', value: money(r.roth), note: `up to ${money(IRA_LIMIT)} per child` },
-            ...(sp ? [{ label: `Tax-free income at ${sp.retireAge}`, value: money(r.rothIncomeReal), note: 'a year, in today’s dollars', best: true }] : []),
+            ...(sp ? [{ label: `${taxFree ? 'Tax-free income' : 'Income'} at ${sp.retireAge}`, value: about(r.rothIncomeReal), note: `a year, in today’s dollars${rothKids.length > 1 ? `, all ${rothKids.length} children` : ''}`, best: true }] : []),
           ]}
         />
         <PrintSection title="Where the saving comes from" note="this tax year">
@@ -334,8 +267,9 @@ export default function PayingKids() {
           />
         </PrintSection>
         {sp ? (
-          <PrintSection title={`Roth IRA to retirement — ${shownLabel}`} note={`${money(sp.income)} a year tax free at ${sp.retireAge}, ${money(sp.incomeReal)} in today’s dollars`} className="pr-chart">
+          <PrintSection title={`Roth IRA to retirement — ${shownLabel}`} note={`${about(sp.income)} a year${taxFree ? ' tax free' : ''} at ${sp.retireAge}, ${about(sp.incomeReal)} in today’s dollars`} className="pr-chart">
             {rothLineChart}
+            <PrintProse>Illustration at {pct(sp.growth)} steady growth and a {pct(sp.incomeRate)} income rate; not a forecast. See page 2.</PrintProse>
           </PrintSection>
         ) : (
           <PrintSection title="Wages against the standard deduction" note={`each child owes no income tax on the first ${money(r.std)}`} className="pr-chart">
@@ -353,7 +287,7 @@ export default function PayingKids() {
         )}
         <PrintFooter page={1} pages={2} />
       </PrintPage>
-      <PrintPage last>
+      <PrintPage last compact>
         <PrintPageHead title="Family Payroll Illustration" right={today} />
         <PrintSection title="What this means">
           <PrintProse>{narrative}</PrintProse>
@@ -368,12 +302,12 @@ export default function PayingKids() {
                 `Child ${r.kids.indexOf(k) + 1}, age ${k.age}`,
                 `age ${k.proj.last}`,
                 money(k.proj.contributed),
-                money(k.proj.balance),
-                money(k.proj.income),
-                money(k.proj.incomeReal),
+                about(k.proj.balance),
+                about(k.proj.income),
+                about(k.proj.incomeReal),
               ])}
             />
-            <PrintProse>A what-if at a steady rate, not a forecast and not a promise of income for life: markets fall, and a {pct(sp.incomeRate)} income rate is a planning rule for a retirement of about 30 years.</PrintProse>
+            <PrintProse>A what-if, not a forecast or a promise of income for life: markets fall, and {pct(sp.incomeRate)} is a planning rule for about 30 years. It assumes the child keeps earning this much through age {sp.last}; in a sole proprietorship wages after 18 cost 15.3% in payroll tax, not deducted here.{rothMissing.length ? ` ${rothMissing.map((k) => `Child ${r.kids.indexOf(k) + 1}`).join(' and ')} ${rothMissing.length > 1 ? 'are' : 'is'} at or past the retirement age and not shown.` : ''}</PrintProse>
           </PrintSection>
         ) : null}
         <PrintSection title="Child by child" note={`family net = owner saving − child’s tax − payroll tax · 401(k) uses the plan’s age ${r.planMinAge} minimum`}>
@@ -503,11 +437,21 @@ export default function PayingKids() {
           <Panel title="The business">
             <PillField label="Entity type" value={form.entity} onChange={set('entity')} options={ENTITY} info="The family payroll-tax exemption applies only to a parent’s sole proprietorship (a single-member LLC that has not elected corporate tax counts) or a partnership owned solely by the child’s parents. A corporation pays Social Security and Medicare on every employee, family or not." />
             <PillField label="Owner’s federal bracket" value={form.bracket} onChange={set('bracket')} options={BRACKET} />
+            {form.entity === 'soleprop' ? (
+              <PillField
+                label="Owner’s net business profit"
+                value={form.seBase}
+                onChange={set('seBase')}
+                options={SE_BASE}
+                hint="Decides how much self-employment tax the wages save. At a 32% bracket or higher it is almost always the second choice."
+                info={`Self-employment tax is 15.3% up to the Social Security wage base (${money(SS_WAGE_BASE)} of earnings, about $200,000 of net profit) and only 2.9% Medicare above it, plus 0.9% Additional Medicare over $200,000 single or $250,000 married. Wages shifted to a child come off the top, so they save the rate that applies at the margin. Near $200,000 neither choice is exact: run both and use the lower figure.`}
+              />
+            ) : null}
           </Panel>
           <Panel title="The children">
             {form.kids.map((k, i) => (
               <div key={k.id} className="field-row" style={{ gridTemplateColumns: '80px 1fr 1fr' }}>
-                <NumberField label={i === 0 ? 'Age' : `Age`} value={k.age} onChange={setKid(k.id, 'age')} placeholder="—" />
+                <NumberField label="Age" value={k.age} onChange={setKid(k.id, 'age')} placeholder="—" info="The child’s age for most of the work year. A child who turns 18 during the year owes Social Security and Medicare only on wages paid after the birthday (21 for FUTA); this tool treats the whole year as one age." />
                 <NumberField label="Hours this year" value={k.hours} onChange={setKid(k.id, 'hours')} placeholder="0" />
                 <MoneyField label="Hourly rate" value={k.rate} onChange={setKid(k.id, 'rate')} placeholder="0.00" hint={i === 0 ? 'What you would pay a stranger for the same work.' : undefined} />
               </div>
@@ -516,22 +460,19 @@ export default function PayingKids() {
           <Panel title="Roth IRA to retirement">
             <div className="field-row">
               <NumberField label="Pay through age" value={form.stopAge} onChange={set('stopAge')} suffix="yrs" placeholder="22" info="The last age at which the child is paid and the Roth IRA is funded. Change it to see a shorter or longer run. This year’s wages always count, even for a child already past this age." />
-              <NumberField label="Retire at age" value={form.retireAge} onChange={set('retireAge')} suffix="yrs" placeholder="65" info="The age when the balance is measured and the income begins." />
+              <NumberField label="Retire at age" value={form.retireAge} onChange={set('retireAge')} suffix="yrs" placeholder="65" info="The age when the balance is measured and the income begins. Earnings come out tax free only from age 59½. Between 1 and 120." />
             </div>
             <div className="field-row" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-              <NumberField label="Growth a year" value={form.growth} onChange={set('growth')} suffix="%" placeholder="7" info="A steady yearly return before fees. Real markets swing; 7% is a common long-run stock assumption, not a promise." />
+              <NumberField label="Growth a year" value={form.growth} onChange={set('growth')} suffix="%" placeholder="7" info="A steady yearly return before fees, between −20% and 30%. Real markets swing; 7% is a common long-run stock assumption, not a promise." />
               <NumberField label="Income rate" value={form.incomeRate} onChange={set('incomeRate')} suffix="%" placeholder="4" info="The share of the balance taken as income each year. 4% is the usual planning rule for a retirement of about 30 years; it is not a guarantee of income for life." />
               <NumberField label="Inflation" value={form.inflation} onChange={set('inflation')} suffix="%" placeholder="3" info="Used only to restate the income in today’s dollars." />
             </div>
           </Panel>
-          <RefinePanel summary="state, 401(k) plan minimum age, self-employment tax">
+          <RefinePanel summary="state, 401(k) plan minimum age">
             <div className="field-row">
-              <SelectField label="State" value={form.state} onChange={set('state')} options={STATES.map((s) => ({ value: s.code, label: s.name }))} info="Applied to the owner’s deduction and to the child’s taxable wages." />
+              <SelectField label="State" value={form.state} onChange={set('state')} options={STATES.map((s) => ({ value: s.code, label: s.name }))} info="A single flat rate, applied to the owner’s deduction and to the child’s wages above the federal standard deduction. Many states tax a child’s wages from the first dollar, which would lower the saving by about the state rate times the wages. New Hampshire has no wage tax." />
               <NumberField label="401(k) plan minimum age" value={form.planMinAge} onChange={set('planMinAge')} suffix="yrs" info="Most plans require age 21 and a year of service; a plan can be written to admit younger employees. Check the plan document." />
             </div>
-            {form.entity === 'soleprop' ? (
-              <SelectField label="Owner’s self-employment earnings" value={form.seBase} onChange={set('seBase')} options={SE_BASE} info={`Self-employment tax is 15.3% up to the Social Security wage base (${money(SS_WAGE_BASE)}) and only 2.9% Medicare above it, plus 0.9% Additional Medicare over $200,000 single or $250,000 married. Wages shifted to a child come off the top, so they save the rate that applies at the margin.`} />
-            ) : null}
           </RefinePanel>
         </div>
 
@@ -545,8 +486,9 @@ export default function PayingKids() {
             <FeatureBlock
               label="Net family tax saved this year"
               value={money(r.net)}
-              note={`${money(r.wages)} of wages moved from a ${percent(r.ownerFed * 100, 0)} bracket to the children`}
+              note={featureNote}
             />
+            {r.entity !== 'ccorp' ? <div className="hint feature-hint">The QBI deduction and the deduction for half of self-employment tax are not modeled; they can lower the owner’s income-tax saving, by roughly 15–25% in the 22% and 24% brackets.</div> : null}
             <StatTiles
               items={[
                 { label: 'Owner taxes saved', value: money(r.ownerIncomeTax + r.ownerSe), tone: 'good', note: r.entity === 'soleprop' ? 'income + self-employment tax' : 'income tax on the deduction' },
@@ -558,9 +500,9 @@ export default function PayingKids() {
               <ResultRow label="Wages paid to the children (business deduction)" value={r.wages} />
               <ResultRow label="Owner income tax saved" value={r.ownerIncomeTax} positive sub />
               {r.entity === 'soleprop' ? <ResultRow label="Owner self-employment tax saved" value={r.ownerSe} positive sub /> : null}
-              <ResultRow label="Children’s income tax" value={-(r.childFed + r.childState)} negative sub />
-              <ResultRow label="Social Security & Medicare on their wages" value={-r.fica} negative={r.fica > 0} sub />
-              <ResultRow label="Federal unemployment tax" value={-r.futa} negative={r.futa > 0} sub />
+              <ResultRow label="Children’s income tax" value={-(r.childFed + r.childState) || 0} negative sub />
+              <ResultRow label="Social Security & Medicare on their wages" value={-r.fica || 0} negative={r.fica > 0} sub />
+              <ResultRow label="Federal unemployment tax" value={-r.futa || 0} negative={r.futa > 0} sub />
               <ResultRow label="Net family tax saved" value={r.net} total positive={r.net > 0} negative={r.net < 0} />
             </div>
 
@@ -618,8 +560,8 @@ export default function PayingKids() {
                 <StatTiles
                   items={[
                     { label: 'Put in', value: money(sp.contributed), note: `${money(sp.annual)} a year, ages ${sp.age}–${sp.last}` },
-                    { label: `Balance at ${sp.retireAge}`, value: money(sp.balance), tone: 'good', note: `${pct(sp.growth)} a year` },
-                    { label: 'Tax-free income a year', value: money(sp.income), tone: 'good', note: `${money(sp.incomeReal)} in today’s dollars` },
+                    { label: `Balance at ${sp.retireAge}`, value: about(sp.balance), tone: 'good', note: `${pct(sp.growth)} a year` },
+                    { label: taxFree ? 'Tax-free income a year' : 'Income a year', value: about(sp.income), tone: 'good', note: `${about(sp.incomeReal)} in today’s dollars` },
                   ]}
                 />
                 {rothLineChart}
@@ -628,9 +570,12 @@ export default function PayingKids() {
                   <p>{rothLine}</p>
                 </div>
                 <Note title="A what-if, not a promise">
-                  Growth is a steady {pct(sp.growth)} with no fees or down years, and the contribution stays level. The {pct(sp.incomeRate)} income rate is a planning rule for about 30 years of retirement, so “for life” is not guaranteed; an annuity would pay a different amount. The child needs earned income at least equal to each contribution, and a child under 18 needs a custodial Roth IRA.
+                  Growth is a steady {pct(sp.growth)} with no fees or down years, and the contribution stays level, which assumes the child keeps earning at least this much through age {sp.last}. In a sole proprietorship wages after the 18th birthday cost 15.3% in Social Security and Medicare (FUTA after 21); this illustration does not deduct that. The {pct(sp.incomeRate)} income rate is a planning rule for about 30 years of retirement, so “for life” is not guaranteed; an annuity would pay a different amount. The child needs earned income at least equal to each contribution, and a child under 18 needs a custodial Roth IRA. Earnings are tax-free after five years and age 59½ (or for death, disability or a first home up to $10,000); contributions can be withdrawn at any time.{taxFree ? '' : ' Withdrawals of earnings before 59½ are generally taxable and may carry a 10% penalty.'}
                 </Note>
+                {rothMissing.length ? <div className="hint">{rothMissing.map((k) => `Child ${r.kids.indexOf(k) + 1}`).join(' and ')} {rothMissing.length > 1 ? 'are' : 'is'} at or past the retirement age, so no projection is shown.</div> : null}
               </div>
+            ) : ready ? (
+              <Note title="Roth IRA to retirement">No projection is shown because every child is at or past the retirement age ({r.rothPlan.retireAge}). Change “Retire at age” to see one.</Note>
             ) : null}
             <div className="report-footer">Prepared for discussion with Grott Luker &amp; Co.</div>
           </section>
