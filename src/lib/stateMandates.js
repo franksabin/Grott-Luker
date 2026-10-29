@@ -34,8 +34,8 @@ export function mandateFor(stateCode, headcount) {
   if (!m || !(headcount >= m.min) || headcount < 1) return null
   const tail = 'A SEP, SIMPLE or 401(k) meets it, and the state IRA takes no employer contribution. Counting rules and dates differ, so confirm.'
   const text = m.live
-    ? `${m.name} (${m.program}) requires employers with ${m.rule} that do not offer a retirement plan to enroll employees in the state IRA. ${tail}`
-    : `${m.name} has enacted ${m.program}, which is not open yet: it will cover employers with ${m.rule} that do not offer a plan. ${tail}`
+    ? `${m.name}'s ${m.program} is live: an employer with no retirement plan must enroll its employees in the state IRA (${m.rule}). ${tail}`
+    : `${m.name}'s ${m.program} is enacted but not open yet: an employer with no retirement plan will have to enroll its employees in the state IRA (${m.rule}). ${tail}`
   const short = `${m.name}'s ${m.program} ${m.live ? 'requires' : 'will require'} employers with ${m.min === 1 ? 'any employee' : `${m.min} or more employees`} that offer no plan to enroll staff in the state IRA; a SEP, SIMPLE or 401(k) meets it.`
   return { code: stateCode, ...m, text, short }
 }
