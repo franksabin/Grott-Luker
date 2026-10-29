@@ -392,11 +392,13 @@ export const EMAIL_REQUESTS = {
       'The hours they work, or expect to work, and the hourly rate you would pay (or the total wages for the year)',
       'Whether the work is documented, for example with timesheets and a written job description',
       'Whether the business’s 401(k) plan, if there is one, allows employees under 21 to participate',
+      'Whether each child already has a Roth IRA or a custodial account, and roughly what is in it',
     ],
     // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
     onFile: [
-      'Your business’s entity type (sole proprietorship or spouses’ partnership, S-corporation, or C-corporation)',
+      'Your business’s entity type (sole proprietorship or spouses’ partnership, single-member LLC, S-corporation, or C-corporation)',
       'Your federal tax bracket and state of residence',
+      'If you are a sole proprietor: your net self-employment earnings, and whether they are above the Social Security wage base ($184,500)',
     ],
   },
 

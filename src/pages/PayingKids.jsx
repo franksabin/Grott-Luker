@@ -146,8 +146,29 @@ function compute(form) {
   }
 }
 
+// ?sample=1 wins (ToolShell also applies it); in dev, ?state=<base64 JSON> merges over BLANK
+// (a test hook, dead code in a production build).
+function initialForm() {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('sample')) return SAMPLE
+    if (import.meta.env.DEV) {
+      const st = q.get('state')
+      if (st) {
+        const o = JSON.parse(atob(st.replace(/ /g, '+')))
+        const merged = { ...BLANK }
+        Object.keys(o).forEach((k) => { merged[k] = typeof o[k] === 'number' ? String(o[k]) : o[k] })
+        return merged
+      }
+    }
+  } catch (e) {
+    // fall through to blank
+  }
+  return BLANK
+}
+
 export default function PayingKids() {
-  const [form, setForm] = useState(BLANK)
+  const [form, setForm] = useState(initialForm)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
   const setKid = (id, key) => (v) => setForm((f) => ({ ...f, kids: f.kids.map((k) => (k.id === id ? { ...k, [key]: v } : k)) }))
   const r = useMemo(() => compute(form), [form])
@@ -282,7 +303,7 @@ export default function PayingKids() {
   )
   const printReport = ready ? (
     <PrintDoc>
-      <PrintPage>
+      <PrintPage compact>
         <PrintBand
           title="Family Payroll Illustration"
           subtitle="What the family saves when the children are paid for real work, and what payroll tax costs."
@@ -312,9 +333,6 @@ export default function PayingKids() {
             ]}
           />
         </PrintSection>
-        <PrintSection title="What this means">
-          <PrintProse>{narrative}</PrintProse>
-        </PrintSection>
         {sp ? (
           <PrintSection title={`Roth IRA to retirement — ${shownLabel}`} note={`${money(sp.income)} a year tax free at ${sp.retireAge}, ${money(sp.incomeReal)} in today’s dollars`} className="pr-chart">
             {rothLineChart}
@@ -337,6 +355,9 @@ export default function PayingKids() {
       </PrintPage>
       <PrintPage last>
         <PrintPageHead title="Family Payroll Illustration" right={today} />
+        <PrintSection title="What this means">
+          <PrintProse>{narrative}</PrintProse>
+        </PrintSection>
         {rothKids.length ? (
           <PrintSection title="What the Roth IRA could become" note={`${pct(sp.growth)} growth · ${pct(sp.incomeRate)} income rate · ${pct(sp.inflation)} inflation`}>
             <PrintTable
@@ -355,22 +376,6 @@ export default function PayingKids() {
             <PrintProse>A what-if at a steady rate, not a forecast and not a promise of income for life: markets fall, and a {pct(sp.incomeRate)} income rate is a planning rule for a retirement of about 30 years.</PrintProse>
           </PrintSection>
         ) : null}
-        <PrintSection title="Two ways to tax the same dollars" note="owner keeps the income vs. children are paid">
-          <PrintTable
-            head={['', 'Owner keeps the income', 'Children are paid']}
-            widths={['40%', '30%', '30%']}
-            align={['left', 'right', 'right']}
-            rowClass={(row) => (row[0] === 'Total tax on these dollars' ? 'is-strong' : '')}
-            rows={[
-              ['Income tax', money(r.ownerIncomeTax), money(r.childFed + r.childState)],
-              ['Self-employment tax', money(r.ownerSe), '$0'],
-              ['Social Security & Medicare', '$0', money(r.fica)],
-              ['Federal unemployment (FUTA)', '$0', money(r.futa)],
-              ['Total tax on these dollars', money(r.taxIfOwnerKeeps), money(r.taxIfKidsPaid)],
-              ['Roth IRA room created', '$0', money(r.roth)],
-            ]}
-          />
-        </PrintSection>
         <PrintSection title="Child by child" note={`family net = owner saving − child’s tax − payroll tax · 401(k) uses the plan’s age ${r.planMinAge} minimum`}>
           <PrintTable
             head={['Child', 'Wages', 'Their tax', 'Payroll tax', 'Family net', 'Roth room', '401(k)']}
