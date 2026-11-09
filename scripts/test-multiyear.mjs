@@ -50,10 +50,14 @@ const HAND = { birthYear: 1966, filing: 'single', endAge: 61, retireAge: 60, wag
 
 // ---------- 3. The client's own rate, derived from the do-nothing run ----------
 {
-  const row = (rmd, marginal) => ({ rmd, marginal })
+  const row = (rmd, marginal, taxable = 50000) => ({ rmd, marginal, taxable })
   ok(near(ownRateOf({ rows: [row(0, 0.12), row(10000, 0.22), row(30000, 0.24)] }, 0), (10000 * 0.22 + 30000 * 0.24) / 40000, 1e-12), 'weighted by the RMD; years without an RMD do not count')
   ok(near(ownRateOf({ rows: [row(10000, 0.22), row(10000, 0.24)] }, 0.05), 0.28, 1e-12), 'state rate is added to the federal marginal rate')
   ok(near(ownRateOf({ rows: [row(0, 0.12), row(0, 0.22)] }, 0.03), 0.25, 1e-12), 'no RMD ever: the last year’s rate')
+  // An RMD year whose deductions absorb the whole RMD pays nothing, federal or state, so it counts at 0%
+  ok(near(ownRateOf({ rows: [row(10000, 0.1, 0), row(30000, 0.24)] }, 0.05), (30000 * 0.29) / 40000, 1e-12), 'sheltered RMD years count at 0%, not at the lowest bracket plus state', ownRateOf({ rows: [row(10000, 0.1, 0), row(30000, 0.24)] }, 0.05))
+  ok(ownRateOf({ rows: [row(10000, 0.1, 0.5)] }, 0.05) === 0 && near(ownRateOf({ rows: [row(10000, 0.1, 0.6)] }, 0.05), 0.15, 1e-12), 'a taxable income of 50 cents or less counts as sheltered (0%); above it, taxed at marginal plus state')
+  ok(ownRateOf({ rows: [row(10000, 0.1, 0)] }, 0.05) === 0, 'all RMD years sheltered: 0%')
   ok(ownRateOf({ rows: [row(1, 0.37)] }, 0.5) === 0.6, 'capped at 60%')
   const sampleOwn = computeMultiYear(SAMPLE).ownRate
   ok(sampleOwn > 0.2 && sampleOwn < 0.3, 'the sample’s own rate is in the 22–24% band plus the occasional step up', sampleOwn)
@@ -141,6 +145,52 @@ for (let k = 0; k < 400; k++) {
   ok(c.mode === 'none' || r.plan.totalConverted === 0 ? Math.abs(r.deltaOwn) < 1e-6 && Math.abs(r.pv.taxDelta) < 1e-6 : true, 'random: no conversion, no difference', tag)
   ok(d === 0 ? near(r.pv.taxDelta, r.taxDelta, 1e-6) && near(r.pv.irmaaDelta, r.irmaaDelta, 1e-6) : true, 'random: at 0% the present values of the tax and IRMAA deltas equal the nominal ones', tag)
   ok(r.plan.ownWealth.length === r.years + 1 && r.none.ownWealth.length === r.years + 1 && r.plan.ownWealth.every(Number.isFinite), 'random: series lengths and finite', tag)
+}
+
+// ---------- 8. Gaps the independent review found (each was shown with a surviving mutant) ----------
+{
+  // Present values on the do-nothing side and for IRMAA, recomputed independently with the row index as the number of years
+  const c = { ...SAMPLE, discount: 0.05, fillUntilAge: 66 }
+  const L = computeMultiYear(c)
+  const pvOf = (rows, key) => rows.reduce((a, row, t) => a + row[key] / 1.05 ** t, 0)
+  ok(L.plan.endPretax > 0, 'this configuration leaves pre-tax in the plan, so the heirs’ tax present values are not zero', L.plan.endPretax)
+  for (const [name, sc] of [['plan', L.plan], ['do nothing', L.none]]) {
+    ok(near(sc.pvEndOwn, sc.endOwn / 1.05 ** L.years, 1e-6), `${name}: client wealth at the end, discounted over all the years`)
+    ok(near(sc.pvLifetimeTax, pvOf(sc.rows, 'tax'), 1e-6) && near(sc.pvLifetimeIrmaa, pvOf(sc.rows, 'irmaa'), 1e-6), `${name}: lifetime tax and IRMAA, discounted year by year`)
+    ok(near(sc.pvFamily, sc.familyWealth / 1.05 ** L.years, 1e-6) && near(sc.pvHeirsTax, sc.heirsTax / 1.05 ** L.years, 1e-6), `${name}: family wealth and heirs’ tax, discounted over all the years`)
+  }
+  ok(near(L.pv.taxDelta, pvOf(L.plan.rows, 'tax') - pvOf(L.none.rows, 'tax'), 1e-6) && near(L.pv.irmaaDelta, pvOf(L.plan.rows, 'irmaa') - pvOf(L.none.rows, 'irmaa'), 1e-6), 'the present-value tax and IRMAA deltas')
+  ok(L.pv.irmaaDelta !== L.irmaaDelta && Math.abs(L.pv.irmaaDelta) < Math.abs(L.irmaaDelta), 'the IRMAA delta is discounted, not the nominal one')
+
+  // Every point of the client-alone series, with a Roth balance so that term is exercised
+  const c2 = { ...SAMPLE, roth: 120000 }
+  const s2 = computeMultiYear(c2)
+  for (const [name, sc] of [['plan', s2.plan], ['do nothing', s2.none]]) {
+    ok(near(sc.ownWealth[0], c2.pretax * (1 - s2.ownRate) + c2.roth + c2.taxable, 1e-6), `${name}: the series starts from today’s pre-tax, Roth and taxable balances`)
+    ok(sc.rows.every((row, k) => near(sc.ownWealth[k + 1], row.pretax * (1 - s2.ownRate) + row.roth + row.side, 1e-6)), `${name}: every later point is that year’s end balances at the client’s own rate`)
+  }
+
+  // The state rate's path into the own rate, and the no-RMD fallback reading the do-nothing run
+  const st = computeMultiYear({ ...SAMPLE, stateRate: 0.05 })
+  let w = 0
+  let ws = 0
+  for (const row of st.none.rows) if (row.rmd > 0) { w += row.rmd; ws += row.rmd * (row.taxable > 0.5 ? row.marginal + 0.05 : 0) }
+  ok(near(st.ownRate, ws / w, 1e-12), 'the own rate is the RMD-weighted marginal rate plus the state rate, recomputed from the do-nothing rows')
+  ok(st.ownRate > computeMultiYear(SAMPLE).ownRate + 0.04, 'a 5% state rate raises the own rate by about 5 points')
+  const e70 = [{ mode: 'none' }, { mode: 'fill', fillBracket: 22 }, { mode: 'fill', fillBracket: 24 }, { mode: 'flat', flatAmount: 150000, flatYears: 12 }].map((o) => computeMultiYear({ ...SAMPLE, endAge: 70, ...o }).ownRate)
+  ok(e70.every((v) => v === e70[0]), 'with no RMD before the end, the own rate does not depend on the conversion plan', e70)
+
+  // Overrides and the discount rate, by value
+  const z = computeMultiYear({ ...SAMPLE, ownRate: 0 })
+  ok(z.ownRate === 0 && !z.ownRateDerived && near(z.none.endOwn, z.none.endPretax + z.none.endRoth + z.none.endSide, 1e-6), 'an own rate of 0% values pre-tax at face value')
+  const auto = computeMultiYear(SAMPLE).ownRate
+  for (const bad of [NaN, null, undefined, '', 'x', Infinity]) {
+    const q = computeMultiYear({ ...SAMPLE, ownRate: bad })
+    ok(q.ownRateDerived && q.ownRate === auto, `own rate ${String(bad)} falls back to the derived rate`)
+    const d = computeMultiYear({ ...SAMPLE, discount: bad })
+    ok(d.discount === 0.025, `discount ${String(bad)} falls back to 2.5%`)
+  }
+  ok(computeMultiYear({ ...SAMPLE, discount: 0.01 }).discount === 0.01 && computeMultiYear({ ...SAMPLE, discount: 0.08 }).discount === 0.08, 'a chosen discount rate is used as is')
 }
 
 console.log(`${pass} passed, ${fail} failed`)

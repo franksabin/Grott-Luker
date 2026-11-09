@@ -203,15 +203,16 @@ export function runScenario(i, withPlan) {
 }
 
 // The tax rate on dollars that are still pre-tax at the end of the plan, if the client is the one who takes them out rather than heirs:
-// the rate the client's own RMDs are taxed at in the do-nothing run (marginal federal plus state, weighted by the RMD), or the last
-// year's rate when no RMD is ever taken. The same rate is applied to both scenarios, so it never favors one of them.
+// the rate the client's own RMDs are taxed at in the do-nothing run (marginal federal plus state, weighted by the RMD; a year whose
+// deductions absorb the whole RMD, so nothing is taxed, counts at 0%), or the last year's rate when no RMD is ever taken. The same
+// rate is applied to both scenarios, so it never favors one of them.
 export function ownRateOf(none, stateRate) {
   let weight = 0
   let weighted = 0
   for (const row of none.rows) {
     if (row.rmd > 0) {
       weight += row.rmd
-      weighted += row.rmd * (row.marginal + stateRate)
+      weighted += row.rmd * (row.taxable > 0.5 ? row.marginal + stateRate : 0)
     }
   }
   const last = none.rows[none.rows.length - 1]

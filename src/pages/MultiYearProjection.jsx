@@ -23,7 +23,7 @@ import { PrintDoc, PrintPage, PrintBand, PrintPageHead, PrintSection, PrintFeatu
 import { money, toNumber, percent } from '../lib/format.js'
 import { TAX_YEAR, rmdStartAge, ADDITIONAL_STANDARD, SENIOR_DEDUCTION } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
-import { computeMultiYear, discountFactor, TAXABLE_DRAG } from '../lib/multiYear.js'
+import { computeMultiYear, discountFactor, DISCOUNT_RATE, TAXABLE_DRAG } from '../lib/multiYear.js'
 import ViewSwitch, { requestViewFocus } from '../components/ViewSwitch.jsx'
 import OneYearConversion, { clearOneYearCache } from './OneYearConversion.jsx'
 
@@ -205,7 +205,7 @@ function PlanView({ onView }) {
     fillBracket: Math.round(toNumber(form.fillBracket)) || 24,
     fillUntilAge: Math.round(toNumber(form.fillUntilAge)) || rmdAge - 1,
     beneficiaryRate: toNumber(form.beneficiaryRate) / 100,
-    discount: hasDigit(form.discount) ? clampN(toNumber(form.discount) / 100, 0, 0.15) : 0.025,
+    discount: hasDigit(form.discount) ? clampN(toNumber(form.discount) / 100, 0, 0.15) : DISCOUNT_RATE,
     ownRate: hasDigit(form.ownRate) ? clampN(toNumber(form.ownRate) / 100, 0, 0.6) : null,
   }), [form, birthYear, startAge, rmdAge, st])
 
@@ -213,8 +213,8 @@ function PlanView({ onView }) {
   const { plan, none, thisYear } = r
   const hasPlan = form.mode !== 'none' && plan.totalConverted > 0
   const better = r.deltaOwn > 0 // the baseline is the client alone; heirs are shown on top of it
-  const discText = `${+(r.discount * 100).toFixed(1)}%`
-  const ownPct = percent(r.ownRate * 100, 1)
+  const discText = `${+(r.discount * 100).toFixed(2)}%` // exact to two decimals, so a hand check of the math trace agrees
+  const ownPct = r.ownRateDerived ? percent(r.ownRate * 100, 1) : `${+(r.ownRate * 100).toFixed(2)}%`
   const heirsPct = percent(inputs.beneficiaryRate * 100, 0)
   const discHint = typed(form.discount) && !hasDigit(form.discount) ? `Could not read “${String(form.discount).trim()}”, so 2.5% is used.` : hasDigit(form.discount) && Math.abs(toNumber(form.discount) - r.discount * 100) > 1e-9 ? `Used ${discText} (allowed 0% to 15%).` : undefined
   const ownHint = typed(form.ownRate) && !hasDigit(form.ownRate) ? `Could not read “${String(form.ownRate).trim()}”, so the derived ${percent(r.ownRateAuto * 100, 1)} is used.` : hasDigit(form.ownRate) && Math.abs(toNumber(form.ownRate) - r.ownRate * 100) > 1e-9 ? `Used ${ownPct} (allowed 0% to 60%).` : undefined
@@ -270,7 +270,7 @@ function PlanView({ onView }) {
     if (!hasPlan || r.deltaOwn <= 0) return null
     let lastBehind = 0
     for (let i = 1; i < plan.ownWealth.length; i++) {
-      if (plan.ownWealth[i] < none.ownWealth[i]) lastBehind = i
+      if (plan.ownWealth[i] <= none.ownWealth[i] + 0.5) lastBehind = i // a tie (nothing converted yet) is not ahead
     }
     const row = plan.rows[Math.min(lastBehind, plan.rows.length - 1)]
     return row ? row.age : null
@@ -307,7 +307,7 @@ function PlanView({ onView }) {
   const filingLabel = form.filing === 'single' ? 'Single' : 'Married filing jointly'
   const metaLine = ready ? `Age ${startAge} to ${inputs.endAge} · ${form.filing === 'single' ? 'single' : 'MFJ'} · RMDs from ${rmdAge} · ${label}` : 'Enter a year of birth and a pre-tax balance'
   // Shared between the screen Note and the printed "Reading the result".
-  const noteText = `The comparison that matters is after-tax wealth at the end of the plan, not the tax paid this year. For the client alone, converting costs tax now at today’s rate against the RMD-year rate later; heirs add the larger pre-tax balance they must empty within ten years at their own rate. Filling a bracket each year before RMDs begin is the usual sweet spot: the years between retirement and Social Security, and again before the RMD age. ${hasPlan ? 'Watch the two lines cross.' : 'Choose a conversion approach that converts something to add the plan line and see where the two cross.'}`
+  const noteText = `The comparison that matters is after-tax wealth at the end of the plan, not the tax paid this year. For the client alone, converting costs tax now at today’s rate against the RMD-year rate later; heirs change the answer, because whatever is still pre-tax costs them tax at their own rate within ten years, higher or lower than the client’s. Filling a bracket each year before RMDs begin is the usual sweet spot: the years between retirement and Social Security, and again before the RMD age. ${hasPlan ? 'Watch the two lines cross.' : 'Choose a conversion approach that converts something to add the plan line and see where the two cross.'}`
 
   // Shared between the screen Narrative and the printed "What this means".
   const narrative = ready ? (
@@ -315,8 +315,8 @@ function PlanView({ onView }) {
       Born in {birthYear}, the client is {startAge} and must start RMDs at {rmdAge}.
       {' '}
       {hasPlan
-        ? `${form.mode === 'fill' ? `Filling the ${form.fillBracket}% bracket each year through age ${inputs.fillUntilAge}` : `Converting ${money(inputs.flatAmount)} a year for ${inputs.flatYears} years`} moves ${money(plan.totalConverted)} to Roth and ${r.taxDelta >= 0 ? 'raises' : 'lowers'} lifetime tax by ${money(Math.abs(r.taxDelta))}, from ${money(none.lifetimeTax)} to ${money(plan.lifetimeTax)}${r.taxDelta < 0 ? ' — paying at today’s rate beats the RMDs that would come later' : ''}. ${r.irmaaDelta > 0 ? `It also adds ${money(r.irmaaDelta)} of IRMAA. ` : r.irmaaDelta < 0 ? `It also avoids ${money(-r.irmaaDelta)} of IRMAA. ` : ''}For the client alone, valuing what is still pre-tax at ${inputs.endAge} after tax at ${ownPct}, the plan leaves them ${better ? 'ahead' : 'behind'} by ${money(Math.abs(r.deltaOwn))}, worth ${money(Math.abs(r.pv.deltaOwn))} in today’s dollars at ${discText} a year. The pre-tax balance falls from ${money(none.endPretax)} to ${money(plan.endPretax)}, so the heirs’ tax at ${heirsPct} goes from ${money(none.heirsTax)} to ${money(plan.heirsTax)}; with heirs, the family is ${r.delta >= 0 ? 'ahead' : 'behind'} by ${money(Math.abs(r.delta))} (${money(Math.abs(r.pv.delta))} today).`
-        : `Doing nothing, RMDs begin at ${rmdAge} and lifetime tax through ${inputs.endAge} is ${money(none.lifetimeTax)}. The client alone keeps ${money(none.endOwn)} after tax at ${inputs.endAge} (${money(none.pvEndOwn)} in today’s dollars at ${discText} a year, with what is still pre-tax valued at ${ownPct}). The ${money(none.endPretax)} still pre-tax would cost the heirs ${money(none.heirsTax)} at ${heirsPct}, leaving the family ${money(none.familyWealth)}.${form.mode === 'none' ? ' Choose a conversion approach to compare against doing nothing.' : ''}`}
+        ? `${form.mode === 'fill' ? `Filling the ${form.fillBracket}% bracket each year through age ${inputs.fillUntilAge}` : `Converting ${money(inputs.flatAmount)} a year for ${inputs.flatYears} years`} moves ${money(plan.totalConverted)} to Roth and ${r.taxDelta >= 0 ? 'raises' : 'lowers'} lifetime tax by ${money(Math.abs(r.taxDelta))}, from ${money(none.lifetimeTax)} to ${money(plan.lifetimeTax)}${r.taxDelta < 0 ? (r.pv.taxDelta < 0 ? ' — paying at today’s rate beats the RMDs that would come later' : ` — but in today’s dollars it costs ${money(r.pv.taxDelta)} more, because the tax is paid sooner`) : ''}. ${r.irmaaDelta > 0 ? `It also adds ${money(r.irmaaDelta)} of IRMAA. ` : r.irmaaDelta < 0 ? `It also avoids ${money(-r.irmaaDelta)} of IRMAA. ` : ''}For the client alone, valuing what is still pre-tax at ${inputs.endAge} after tax at ${ownPct}, the plan leaves them ${better ? 'ahead' : 'behind'} by ${money(Math.abs(r.deltaOwn))} (${money(Math.abs(r.pv.deltaOwn))} in today’s dollars at ${discText} a year). The pre-tax balance falls from ${money(none.endPretax)} to ${money(plan.endPretax)}, so the heirs’ tax at ${heirsPct} goes from ${money(none.heirsTax)} to ${money(plan.heirsTax)}; with heirs, the family is ${r.delta >= 0 ? 'ahead' : 'behind'} by ${money(Math.abs(r.delta))} (${money(Math.abs(r.pv.delta))} today).`
+        : `Doing nothing, RMDs begin at ${rmdAge} and lifetime tax through ${inputs.endAge} is ${money(none.lifetimeTax)}. The client alone keeps ${money(none.endOwn)} after tax at ${inputs.endAge} (${money(none.pvEndOwn)} in today’s dollars at ${discText} a year, with what is still pre-tax valued at ${ownPct}). The ${money(none.endPretax)} still pre-tax would cost the heirs ${money(none.heirsTax)} at ${heirsPct}, leaving the family ${money(none.familyWealth)}.${form.mode === 'none' ? ' Choose a conversion approach to compare against doing nothing.' : ' The chosen conversion approach converts nothing (the convert-through age is already past, or there is no room below the bracket), so only doing nothing is shown.'}`}
     </>
   ) : (
     'Enter the year of birth, the balances, and income. The plan compares Roth conversions against doing nothing, first for the client alone and then with the heirs, through the end of the plan.'
@@ -327,9 +327,9 @@ function PlanView({ onView }) {
     'RMDs begin at 73 for clients born 1951–1959 and 75 for those born 1960 or later, using the IRS Uniform Lifetime Table on the prior year-end balance. RMDs cannot be converted; conversions come on top of the RMD.',
     'Social Security is taxed through the provisional-income test each year; wages stop at the retirement age entered.',
     'Fill-a-bracket conversions are sized so taxable income reaches the top of the chosen bracket after Social Security taxation and the senior deduction phase-out, limited by the pre-tax balance.',
-    `All accounts earn the same return; the taxable account is reduced by a ${percent(TAXABLE_DRAG * 100, 0)} tax drag. The tax the household owes without a conversion (on wages, pension, Social Security, and RMDs) and IRMAA are paid from the taxable account while it lasts and out of that income once it is empty — identically in both scenarios, so the taxable account never goes below zero. Only the extra tax a conversion causes is charged to the conversion: from the taxable account first, then withheld from the conversion itself (which reduces what reaches the Roth; the gross-up on withheld tax is not modeled).`,
-    `Client alone (no heirs): what is still pre-tax at the end is valued after tax at the client’s own rate, ${ownPct}${r.ownRateDerived ? ' (the RMD-weighted marginal rate, federal plus state, in the do-nothing run)' : ' as entered'}, the same for both scenarios. With heirs: the beneficiary rate (${heirsPct}) on that balance instead, as if withdrawn under the 10-year rule; growth during those ten years and the heirs’ bracket creep are not modeled. Roth and taxable pass without income tax (the taxable account gets a basis step-up).`,
-    `Today’s dollars: ending balances are discounted over all ${r.years} years, and each year’s tax and IRMAA from the start of that year (this year’s is not), at ${discText} a year, about inflation. It restates dollars in today’s purchasing power; it is not an investment return.`,
+    `All accounts earn the same return; the taxable account is reduced by a ${percent(TAXABLE_DRAG * 100, 0)} tax drag. Tax on wages, pension, Social Security and RMDs, and IRMAA, come from the taxable account while it lasts, then from income, the same in both scenarios; tax paid from income is not charged to wealth, which can flatter the plan when the taxable account is small and other income is large. The extra tax a conversion causes is paid from the taxable account first, then withheld from the conversion itself (the gross-up on withheld tax is not modeled).`,
+    `Client alone (no heirs): what is still pre-tax at the end is valued after tax at the client’s own rate, ${ownPct}${r.ownRateDerived ? ' (RMD-weighted marginal rate, federal plus state, do-nothing run)' : ' as entered'}, the same for both scenarios. With heirs: the beneficiary rate (${heirsPct}) on that balance instead, as if withdrawn under the 10-year rule; growth during those ten years and the heirs’ bracket creep are not modeled. Roth and taxable are counted at face value in both views; embedded gains are not taxed.`,
+    `Today’s dollars: ending balances are discounted over all ${r.years} years, each year’s tax and IRMAA from the start of that year, at ${discText} a year${Math.abs(r.discount - DISCOUNT_RATE) < 1e-9 ? ', about inflation' : ''}; not an investment return.`,
     'IRMAA is applied from age 65 using the 2026 Part B and D surcharge tiers (indexed with inflation when indexing is on) against MAGI from two years earlier; the first two projection years use the current year’s MAGI as a proxy. It is paid from the taxable account while it lasts and counted in family wealth.',
     'Capital gains, itemized deductions, QCDs, and estate tax are not modeled. State tax is a simplified flat rate on taxable income.',
     'Baseline model. Not reviewed by Grott Luker & Co.',
@@ -353,15 +353,14 @@ function PlanView({ onView }) {
     ...(form.mode === 'fill' ? [['Fill to the top of', `${form.fillBracket}% bracket`], ['Convert through age', `${inputs.fillUntilAge}${inputs.fillUntilAge < startAge ? ' (past)' : ''}`]] : []),
     ...(form.mode === 'flat' ? [['Amount converted each year', money(inputs.flatAmount)], ['For how many years', `${inputs.flatYears} years`]] : []),
     ['Heirs’ tax bracket', heirsPct],
-    ['Client’s tax rate on what is left', `${ownPct}${r.ownRateDerived ? ' (from the do-nothing RMDs)' : ''}`],
+    ['Client’s rate on what is left', `${ownPct}${r.ownRateDerived ? ' (derived)' : ' (entered)'}`],
     ['Discount rate, today’s dollars', `${discText} / yr`],
     ['Annual return, all accounts', percent(inputs.ret * 100, 1)],
     ['Index brackets, deduction, benefits', inputs.index ? 'Yes' : 'No'],
     ['Inflation', `${percent(inputs.infl * 100, 1)} / yr`],
     ['State of residence', st.name],
   ]
-  const signedDelta = signed
-  // A chosen approach that converts nothing (convert-through age already past, or no bracket room) is said so
+    // A chosen approach that converts nothing (convert-through age already past, or no bracket room) is said so
   // next to the inputs, because the rest of the report describes the do-nothing result.
   const inputsNote = form.mode !== 'none' && !hasPlan
     ? `nothing converted${form.mode === 'fill' && inputs.fillUntilAge < startAge ? ` — convert-through age ${inputs.fillUntilAge} is already past` : form.mode === 'fill' ? ' — no room below the top of the bracket' : ''}; the report shows doing nothing`
@@ -401,7 +400,7 @@ function PlanView({ onView }) {
           metaRight={today}
         />
         <PrintFeature
-          label={hasPlan ? 'Benefit to the client alone, no heirs — plan vs. do nothing' : `After-tax wealth to the client at ${inputs.endAge}, no heirs — as entered`}
+          label={hasPlan ? `Benefit to the client alone at ${inputs.endAge}, no heirs — plan vs. do nothing` : `After-tax wealth to the client at ${inputs.endAge}, no heirs — as entered`}
           value={hasPlan ? signed(r.deltaOwn) : money(none.endOwn)}
           note={hasPlan ? `${signed(r.pv.deltaOwn)} in today’s dollars at ${discText} a year · with heirs at ${heirsPct}: ${signed(r.delta)} (${signed(r.pv.delta)} today)` : ready ? `after-tax wealth at ${inputs.endAge} · ${money(none.pvEndOwn)} in today’s dollars · with heirs at ${heirsPct}: ${money(none.familyWealth)}` : 'Enter a year of birth and a pre-tax balance'}
         />
@@ -409,7 +408,7 @@ function PlanView({ onView }) {
           items={[
             { label: 'Lifetime tax paid', value: money(plan.lifetimeTax), note: hasPlan ? `vs. ${money(none.lifetimeTax)} doing nothing` : 'through the end of the plan' },
             hasPlan
-              ? { label: 'Effect of heirs', value: signed(r.heirsAddOn), note: `${signed(r.pv.heirsAddOn)} today · heirs ${heirsPct}, client ${ownPct}` }
+              ? { label: 'Effect of heirs', value: <span style={{ whiteSpace: 'nowrap' }}>{signed(r.heirsAddOn)}</span>, note: `${signed(r.pv.heirsAddOn)} today · heirs ${heirsPct}, client ${ownPct}` }
               : { label: `Heirs’ tax at ${inputs.endAge}`, value: money(plan.heirsTax), note: `${heirsPct} on what is pre-tax` },
             { label: 'Converted in total', value: money(plan.totalConverted), note: hasPlan ? `Roth at ${inputs.endAge}: ${money(plan.endRoth)}` : 'no conversions' },
             // Marked best only when the plan ends ahead and stays ahead — the one winner on the page.
@@ -419,7 +418,7 @@ function PlanView({ onView }) {
         <PrintSection title="What this means">
           <PrintProse>{narrative}</PrintProse>
         </PrintSection>
-        <PrintSection title="After-tax wealth to the client, year by year" note={`age ${startAge} to ${inputs.endAge}, no heirs · what is still pre-tax valued after tax at ${ownPct}`} className="pr-chart">
+        <PrintSection title="After-tax wealth to the client, year by year" note={`age ${startAge} to ${inputs.endAge} · future dollars · no heirs · pre-tax valued after tax at ${ownPct}`} className="pr-chart">
           <LineChart
             xStart={`Age ${startAge}`}
             xEnd={`Age ${inputs.endAge}`}
@@ -447,7 +446,7 @@ function PlanView({ onView }) {
                   ]}
                 />
               </PrintSection>
-              <PrintSection title="What the plan is worth" note="plan vs. do nothing">
+              <PrintSection title="What the plan is worth" note="tax and IRMAA are in the first row">
                 <PrintTable head={['', `At ${inputs.endAge}`, 'Today’s $']} widths={['44%', '28%', '28%']} align={['left', 'right', 'right']} rows={benefitRows} rowClass={(row, i) => (i === 0 ? 'is-strong' : '')} />
               </PrintSection>
             </div>
@@ -482,7 +481,7 @@ function PlanView({ onView }) {
           </PrintCols>
         )}
         <PrintSection title={`Taxable income by bracket, each year${hasPlan ? ' (with the plan)' : ''}`} note={hasPlan ? 'a dot above a column marks a conversion year' : `no conversions · RMDs begin at ${rmdAge}`} className="pr-chart">
-          <BracketBars rows={chartRows} height={110} />
+          <BracketBars rows={chartRows} height={90} />
         </PrintSection>
         <PrintNote title="Reading the result">{noteText}</PrintNote>
         <PrintSection title="Assumptions">
@@ -542,7 +541,7 @@ function PlanView({ onView }) {
               align={['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right']}
               rowClass={convTint}
               rows={plan.rows.map((row, i) => (hasPlan
-                ? [row.year, row.age, money(row.pretax), money(row.roth), money(row.side), money(plan.ownWealth[i + 1]), money(none.ownWealth[i + 1]), signedDelta(plan.ownWealth[i + 1] - none.ownWealth[i + 1]), signedDelta(plan.wealth[i + 1] - none.wealth[i + 1])]
+                ? [row.year, row.age, money(row.pretax), money(row.roth), money(row.side), money(plan.ownWealth[i + 1]), money(none.ownWealth[i + 1]), signed(plan.ownWealth[i + 1] - none.ownWealth[i + 1]), signed(plan.wealth[i + 1] - none.wealth[i + 1])]
                 : [row.year, row.age, money(row.pretax), money(row.roth), money(row.side), money(plan.ownWealth[i + 1]), money(row.pretax * inputs.beneficiaryRate), money(plan.wealth[i + 1])]))}
             />
           </PrintSection>
@@ -609,11 +608,11 @@ function PlanView({ onView }) {
                 <NumberField label="For how many years" value={form.flatYears} onChange={set('flatYears')} suffix="yrs" />
               </div>
             ) : null}
-            <PillField label="Heirs’ tax bracket" value={form.beneficiaryRate} onChange={set('beneficiaryRate')} options={BENEFICIARY} info="Non-spouse beneficiaries must empty an inherited pre-tax IRA within 10 years and pay tax at their own rate. Roth passes tax-free. This rate is applied to whatever is still pre-tax at the end of the plan to show what the heirs add on top of the benefit to the client alone." />
+            <PillField label="Heirs’ tax bracket" value={form.beneficiaryRate} onChange={set('beneficiaryRate')} options={BENEFICIARY} info="Non-spouse beneficiaries must empty an inherited pre-tax IRA within 10 years and pay tax at their own rate. Roth passes tax-free. This rate is applied to whatever is still pre-tax at the end of the plan to show how the heirs change the benefit to the client alone: up if their rate is above the client’s, down if below." />
           </Panel>
           <RefinePanel summary={`${form.ret}% return, ${form.index === 'no' ? 'no' : `${form.infl}%`} indexing, ${st.name}, today’s dollars at ${discText}`}>
             <div className="field-row">
-              <NumberField label="Annual return, all accounts" value={form.ret} onChange={set('ret')} suffix="%" info={`The taxable account earns ${percent((1 - TAXABLE_DRAG) * 100, 0)} of this after tax drag.`} />
+              <NumberField label="Annual return, all accounts" value={form.ret} onChange={set('ret')} suffix="%" info={`The taxable account earns ${percent((1 - TAXABLE_DRAG) * 100, 0)} of this after tax drag. A large part of the client-alone benefit is tax-free Roth growth against that drag; “Lifetime tax saved” in the table shows the tax-rate effect alone.`} />
               <SelectField label="State of residence" value={form.state} onChange={set('state')} options={STATES.map((s) => ({ value: s.code, label: s.name }))} info="Simplified flat rate on taxable income." />
             </div>
             <div className="field-row">
@@ -622,7 +621,7 @@ function PlanView({ onView }) {
             </div>
             <div className="field-row">
               <NumberField label="Discount rate" value={form.discount} onChange={set('discount')} suffix="% / yr" placeholder="2.5" hint={discHint || 'For the today’s-dollar values.'} info="Restates future dollars in today’s purchasing power: each benefit is divided by (1 + this rate) for every year until it arrives. 2.5% is about long-run inflation. It is not an investment return; the growth in the balances is already in the projection. Between 0% and 15%." />
-              <NumberField label="Tax rate on what is left, no heirs" value={form.ownRate} onChange={set('ownRate')} suffix="%" placeholder={String(+(r.ownRateAuto * 100).toFixed(1))} hint={ownHint || (typed(form.ownRate) ? undefined : `Blank uses ${percent(r.ownRateAuto * 100, 1)}, the rate on the client’s own RMDs in the do-nothing case.`)} info="For the client alone, whatever is still pre-tax at the end of the plan is valued after tax at this rate, as if the client drew it down. Left blank, it is the marginal rate (federal plus state) on the client’s own RMDs when nothing is converted, weighted by the RMD. The same rate applies to the plan and to doing nothing. Between 0% and 60%." />
+              <NumberField label="Tax rate on what is left, no heirs" value={form.ownRate} onChange={set('ownRate')} suffix="%" placeholder={inputs.pretax > 0 ? String(+(r.ownRateAuto * 100).toFixed(1)) : ''} hint={ownHint || (typed(form.ownRate) ? undefined : inputs.pretax <= 0 ? 'Blank: worked out from the client’s own RMDs once a pre-tax balance is entered.' : none.rows.some((row) => row.rmd > 0) ? `Blank uses ${percent(r.ownRateAuto * 100, 1)}, the rate on the client’s own RMDs in the do-nothing case.` : `Blank uses ${percent(r.ownRateAuto * 100, 1)}, the last year’s rate: no RMD is taken before the end of the plan.`)} info="For the client alone, whatever is still pre-tax at the end of the plan is valued after tax at this rate, as if the client drew it down. Left blank, it is the marginal rate (federal plus state) on the client’s own RMDs when nothing is converted, weighted by the RMD; a year whose deductions absorb the whole RMD counts at 0%. It is the ordinary bracket rate and does not include the extra tax from Social Security becoming taxable. The same rate applies to the plan and to doing nothing. Between 0% and 60%." />
             </div>
           </RefinePanel>
         </div>
@@ -635,7 +634,7 @@ function PlanView({ onView }) {
               metaRight={today}
             />
             <FeatureBlock
-              label={hasPlan ? 'Benefit to the client alone, no heirs — plan vs. do nothing' : `After-tax wealth to the client at ${inputs.endAge}, no heirs — as entered`}
+              label={hasPlan ? `Benefit to the client alone at ${inputs.endAge}, no heirs — plan vs. do nothing` : `After-tax wealth to the client at ${inputs.endAge}, no heirs — as entered`}
               value={hasPlan ? signed(r.deltaOwn) : money(none.endOwn)}
               note={hasPlan ? `${signed(r.pv.deltaOwn)} in today’s dollars at ${discText} a year · with heirs at ${heirsPct}: ${signed(r.delta)} (${signed(r.pv.delta)} today)` : ready ? `after-tax wealth at ${inputs.endAge} · ${money(none.pvEndOwn)} in today’s dollars · with heirs at ${heirsPct}: ${money(none.familyWealth)}` : 'Enter a year of birth and a pre-tax balance'}
             />
@@ -643,7 +642,7 @@ function PlanView({ onView }) {
               items={[
                 { label: 'Lifetime tax paid', value: money(plan.lifetimeTax), note: hasPlan ? `vs. ${money(none.lifetimeTax)} doing nothing` : 'through the end of the plan' },
                 hasPlan
-                  ? { label: 'Effect of heirs', value: signed(r.heirsAddOn), tone: r.heirsAddOn > 0 ? 'good' : undefined, note: `${signed(r.pv.heirsAddOn)} today · heirs ${heirsPct}, client ${ownPct}` }
+                  ? { label: 'Effect of heirs', value: <span style={{ whiteSpace: 'nowrap' }}>{signed(r.heirsAddOn)}</span>, tone: r.heirsAddOn > 0 ? 'good' : undefined, note: `${signed(r.pv.heirsAddOn)} today · heirs ${heirsPct}, client ${ownPct}` }
                   : { label: `Heirs’ tax at ${inputs.endAge}`, value: money(plan.heirsTax), note: `${heirsPct} on what is pre-tax` },
                 { label: 'Converted in total', value: money(plan.totalConverted), note: hasPlan ? `Roth at ${inputs.endAge}: ${money(plan.endRoth)}` : 'no conversions' },
                 ...(hasPlan ? [{ label: 'Breakeven', value: breakevenAge ? `Age ${breakevenAge}` : 'Not reached', tone: breakevenAge ? 'good' : 'bad', note: breakevenNote }] : []),
@@ -664,7 +663,7 @@ function PlanView({ onView }) {
 
             {hasPlan ? (
               <div style={{ overflowX: 'auto' }}>
-                <table className="data-table" style={{ marginTop: 14 }}>
+                <table className="data-table benefit-table" style={{ marginTop: 14 }}>
                   <thead><tr><th>What the plan is worth</th><th className="num">At age {inputs.endAge}</th><th className="num">In today’s dollars</th></tr></thead>
                   <tbody>
                     {benefitRows.map((row, k) => (
@@ -676,20 +675,20 @@ function PlanView({ onView }) {
                     ))}
                   </tbody>
                 </table>
-                <div className="hint">Plan vs. doing nothing. Heirs at {heirsPct} against the client’s own {ownPct} on what is still pre-tax; today’s dollars at {discText} a year.</div>
+                <div className="hint">Plan vs. doing nothing. Lifetime tax and IRMAA saved are already counted in the first row; do not add them. Together = client alone + the effect of heirs, which is negative when the heirs’ rate ({heirsPct}) is below the client’s ({ownPct}). Conversion tax is paid first and saved later, so in today’s dollars the tax row can be smaller, or even negative, while the first row is positive. Today’s dollars at {discText} a year.</div>
               </div>
             ) : null}
 
             <ScenarioCards
               sub={`at age ${inputs.endAge}, after tax, no heirs`}
               scenarios={[
-                { label: 'Do nothing', value: money(none.endOwn), sub: `${money(none.pvEndOwn)} in today’s dollars`, best: hasPlan && !better, rows: [{ label: 'Lifetime tax', value: money(none.lifetimeTax) }, { label: 'Still pre-tax', value: money(none.endPretax) }, { label: 'IRMAA', value: money(none.lifetimeIrmaa) }, { label: 'Roth', value: money(none.endRoth) }, { label: 'With heirs, after their tax', value: money(none.familyWealth) }] },
-                { label: hasPlan ? label : 'With a plan', value: hasPlan ? money(plan.endOwn) : '—', sub: hasPlan ? `${money(plan.pvEndOwn)} in today’s dollars` : undefined, best: hasPlan && better, rows: [{ label: 'Lifetime tax', value: hasPlan ? money(plan.lifetimeTax) : '—' }, { label: 'Still pre-tax', value: hasPlan ? money(plan.endPretax) : '—' }, { label: 'IRMAA', value: hasPlan ? money(plan.lifetimeIrmaa) : '—' }, { label: 'Roth', value: hasPlan ? money(plan.endRoth) : '—' }, { label: 'With heirs, after their tax', value: hasPlan ? money(plan.familyWealth) : '—' }] },
+                { label: 'Do nothing', value: money(none.endOwn), sub: `${money(none.pvEndOwn)} today · at ${inputs.endAge}, no heirs`, best: hasPlan && !better, rows: [{ label: 'Lifetime tax', value: money(none.lifetimeTax) }, { label: 'Still pre-tax', value: money(none.endPretax) }, { label: 'IRMAA', value: money(none.lifetimeIrmaa) }, { label: 'Roth', value: money(none.endRoth) }, { label: 'With heirs, after their tax', value: money(none.familyWealth) }] },
+                { label: hasPlan ? label : 'With a plan', value: hasPlan ? money(plan.endOwn) : '—', sub: hasPlan ? `${money(plan.pvEndOwn)} today · at ${inputs.endAge}, no heirs` : undefined, best: hasPlan && better, rows: [{ label: 'Lifetime tax', value: hasPlan ? money(plan.lifetimeTax) : '—' }, { label: 'Still pre-tax', value: hasPlan ? money(plan.endPretax) : '—' }, { label: 'IRMAA', value: hasPlan ? money(plan.lifetimeIrmaa) : '—' }, { label: 'Roth', value: hasPlan ? money(plan.endRoth) : '—' }, { label: 'With heirs, after their tax', value: hasPlan ? money(plan.familyWealth) : '—' }] },
               ]}
             />
 
             <div className="chart-block">
-              <div className="chart-title">After-tax wealth to the client, year by year (no heirs)</div>
+              <div className="chart-title">After-tax wealth to the client, year by year (no heirs, future dollars)</div>
               <LineChart
                 xStart={`Age ${startAge}`}
                 xEnd={`Age ${inputs.endAge}`}

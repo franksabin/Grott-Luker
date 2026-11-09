@@ -1065,6 +1065,20 @@ input[type='range'].slider::-moz-range-thumb {
 .report-meta > :last-child {
   white-space: nowrap; /* the date stays on one line */
 }
+/* The "What the plan is worth" table has three columns of dollar amounts: on a phone, tighten it so the today's-dollars column is not clipped. */
+@media (max-width: 480px) {
+  .benefit-table th,
+  .benefit-table td {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .benefit-table td {
+    font-size: 13px;
+  }
+  .benefit-table td.num {
+    white-space: nowrap;
+  }
+}
 .report-section-title {
   font-family: var(--font-serif);
   font-size: 18px;
