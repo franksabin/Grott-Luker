@@ -403,6 +403,27 @@ export const EMAIL_REQUESTS = {
     ],
   },
 
+  'hsa-planner': {
+    subject: 'Information needed to plan your Health Savings Account',
+    intro:
+      'We are working out the most you can put into a Health Savings Account (HSA), the tax it saves, and what it could become. Please reply with the following:',
+    questions: [
+      'Whether your health plan covers just you or your family, and your age and your spouse’s age',
+      'Whether your plan is a high-deductible plan that qualifies for an HSA (your plan documents or insurer can confirm), and whether anyone on it is enrolled in Medicare',
+      'Whether you are or your spouse is covered by a general-purpose health FSA or any other health plan',
+      'How you would contribute: payroll deduction at work, or on your own',
+      'Any amount your employer contributes to your HSA',
+      'Your current HSA balance, if you have one, and the year you opened it',
+      'Roughly what you spend on medical, dental and vision care in a typical year, and whether you have kept receipts',
+    ],
+    // Things the CPA most likely already has (last year's return and standing facts). They print last so they can be deleted before sending.
+    onFile: [
+      'Your federal tax bracket and state of residence',
+      'Your pay for the year (it decides how much Social Security and Medicare tax a payroll deduction saves)',
+      'Whether you are self-employed or own more than 2% of an S-corporation',
+    ],
+  },
+
   'business-sale': {
     subject: 'Information needed to estimate what you would keep from a business sale',
     intro:

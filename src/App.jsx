@@ -12,6 +12,7 @@ import QbiOptimizer from './pages/QbiOptimizer.jsx'
 import RetireTrack from './pages/RetireTrack.jsx'
 import CashBalance from './pages/CashBalance.jsx'
 import Rollover401k from './pages/Rollover401k.jsx'
+import HsaPlanner from './pages/HsaPlanner.jsx'
 import DivorceDivision from './pages/DivorceDivision.jsx'
 import KnowYourNumbers from './pages/KnowYourNumbers.jsx'
 
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="tools/retire-track" element={<RetireTrack />} />
         <Route path="tools/cash-balance" element={<CashBalance />} />
         <Route path="tools/rollover-401k" element={<Rollover401k />} />
+        <Route path="tools/hsa-planner" element={<HsaPlanner />} />
         <Route path="tools/divorce-division" element={<DivorceDivision />} />
         <Route path="tools/know-your-numbers" element={<KnowYourNumbers />} />
         {/* In development */}

@@ -556,6 +556,14 @@ p {
 @media (max-width: 480px) {
   .field-row {
     grid-template-columns: 1fr;
+    row-gap: 0; /* each field's own 18px margin separates the stack */
+  }
+  /* stacked, the last field of a row keeps its gap to whatever follows, unless the row ends its container */
+  .field-row > .field:last-child {
+    margin-bottom: 18px;
+  }
+  .field-row:last-child > .field:last-child {
+    margin-bottom: 0;
   }
 }
 .input,
@@ -642,6 +650,22 @@ p {
 .infotip:focus-within .infotip-bubble {
   opacity: 1;
   visibility: visible;
+}
+/* On a phone a bubble centred on an icon at the end of a wrapped label runs off the screen and is clipped. Anchor it to the field instead,
+   so it spans the field's width above the label. Scoped to labels; tooltips elsewhere keep their behavior. */
+@media (max-width: 600px) {
+  .field {
+    position: relative;
+  }
+  .field-label .infotip {
+    position: static;
+  }
+  .field-label .infotip .infotip-bubble {
+    left: 0;
+    right: 0;
+    width: auto;
+    transform: none;
+  }
 }
 
 /* ------- Results ------- */
@@ -1037,6 +1061,9 @@ input[type='range'].slider::-moz-range-thumb {
   font-size: 13px;
   color: var(--muted);
   margin-bottom: 18px;
+}
+.report-meta > :last-child {
+  white-space: nowrap; /* the date stays on one line */
 }
 .report-section-title {
   font-family: var(--font-serif);

@@ -34,6 +34,7 @@ import {
   Sun,
   Building2,
   Users,
+  HeartPulse,
 } from 'lucide-react'
 
 export const GROUPS = {
@@ -87,7 +88,7 @@ export const TOOLS = [
     title: 'Roth Conversion & RMD Planner',
     short: 'Roth & RMD Planner',
     description:
-      'This year only: the Q4 Roth conversion and what it costs. Or plan to the end: RMDs and heirs.',
+      'This year only: the Q4 Roth conversion and what it costs. Or plan to the end: RMDs, the benefit to the client alone, and what heirs add, in today’s dollars.',
   },
   {
     id: 'charitable-giving-optimizer',
@@ -296,6 +297,26 @@ export const TOOLS = [
       'Birth dates',
       'Planned claiming ages to compare',
       'Life-expectancy assumption and an optional discount rate',
+    ],
+  },
+  {
+    id: 'hsa-planner',
+    group: 'individual-family',
+    status: 'testing',
+    path: '/tools/hsa-planner',
+    icon: HeartPulse,
+    title: 'How Much Can I Save in an HSA?',
+    short: 'HSA Savings Planner',
+    description:
+      'The most that can go into a Health Savings Account this year, the tax it saves, and what the account can become: paying medical bills from it as they come, or paying them yourself and keeping the receipts to reimburse tax free years later.',
+    plan:
+      'Works out the contribution limit (self-only or family, catch-up at 55, part-year, employer money), the federal, state and payroll tax saved, and projects the balance to retirement under two ways of using it. Flags Medicare, non-qualifying coverage, excess contributions and state differences straight away.',
+    planInputs: [
+      'Self-only or family coverage, and each spouse’s age',
+      'Whether the plan is a qualifying high-deductible plan and whether anyone is on Medicare',
+      'Payroll deduction or deducted on the return, pay, and any employer contribution',
+      'Federal bracket and state',
+      'Current balance, retirement age, growth, and yearly medical bills',
     ],
   },
   {

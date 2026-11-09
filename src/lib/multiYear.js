@@ -202,9 +202,55 @@ export function runScenario(i, withPlan) {
   }
 }
 
+// The tax rate on dollars that are still pre-tax at the end of the plan, if the client is the one who takes them out rather than heirs:
+// the rate the client's own RMDs are taxed at in the do-nothing run (marginal federal plus state, weighted by the RMD), or the last
+// year's rate when no RMD is ever taken. The same rate is applied to both scenarios, so it never favors one of them.
+export function ownRateOf(none, stateRate) {
+  let weight = 0
+  let weighted = 0
+  for (const row of none.rows) {
+    if (row.rmd > 0) {
+      weight += row.rmd
+      weighted += row.rmd * (row.marginal + stateRate)
+    }
+  }
+  const last = none.rows[none.rows.length - 1]
+  return clampRate(weight > 0 ? weighted / weight : last.marginal + stateRate)
+}
+const clampRate = (v) => Math.min(0.6, Math.max(0, v))
+
+// Present value: dollars `t` years from now, discounted at `rate` a year. The default is a long-run inflation rate, so it restates
+// future dollars in today's purchasing power.
+export const DISCOUNT_RATE = 0.025
+export const discountFactor = (rate, t) => 1 / Math.pow(1 + rate, t)
+
+// i.ownRate (a fraction) overrides the derived rate; i.discount (a fraction) overrides DISCOUNT_RATE.
+//
+// Two ways to value what is left at the end of the plan:
+//   with heirs (familyWealth): pre-tax is worth (1 − heirs' rate), the existing headline;
+//   the client alone (ownWealth): pre-tax is worth (1 − the client's own rate on it), no heirs involved.
+// Balances at the end of the plan are discounted over the whole horizon; each year's tax and IRMAA is discounted from the start of that year
+// (this year's is not discounted).
 export function computeMultiYear(i) {
   const plan = runScenario(i, true)
   const none = runScenario(i, false)
+  const discount = Number.isFinite(i.discount) ? Math.max(0, i.discount) : DISCOUNT_RATE
+  const ownRateAuto = ownRateOf(none, i.stateRate)
+  const ownRate = i.ownRate != null && Number.isFinite(i.ownRate) ? clampRate(i.ownRate) : ownRateAuto
+  const fEnd = discountFactor(discount, plan.years)
+  const pvFlows = (rows, key) => rows.reduce((s, row) => s + row[key] * discountFactor(discount, row.t), 0)
+  const addViews = (sc) => {
+    const ownNow = (pretax, roth, side) => pretax * (1 - ownRate) + roth + side
+    sc.ownWealth = [ownNow(i.pretax, i.roth, i.taxable), ...sc.rows.map((row) => ownNow(row.pretax, row.roth, row.side))]
+    sc.endOwn = sc.ownWealth[sc.ownWealth.length - 1]
+    sc.pvEndOwn = sc.endOwn * fEnd
+    sc.pvFamily = sc.familyWealth * fEnd
+    sc.pvHeirsTax = sc.heirsTax * fEnd
+    sc.pvLifetimeTax = pvFlows(sc.rows, 'tax')
+    sc.pvLifetimeIrmaa = pvFlows(sc.rows, 'irmaa')
+  }
+  addViews(plan)
+  addViews(none)
   // This year's conversion on its own: what it costs now and what it triggers.
   const p0 = plan.rows[0]
   const n0 = none.rows[0]
@@ -219,5 +265,25 @@ export function computeMultiYear(i) {
     irmaaLater: p0.age + 2 >= 65 ? Math.max(0, irmaaWith - irmaaWithout) : 0,
     irmaaApplies: p0.age + 2 >= 65,
   }
-  return { plan, none, thisYear, delta: plan.familyWealth - none.familyWealth, taxDelta: plan.lifetimeTax - none.lifetimeTax, irmaaDelta: plan.lifetimeIrmaa - none.lifetimeIrmaa }
+  const delta = plan.familyWealth - none.familyWealth
+  const deltaOwn = plan.endOwn - none.endOwn
+  return {
+    plan, none, thisYear, delta, taxDelta: plan.lifetimeTax - none.lifetimeTax, irmaaDelta: plan.lifetimeIrmaa - none.lifetimeIrmaa,
+    // The client alone, and what heirs add on top of that (the existing headline is `delta`, the two together).
+    deltaOwn,
+    heirsAddOn: delta - deltaOwn,
+    ownRate,
+    ownRateAuto, // what the rate would be without an override
+    ownRateDerived: !(i.ownRate != null && Number.isFinite(i.ownRate)),
+    discount,
+    years: plan.years,
+    // Today's dollars. Positive tax and IRMAA deltas are costs, as in `taxDelta` and `irmaaDelta`.
+    pv: {
+      deltaOwn: deltaOwn * fEnd,
+      delta: delta * fEnd,
+      heirsAddOn: (delta - deltaOwn) * fEnd,
+      taxDelta: plan.pvLifetimeTax - none.pvLifetimeTax,
+      irmaaDelta: plan.pvLifetimeIrmaa - none.pvLifetimeIrmaa,
+    },
+  }
 }
