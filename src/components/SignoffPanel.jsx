@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { CheckCircle2, Circle, Loader2 } from 'lucide-react'
-import { REVIEWER_GROUPS, isReady } from '../lib/signoffs.js'
+import { CheckCircle2, Circle, Loader2, AlertTriangle } from 'lucide-react'
+import { REVIEWER_GROUPS, MATH_CHANGES, isReady, needsReReview, currentSignoffs, staleSignoffs } from '../lib/signoffs.js'
 import { useSignoffs } from '../lib/useSignoffs.js'
 
 const when = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -11,8 +11,11 @@ export default function SignoffPanel({ tool }) {
   const { signoffs, loaded, signOff, withdraw } = useSignoffs()
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
-  const mine = signoffs[tool.id] || []
+  const mine = currentSignoffs(tool.id, signoffs)
+  const old = staleSignoffs(tool.id, signoffs)
+  const change = MATH_CHANGES[tool.id]
   const ready = isReady(tool, signoffs)
+  const again = needsReReview(tool, signoffs)
 
   const toggle = async (cpa) => {
     setBusy(cpa)
@@ -28,7 +31,7 @@ export default function SignoffPanel({ tool }) {
   }
 
   return (
-    <div className={`signoff no-print${ready ? ' is-ready' : ''}`}>
+    <div className={`signoff no-print${ready ? ' is-ready' : again ? ' needs-review' : ''}`}>
       <div className="signoff-status">
         {ready ? (
           <>
@@ -36,6 +39,14 @@ export default function SignoffPanel({ tool }) {
             <span>
               <strong>Ready for clients.</strong>{' '}
               {mine.length ? `Tested and signed off by ${mine.map((s) => s.cpa).join(', ')}.` : 'Reviewed with Grott Luker & Co.'}
+              {old.length ? ` ${old.map((s) => s.cpa).join(', ')} signed off before the ${change.label} update.` : ''}
+            </span>
+          </>
+        ) : again ? (
+          <>
+            <AlertTriangle size={16} />
+            <span>
+              <strong>Needs re-review.</strong> The calculation changed on {change.label}. {old.map((s) => `${s.cpa} (${when(s.created_at)})`).join(', ')} signed off on the earlier numbers. Look at the new numbers, then sign off again.
             </span>
           </>
         ) : (
@@ -54,29 +65,27 @@ export default function SignoffPanel({ tool }) {
             <span className="signoff-grp-label">{g.label}</span>
             {g.names.map((cpa) => {
               const s = mine.find((x) => x.cpa === cpa)
+              const o = !s ? old.find((x) => x.cpa === cpa) : null
               return (
                 <button
                   key={cpa}
                   type="button"
-                  className={`signoff-btn${s ? ' on' : ''}`}
+                  className={`signoff-btn${s ? ' on' : o ? ' stale' : ''}`}
                   onClick={() => toggle(cpa)}
                   disabled={busy !== ''}
-                  title={s ? `Signed off ${when(s.created_at)} — click to withdraw` : `Sign off as ${cpa}`}
+                  title={s ? `Signed off ${when(s.created_at)} — click to withdraw` : o ? `Signed off ${when(o.created_at)}, before the ${change.label} update — click to sign off again` : `Sign off as ${cpa}`}
                 >
-                  {busy === cpa ? <Loader2 size={13} className="spin" /> : s ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                  {busy === cpa ? <Loader2 size={13} className="spin" /> : s ? <CheckCircle2 size={13} /> : o ? <AlertTriangle size={13} /> : <Circle size={13} />}
                   {cpa}
-                  {s ? <small>{when(s.created_at)}</small> : null}
+                  {s ? <small>{when(s.created_at)}</small> : o ? <small>{when(o.created_at)} · earlier</small> : null}
                 </button>
               )
             })}
           </span>
         ))}
       </div>
-      {tool.id === 'multi-year-projection' ? (
-        <div style={{ flex: '0 0 100%', fontSize: 12, color: 'var(--muted)' }}>
-          This sign-off covers both views: Plan to the end and This year only.
-        </div>
-      ) : null}
+      {change ? <div className="signoff-note">Updated {change.label}: {change.what}</div> : null}
+      {tool.id === 'multi-year-projection' ? <div className="signoff-note">This sign-off covers both views: Plan to the end and This year only.</div> : null}
       {error ? <div className="form-error" style={{ marginTop: 8 }}>{error}</div> : null}
     </div>
   )

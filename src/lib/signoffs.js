@@ -29,7 +29,33 @@ export function groupSignoffs(rows) {
   return out
 }
 
-// A tool is client ready when a CPA has signed it off, or the registry marks it live outright.
+// When a calculator's results last changed. A sign-off given before that moment was given on different numbers: it stays on record
+// and on the page, but it no longer counts toward "Ready" until the reviewer signs again. Add an entry whenever a tool's math changes
+// in a way a reviewer would want to see again (not for wording or layout).
+//   at    the moment the change went live (ISO with offset)
+//   label how the page names that date
+//   what  one sentence for the page: what changed and what to do about it
+export const MATH_CHANGES = {
+  'multi-year-projection': {
+    at: '2026-11-09T00:00:00-05:00',
+    label: 'Nov 9, 2026',
+    what: 'the headline is now the benefit to the client alone, with present values, and the household’s own income now pays its own tax and IRMAA instead of the taxable account. Results changed; re-run any plan prepared before this date.',
+  },
+}
+
+// A sign-off is out of date when it predates the tool's last math change. (A date that cannot be read is never out of date.)
+export function isStaleSignoff(toolId, row) {
+  const change = MATH_CHANGES[toolId]
+  return !!change && Date.parse(row?.created_at) < Date.parse(change.at)
+}
+export const currentSignoffs = (toolId, signoffs) => (signoffs?.[toolId] || []).filter((s) => !isStaleSignoff(toolId, s))
+export const staleSignoffs = (toolId, signoffs) => (signoffs?.[toolId] || []).filter((s) => isStaleSignoff(toolId, s))
+
+// A tool is client ready when a CPA has signed off on its current numbers, or the registry marks it live outright.
 export function isReady(tool, signoffs) {
-  return tool?.status === 'live' || (signoffs?.[tool?.id]?.length || 0) > 0
+  return tool?.status === 'live' || currentSignoffs(tool?.id, signoffs).length > 0
+}
+// Signed off once, but only on earlier numbers.
+export function needsReReview(tool, signoffs) {
+  return tool?.status !== 'live' && (signoffs?.[tool?.id]?.length || 0) > 0 && currentSignoffs(tool?.id, signoffs).length === 0
 }
