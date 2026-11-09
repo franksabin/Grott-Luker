@@ -1,6 +1,7 @@
 // The multi-year Roth planner's two views of the same plan: the client alone (no heirs) and with heirs, each also in today's dollars.
 // Run with: node scripts/test-multiyear.mjs   (or npm run test:engine)
-import { computeMultiYear, runScenario, ownRateOf, discountFactor, DISCOUNT_RATE } from '../src/lib/multiYear.js'
+import { computeMultiYear, runScenario, ownRateOf, discountFactor, DISCOUNT_RATE, taxYear, bracketsFor } from '../src/lib/multiYear.js'
+import { irmaaSurcharge, normalizeFiling, SENIOR_DEDUCTION } from '../src/lib/tax.js'
 
 let pass = 0, fail = 0
 const ok = (cond, msg, extra) => { if (cond) pass++; else { fail++; console.log('FAIL:', msg, extra ?? '') } }
@@ -14,11 +15,12 @@ const SAMPLE = { birthYear: 1964, filing: 'single', endAge: 95, retireAge: 62, w
 // Small enough to do by hand: single, 60 in 2026, two years, no growth, no income, convert 10,000 once (under the standard deduction, so no tax).
 const HAND = { birthYear: 1966, filing: 'single', endAge: 61, retireAge: 60, wages: 0, ssAnnual: 0, ssStartAge: 70, pension: 0, otherIncome: 0, pretax: 100000, roth: 0, taxable: 0, ret: 0, infl: 0.02, index: false, stateRate: 0, mode: 'flat', flatAmount: 10000, flatYears: 1, fillBracket: 22, fillUntilAge: 70, beneficiaryRate: 0.32 }
 
-// ---------- 1. The figures that were there before are unchanged (numbers taken from the engine before the change) ----------
+// ---------- 1. Fixed figures (numbers taken from the engine as it was before; the sample's with-heirs figures moved when the cash rule changed, see section 9) ----------
 {
   const s = computeMultiYear(SAMPLE)
-  ok(near(s.delta, 1955101.99, 0.02) && near(s.taxDelta, -589811.72, 0.02) && near(s.irmaaDelta, -52539.3, 0.02), 'sample: delta, lifetime tax and IRMAA deltas', [s.delta, s.taxDelta, s.irmaaDelta])
-  ok(near(s.plan.familyWealth, 8771682.65, 0.02) && near(s.none.familyWealth, 6816580.66, 0.02), 'sample: family wealth, plan and do nothing')
+  // The IRMAA the conversions cause once the taxable account is empty used to go uncharged. It is charged now, so the plan ends with its taxable account at −20,322.39 (that IRMAA, compounded at the 7% portfolio return) and the benefit is 1,955,101.99 − 20,322.39
+  ok(near(s.plan.endSide, -20322.39, 0.02) && near(s.delta, 1934779.6, 0.02) && near(s.taxDelta, -589811.72, 0.02) && near(s.irmaaDelta, -52539.3, 0.02), 'sample: delta, lifetime tax and IRMAA deltas', [s.delta, s.taxDelta, s.irmaaDelta])
+  ok(near(s.plan.familyWealth, 8751360.27, 0.02) && near(s.none.familyWealth, 6816580.66, 0.02), 'sample: family wealth, plan and do nothing')
   ok(near(s.plan.lifetimeTax, 218623.14, 0.02) && near(s.none.lifetimeTax, 808434.86, 0.02) && near(s.plan.totalConverted, 1206438.66, 0.02), 'sample: lifetime tax and total converted')
   const m = computeMultiYear({ ...SAMPLE, filing: 'married', mode: 'flat', flatAmount: 60000, flatYears: 8, birthYear: 1958, endAge: 90, ssAnnual: 60000, pretax: 1500000, roth: 100000, taxable: 300000, stateRate: 0.05, beneficiaryRate: 0.24, ret: 0.05 })
   ok(near(m.delta, 108580.68, 0.02) && near(m.plan.familyWealth, 4543073.4, 0.02) && near(m.none.familyWealth, 4434492.71, 0.02) && near(m.taxDelta, -1549.53, 0.02), 'married, flat conversions: figures unchanged')
@@ -191,6 +193,114 @@ for (let k = 0; k < 400; k++) {
     ok(d.discount === 0.025, `discount ${String(bad)} falls back to 2.5%`)
   }
   ok(computeMultiYear({ ...SAMPLE, discount: 0.01 }).discount === 0.01 && computeMultiYear({ ...SAMPLE, discount: 0.08 }).discount === 0.08, 'a chosen discount rate is used as is')
+}
+
+// ---------- 9. The cash rule: income pays its own tax and IRMAA; the portfolio pays what the RMD and the conversion add ----------
+{
+  // Where cash is ample nothing changed: figures taken from the engine before the rule changed
+  const a500 = computeMultiYear({ ...SAMPLE, taxable: 500000 })
+  const a5m = computeMultiYear({ ...SAMPLE, taxable: 5000000 })
+  ok(near(a500.delta, 1997563.77, 0.02) && near(a500.deltaOwn, 1829417.45, 0.02), 'ample cash ($500k taxable): figures as before the cash-rule change', [a500.delta, a500.deltaOwn])
+  ok(near(a5m.delta, a500.delta, 0.01) && near(a5m.deltaOwn, a500.deltaOwn, 0.01), 'ample cash: the benefit does not depend on how much cash there is ($500k vs $5M)', [a5m.delta, a500.delta])
+  // With real income (pension, other income, Social Security) and ample cash: the old rule charged that income's tax to savings in both runs, the new one does not, and the benefit is the same to the cent
+  const aInc = computeMultiYear({ ...SAMPLE, pension: 60000, otherIncome: 25000, taxable: 5000000 })
+  ok(near(aInc.deltaOwn, 434019.96, 0.02) && near(aInc.delta, 443513.81, 0.02), 'ample cash with income: benefit as before the cash-rule change', [aInc.deltaOwn, aInc.delta])
+
+  // A case by hand: single, 65 in 2026, $100,000 pension, $500,000 pre-tax, no cash, no growth, convert $50,000 once (2026), three years.
+  //   Do nothing: taxable income 100,000 − 16,100 − 2,050 − (6,000 − 6% × 25,000) = 77,350, tax 1,240 + 4,560 + 22% × 26,950 = 11,729; MAGI 100,000, no IRMAA.
+  //   With the conversion: MAGI 150,000, taxable income 130,350, tax 23,882, so the conversion costs 12,153.
+  //   IRMAA runs two years behind. 2026 and 2027 are set by MAGI already on record (100,000 here), which a 2026 conversion cannot change; 2028 is set by
+  //   2026's MAGI of 150,000, a tier the pension alone does not reach: 2,884.80 of IRMAA that the conversion causes.
+  const H2 = { birthYear: 1961, filing: 'single', endAge: 67, retireAge: 60, wages: 0, ssAnnual: 0, ssStartAge: 70, pension: 100000, otherIncome: 0, pretax: 500000, roth: 0, taxable: 0, ret: 0, infl: 0.02, index: false, stateRate: 0, mode: 'flat', flatAmount: 50000, flatYears: 1, fillBracket: 22, fillUntilAge: 70, beneficiaryRate: 0.32 }
+  const h = computeMultiYear(H2)
+  const p0 = h.plan.rows[0]
+  const irmaaX = 2884.8
+  ok(near(irmaaSurcharge(150000, 'single').annualHousehold, irmaaX, 1e-9) && irmaaSurcharge(100000, 'single').annualHousehold === 0, 'hand case: 150,000 of MAGI is in an IRMAA tier that 100,000 is not', irmaaSurcharge(150000, 'single').annualHousehold)
+  ok(h.years === 3 && near(h.none.rows[0].tax, 11729, 0.01) && near(p0.tax, 23882, 0.01) && near(p0.convTax, 12153, 0.01), 'hand case: tax 11,729 without, 23,882 with, so the conversion costs 12,153', [h.none.rows[0].tax, p0.tax, p0.convTax])
+  ok(h.plan.rows.every((row, k) => near(row.irmaa, k === 2 ? irmaaX : 0, 1e-9) && near(row.irmaaExtra, k === 2 ? irmaaX : 0, 1e-9)) && h.none.rows.every((row) => row.irmaa === 0 && row.irmaaExtra === 0), 'hand case: nothing in 2026 or 2027, all of the 2028 surcharge is the conversion’s, and doing nothing owes none', h.plan.rows.map((row) => row.irmaa))
+  ok(near(p0.withheld, 12153, 0.01) && near(p0.roth, 50000 - 12153, 0.01), 'hand case: no cash, so the conversion’s tax is withheld from the conversion', [p0.withheld, p0.roth])
+  ok(near(h.plan.endSide, -irmaaX, 1e-9) && h.none.endSide === 0, 'hand case: the IRMAA is charged to wealth even though the taxable account is empty (it used to be dropped)', [h.plan.endSide, irmaaX])
+  ok(near(h.ownRate, 0.22, 1e-12) && near(h.deltaOwn, -(12153 - 0.22 * 50000) - irmaaX, 1e-6), 'hand case: client alone = (22% saved later − 12,153 paid now) − IRMAA, so −4,037.80', h.deltaOwn)
+  ok(near(h.thisYear.tax, 12153, 0.01) && near(h.thisYear.rate, 12153 / 50000, 1e-9) && near(h.thisYear.netToRoth, 37847, 0.01) && near(h.thisYear.irmaaLater, irmaaX, 1e-9), 'hand case: the first-year figures the page prints (tax, rate, net into the Roth, IRMAA it triggers)', JSON.stringify(h.thisYear))
+  // The two-year lag, directly: one conversion in 2026 causes exactly one year of extra IRMAA, in 2028, and no more (2029 and 2030 follow MAGI from 2027 and 2028, which hold no conversion)
+  const h3 = computeMultiYear({ ...H2, endAge: 69 })
+  ok(h3.plan.rows.map((row) => row.irmaaExtra).every((v, k) => near(v, k === 2 ? irmaaX : 0, 1e-9)) && h3.plan.rows.map((row) => row.side).every((v, k) => near(v, k < 2 ? 0 : -irmaaX, 1e-9)), 'two-year lag: a 2026 conversion adds IRMAA in 2028 only; the shortfall then stays at −2,884.80 with no growth', JSON.stringify(h3.plan.rows.map((row) => [row.irmaaExtra, row.side])))
+  // Doubling the conversion year does not move the first two years' IRMAA, whatever is converted in them
+  const big = computeMultiYear({ ...H2, flatAmount: 400000 })
+  ok(big.plan.rows[0].irmaa === 0 && big.plan.rows[1].irmaa === 0 && big.plan.rows[2].irmaa > irmaaX, 'two-year lag: a larger 2026 conversion still adds nothing in 2026 or 2027, and more in 2028', big.plan.rows.map((row) => row.irmaa))
+  // A shortfall costs the portfolio's full return (5% here), not the taxable account's after-drag 4%
+  const h4 = computeMultiYear({ ...H2, endAge: 69, ret: 0.05 })
+  ok(near(h4.plan.rows[2].side, -irmaaX * 1.05, 1e-6) && near(h4.plan.rows[4].side, -irmaaX * 1.05 ** 3, 1e-6), 'a negative taxable balance compounds at the full return (5%), not at 80% of it', h4.plan.rows.map((row) => row.side))
+
+  // The household's own income pays the tax and IRMAA it owes: with no RMD and no conversion the taxable account only grows
+  const I = { ...SAMPLE, birthYear: 1975, endAge: 70, retireAge: 62, wages: 90000, ssAnnual: 0, pension: 150000, otherIncome: 25000, pretax: 800000, roth: 50000, taxable: 100000, ret: 0.05, mode: 'none', stateRate: 0.05 }
+  const ic = computeMultiYear(I)
+  ok(ic.years === 20 && ic.none.rows.some((row) => row.irmaa > 0) && ic.none.rows.some((row) => row.tax > 30000), 'income case: a 20-year horizon with real income tax and IRMAA', [ic.years])
+  ok(near(ic.none.endSide, 100000 * 1.04 ** 20, 1e-3) && near(ic.plan.endSide, ic.none.endSide, 1e-6), 'income case: income tax and IRMAA on income alone never touch the taxable account (it grows at 80% of the return, nothing else)', [ic.none.endSide, 100000 * 1.04 ** 20])
+
+  // Every year of every scenario, re-simulated independently from the rows and the shared tax functions
+  const resim = (c, sc) => {
+    const filing = normalizeFiling(c.filing)
+    const people = filing === 'married' ? 2 : 1
+    const g = c.index ? 1 + c.infl : 1
+    const incAgi = []
+    const realAgi = []
+    let side = c.taxable
+    return sc.rows.map((row, t) => {
+      const idx = g ** t
+      const seniors = row.age >= 65 && row.year <= SENIOR_DEDUCTION.lastYear ? people : 0
+      const own = row.wages + row.pension + row.other
+      const ctx = { filing, brackets: bracketsFor(filing, idx), std: row.std, ordinaryBefore: own, ssY: row.ss, seniors, stateRate: c.stateRate, idx }
+      const inc = taxYear(ctx, 0)
+      const withRmd = taxYear({ ...ctx, ordinaryBefore: own + row.rmd }, 0)
+      const real = taxYear({ ...ctx, ordinaryBefore: own + row.rmd }, row.conversion)
+      const irmaaAt = (ref) => (row.age >= 65 ? irmaaSurcharge(ref / idx, filing).annualHousehold * idx : 0)
+      const incIrmaa = irmaaAt(t >= 2 ? incAgi[t - 2] : withRmd.agi) // the first two years are history: the year's MAGI before any conversion, in both
+      const realIrmaa = irmaaAt(t >= 2 ? realAgi[t - 2] : withRmd.agi)
+      incAgi.push(inc.agi)
+      realAgi.push(real.agi)
+      const rmdTax = withRmd.tax - inc.tax
+      const irmaaExtra = realIrmaa - incIrmaa
+      const convTax = Math.max(0, real.tax - withRmd.tax)
+      side += row.rmd
+      side -= rmdTax + irmaaExtra
+      const paid = Math.min(Math.max(0, side), convTax)
+      side -= paid
+      side *= 1 + (side < 0 ? c.ret : c.ret * 0.8)
+      return { rmdTax, irmaaExtra, convTax, withheld: convTax - paid, side, tax: real.tax, irmaa: realIrmaa }
+    })
+  }
+  const tolOf = (b) => 1e-7 * Math.max(1, Math.abs(b))
+  let negativeSide = 0
+  for (let k = 0; k < 300; k++) {
+    const c = {
+      birthYear: pickOne([1950, 1955, 1959, 1960, 1964, 1968, 1975]), filing: pickOne(['married', 'single']), endAge: pickOne([85, 90, 95, 100]), retireAge: pickOne([55, 62, 65, 70]),
+      wages: pickOne([0, 60000, 150000]), ssAnnual: pickOne([0, 30000, 50400, 70000]), ssStartAge: pickOne([62, 67, 70]), pension: pickOne([0, 20000, 60000]), otherIncome: pickOne([0, 4000, 25000]),
+      pretax: pickOne([150000, 500000, 900000, 2500000]), roth: pickOne([0, 80000, 400000]), taxable: pickOne([0, 0, 50000, 150000, 600000]),
+      ret: pickOne([0, 0, 0.03, 0.05, 0.07]), infl: pickOne([0.02, 0.025]), index: pickOne([true, false]), stateRate: pickOne([0, 0.05, 0.1]),
+      mode: pickOne(['none', 'flat', 'fill', 'fill']), flatAmount: pickOne([25000, 75000]), flatYears: pickOne([5, 12]), fillBracket: pickOne([12, 22, 24]), fillUntilAge: pickOne([70, 74, 80]),
+      beneficiaryRate: pickOne([0.12, 0.24, 0.32, 0.37]),
+    }
+    const r = computeMultiYear(c)
+    const tag = JSON.stringify(c).slice(0, 170)
+    for (const [name, sc] of [['plan', r.plan], ['do nothing', r.none]]) {
+      const sim = resim(c, sc)
+      const bad = sc.rows.findIndex((row, t) => !(near(row.rmdTax, sim[t].rmdTax, tolOf(sim[t].rmdTax)) && near(row.irmaaExtra, sim[t].irmaaExtra, tolOf(sim[t].irmaaExtra)) && near(row.convTax, sim[t].convTax, tolOf(sim[t].convTax)) && near(row.withheld, sim[t].withheld, tolOf(sim[t].withheld)) && near(row.side, sim[t].side, tolOf(sim[t].side)) && near(row.tax, sim[t].tax, tolOf(sim[t].tax)) && near(row.irmaa, sim[t].irmaa, tolOf(sim[t].irmaa))))
+      ok(bad < 0, `cash rule: ${name}: tax, IRMAA, the portfolio’s share of each, the withholding and the taxable balance re-simulate in every year`, `${tag} year index ${bad}`)
+      ok(sc.rows.every((row) => row.rmdTax >= -1e-9 && row.irmaaExtra >= -1e-9 && row.convTax >= -1e-9 && row.withheld >= -1e-9), `cash rule: ${name}: the portfolio’s tax, IRMAA and withholding are never negative`, tag)
+      ok(sc.rows.every((row) => (row.rmd > 0 || row.rmdTax === 0) && row.withheld <= row.convTax + 1e-9 && row.withheld <= row.conversion + 1e-9), `cash rule: ${name}: no RMD, no RMD tax; withholding never exceeds the conversion tax or the conversion`, tag)
+      ok(near(sc.familyWealth, sc.endPretax * (1 - c.beneficiaryRate) + sc.endRoth + sc.endSide, 1e-6 * Math.max(1, Math.abs(sc.familyWealth))), `cash rule: ${name}: family wealth still adds the taxable balance, negative or not`, tag)
+      ok(sc.wealth.length === sc.rows.length + 1 && near(sc.wealth[0], c.pretax * (1 - c.beneficiaryRate) + c.roth + c.taxable, 1e-6 * Math.max(1, c.pretax)) && sc.rows.every((row, j) => near(sc.wealth[j + 1], row.pretax * (1 - c.beneficiaryRate) + row.roth + row.side, 1e-6 * Math.max(1, Math.abs(sc.wealth[j + 1])))), `cash rule: ${name}: the with-heirs wealth series is each year's pre-tax at (1 − heirs' rate) + Roth + taxable, negative or not`, tag)
+      if (c.ret === 0) {
+        // No growth: the balances lose exactly what the portfolio paid in tax, IRMAA and conversion tax, and nothing else
+        const paid = sc.rows.reduce((a, row) => a + row.rmdTax + row.irmaaExtra + row.convTax, 0)
+        ok(near(sc.endPretax + sc.endRoth + sc.endSide, c.pretax + c.roth + c.taxable - paid, 1e-6 * Math.max(1, c.pretax + c.roth + c.taxable)), `cash rule: ${name}: with no growth the balances fall by exactly the tax and IRMAA the portfolio paid`, tag)
+      }
+      if (sc.rows.some((row) => row.side < 0)) negativeSide++
+    }
+    if (c.mode === 'none') ok(r.plan.rows.every((row) => row.convTax === 0 && row.withheld === 0) && Math.abs(r.deltaOwn) < 1e-6, 'cash rule: no conversion, no conversion tax, and the two scenarios are one', tag)
+  }
+  ok(negativeSide > 0, 'cash rule: the random cases include runs where the taxable account is overdrawn by what the RMD and the conversion add', negativeSide)
 }
 
 console.log(`${pass} passed, ${fail} failed`)

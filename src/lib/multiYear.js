@@ -116,6 +116,7 @@ export function runScenario(i, withPlan) {
   let lifetimeIrmaa = 0
   let totalConverted = 0
   const agiHistory = []
+  const incomeAgiHistory = [] // the same, with no RMD and no conversion: what IRMAA would be on the household's own income
   const rows = []
   const wealth = [] // after-tax family wealth at the end of each year, year 0 first
 
@@ -157,40 +158,42 @@ export function runScenario(i, withPlan) {
     lifetimeTax += tax
     totalConverted += conversion
 
-    // IRMAA: Medicare surcharge at 65+, set by MAGI two years earlier (the
-    // first two years use the current year's MAGI as the best available proxy).
-    const magiRef = t >= 2 ? agiHistory[t - 2] : agi
+    // IRMAA: Medicare surcharge at 65+, set by MAGI two years earlier. In the first two years that MAGI is already history, so nothing
+    // done today (a conversion) can change it; the current year's MAGI before any conversion is the best available proxy, the same in
+    // both scenarios.
+    const magiRef = t >= 2 ? agiHistory[t - 2] : before.agi
     const irmaa = age >= 65 ? irmaaSurcharge(magiRef / idx, filing).annualHousehold * idx : 0
     lifetimeIrmaa += irmaa
     agiHistory.push(agi)
 
-    // Cash. The RMD lands in the taxable account. The tax the household owes
-    // WITHOUT a conversion (on wages, pension, Social Security, RMD) and IRMAA
-    // come out of the taxable account while it lasts; any shortfall is paid
-    // from that same income, which the model treats as spent and does not
-    // track — identically in both scenarios. Only the extra tax caused by the
-    // conversion is charged to the conversion: taxable account first, then
-    // withheld from the conversion itself.
-    const baselineTax = before.tax
-    const convTax = Math.max(0, tax - baselineTax)
+    // The same year on the household's own income alone (no RMD, no conversion): the tax it would owe, and the IRMAA it would pay.
+    const incomeOnly = taxYear({ ...ctx, ordinaryBefore: wagesY + pensionY + otherY }, 0)
+    const incomeMagiRef = t >= 2 ? incomeAgiHistory[t - 2] : before.agi // history is not caused by the RMD or a conversion either, so in the first two years all of it is income's
+    const incomeIrmaa = age >= 65 ? irmaaSurcharge(incomeMagiRef / idx, filing).annualHousehold * idx : 0
+    incomeAgiHistory.push(incomeOnly.agi)
+
+    // Cash. Spending is not modeled: the household's own income (wages, pension, Social Security, other) is assumed to cover living costs
+    // and the tax and IRMAA it would owe on its own, so those never touch wealth. The portfolio pays the rest, the same way in both
+    // scenarios: the RMD lands in the taxable account and the tax it adds comes out of that account, as does the extra IRMAA the RMD and
+    // the conversion trigger. Those two are charged even when the account is empty. It then goes below zero, which stands for cash found
+    // by selling other assets, so the shortfall costs the portfolio's full return (below), not the taxable account's after-drag return.
+    // The tax on the conversion itself comes out of the taxable account only while it holds cash, then is withheld from the conversion.
+    const rmdTax = before.tax - incomeOnly.tax
+    const irmaaExtra = irmaa - incomeIrmaa
+    const convTax = Math.max(0, tax - before.tax)
     pretax -= rmd + conversion
     side += rmd
-    const payFromSide = (amount) => {
-      const paid = Math.min(Math.max(0, side), Math.max(0, amount))
-      side -= paid
-      return paid
-    }
-    payFromSide(irmaa)
-    payFromSide(baselineTax)
-    const convFromSide = payFromSide(convTax)
+    side -= rmdTax + irmaaExtra
+    const convFromSide = Math.min(Math.max(0, side), convTax)
+    side -= convFromSide
     const withheld = convTax - convFromSide
     roth += Math.max(0, conversion - withheld)
     // Growth.
     pretax *= 1 + r
     roth *= 1 + r
-    side *= 1 + rTax
+    side *= 1 + (side < 0 ? r : rTax)
 
-    rows.push({ t, year, age, wages: wagesY, ss: ssY, taxableSS, pension: pensionY, other: otherY, rmd, conversion, agi, std, senior, taxable, fedTax, stateTax, tax, marginal, fill, irmaa, withheld, pretax, roth, side })
+    rows.push({ t, year, age, wages: wagesY, ss: ssY, taxableSS, pension: pensionY, other: otherY, rmd, conversion, agi, std, senior, taxable, fedTax, stateTax, tax, marginal, fill, irmaa, rmdTax, convTax, irmaaExtra, withheld, pretax, roth, side })
     wealth.push(wealthNow(i.beneficiaryRate))
   }
   const last = rows[rows.length - 1]
