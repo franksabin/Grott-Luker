@@ -32,21 +32,24 @@ export function groupSignoffs(rows) {
 // When a calculator's results last changed. A sign-off given before that moment was given on different numbers: it stays on record
 // and on the page, but it no longer counts toward "Ready" until the reviewer signs again. Add an entry whenever a tool's math changes
 // in a way a reviewer would want to see again (not for wording or layout).
-//   at    the moment the change went live (ISO with offset)
-//   label how the page names that date
-//   what  one sentence for the page: what changed and what to do about it
+//   at              the moment the change went live (ISO with offset)
+//   label           how the page names that date
+//   what            what changed and what to do about it, shown on the tool page
+//   keepsApprovals  true: earlier sign-offs keep counting and the page only shows the dated note; leave it out to make earlier
+//                   sign-offs read "earlier" and send the tool back to "Needs re-review" until someone signs again
 export const MATH_CHANGES = {
   'multi-year-projection': {
     at: '2026-11-09T00:00:00-05:00',
     label: 'Nov 9, 2026',
-    what: 'the headline is now the benefit to the client alone, with present values, and the household’s own income now pays its own tax and IRMAA instead of the taxable account. Results changed; re-run any plan prepared before this date.',
+    what: 'the headline is now the benefit to the client alone, with present values, and the household’s own income now pays its own tax and IRMAA instead of the taxable account. RMDs, conversions and the tax each year are unchanged; end-of-plan wealth and the benefit figures changed. Re-run any plan prepared before this date.',
+    keepsApprovals: true, // decided 2026-11-09: Jacques's Oct 27 approval of the output carries over
   },
 }
 
 // A sign-off is out of date when it predates the tool's last math change. (A date that cannot be read is never out of date.)
 export function isStaleSignoff(toolId, row) {
   const change = MATH_CHANGES[toolId]
-  return !!change && Date.parse(row?.created_at) < Date.parse(change.at)
+  return !!change && !change.keepsApprovals && Date.parse(row?.created_at) < Date.parse(change.at)
 }
 export const currentSignoffs = (toolId, signoffs) => (signoffs?.[toolId] || []).filter((s) => !isStaleSignoff(toolId, s))
 export const staleSignoffs = (toolId, signoffs) => (signoffs?.[toolId] || []).filter((s) => isStaleSignoff(toolId, s))
