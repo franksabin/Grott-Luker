@@ -97,6 +97,7 @@ export function fillConversion(ctx, top) {
 // Run one scenario.
 // i: { birthYear, filing, endAge, retireAge, wages, ssAnnual, ssStartAge, pension, otherIncome,
 //      pretax, roth, taxable, ret, infl, index (bool), stateRate,
+//      living (optional, default 0: annual living costs in today's dollars, used only for sensitivity runs; see below),
 //      mode: 'none' | 'flat' | 'fill', flatAmount, flatYears, fillBracket, fillUntilAge,
 //      beneficiaryRate }
 export function runScenario(i, withPlan) {
@@ -184,6 +185,11 @@ export function runScenario(i, withPlan) {
     pretax -= rmd + conversion
     side += rmd
     side -= rmdTax + irmaaExtra
+    // Living costs are not modeled, so `living` is 0 unless a sensitivity run sets it. Then whatever the household's income, after the tax and
+    // IRMAA it owes on its own, does not cover comes out of the taxable account, in both scenarios.
+    const livingY = (i.living > 0 ? i.living : 0) * idx
+    const livingFromSavings = livingY > 0 ? Math.max(0, livingY - (wagesY + ssY + pensionY + otherY - incomeOnly.tax - incomeIrmaa)) : 0
+    side -= livingFromSavings
     const convFromSide = Math.min(Math.max(0, side), convTax)
     side -= convFromSide
     const withheld = convTax - convFromSide
@@ -193,7 +199,7 @@ export function runScenario(i, withPlan) {
     roth *= 1 + r
     side *= 1 + (side < 0 ? r : rTax)
 
-    rows.push({ t, year, age, wages: wagesY, ss: ssY, taxableSS, pension: pensionY, other: otherY, rmd, conversion, agi, std, senior, taxable, fedTax, stateTax, tax, marginal, fill, irmaa, rmdTax, convTax, irmaaExtra, withheld, pretax, roth, side })
+    rows.push({ t, year, age, wages: wagesY, ss: ssY, taxableSS, pension: pensionY, other: otherY, rmd, conversion, agi, std, senior, taxable, fedTax, stateTax, tax, marginal, fill, irmaa, rmdTax, convTax, irmaaExtra, livingFromSavings, withheld, pretax, roth, side })
     wealth.push(wealthNow(i.beneficiaryRate))
   }
   const last = rows[rows.length - 1]

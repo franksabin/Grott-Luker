@@ -24,6 +24,7 @@ import { money, toNumber, percent } from '../lib/format.js'
 import { TAX_YEAR, rmdStartAge, ADDITIONAL_STANDARD, SENIOR_DEDUCTION } from '../lib/tax.js'
 import { STATES, getState } from '../lib/states.js'
 import { computeMultiYear, discountFactor, DISCOUNT_RATE, TAXABLE_DRAG } from '../lib/multiYear.js'
+import { resultCautions } from '../lib/multiYearCautions.js'
 import ViewSwitch, { requestViewFocus } from '../components/ViewSwitch.jsx'
 import OneYearConversion, { clearOneYearCache } from './OneYearConversion.jsx'
 
@@ -262,6 +263,8 @@ function PlanView({ onView }) {
   ], [r, plan, none, thisYear, inputs, form.mode, form.fillBracket, birthYear, startAge, rmdAge, hasPlan])
 
   const ready = inputs.pretax > 0 && birthOk
+  // Where the answer is likely to be significantly off because of what the planner does not model (see lib/multiYearCautions.js).
+  const cautions = useMemo(() => (ready && hasPlan ? resultCautions(r, inputs, { money, signed, approx: (v) => signed(Math.round(v / 1000) * 1000) }) : []), [ready, hasPlan, r, inputs])
   const chartRows = plan.rows
   const label = hasPlan ? (form.mode === 'fill' ? `Fill to ${form.fillBracket}%` : 'Convert each year') : 'As entered'
   // Breakeven: the first age from which the plan's after-tax wealth to the client alone stays at or above
@@ -421,10 +424,15 @@ function PlanView({ onView }) {
             ...(hasPlan ? [{ label: 'Breakeven', value: breakevenAge ? `Age ${breakevenAge}` : 'Not reached', best: !!breakevenAge, note: breakevenNote }] : []),
           ]}
         />
+        {cautions.length ? (
+          <PrintNote title="Check this result">
+            {cautions.map((c, k) => <div key={c.id} style={k ? { marginTop: 3 } : undefined}><b>{c.title}.</b> {c.text}</div>)}
+          </PrintNote>
+        ) : null}
         <PrintSection title="What this means">
           <PrintProse>{narrative}</PrintProse>
         </PrintSection>
-        <PrintSection title="After-tax wealth to the client, year by year" note={`age ${startAge} to ${inputs.endAge} · future dollars · no heirs · pre-tax valued after tax at ${ownPct}`} className="pr-chart">
+        <PrintSection title="After-tax wealth to the client, year by year" note={`age ${startAge} to ${inputs.endAge} · future dollars · no heirs · pre-tax valued after tax at ${ownPct}`} className={`pr-chart${cautions.length ? ' is-short' : ''}`}>
           <LineChart
             xStart={`Age ${startAge}`}
             xEnd={`Age ${inputs.endAge}`}
@@ -654,6 +662,13 @@ function PlanView({ onView }) {
                 ...(hasPlan ? [{ label: 'Breakeven', value: breakevenAge ? `Age ${breakevenAge}` : 'Not reached', tone: breakevenAge ? 'good' : 'bad', note: breakevenNote }] : []),
               ]}
             />
+
+            {cautions.length ? (
+              <div className="caution-note" role="note" aria-labelledby="caution-title">
+                <h3 className="caution-title" id="caution-title">Check this result</h3>
+                {cautions.map((c) => <p key={c.id}><b>{c.title}.</b> {c.text}</p>)}
+              </div>
+            ) : null}
 
             {firstConv ? (
               <div className="result-list">

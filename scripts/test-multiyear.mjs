@@ -232,6 +232,27 @@ for (let k = 0; k < 400; k++) {
   const h4 = computeMultiYear({ ...H2, endAge: 69, ret: 0.05 })
   ok(near(h4.plan.rows[2].side, -irmaaX * 1.05, 1e-6) && near(h4.plan.rows[4].side, -irmaaX * 1.05 ** 3, 1e-6), 'a negative taxable balance compounds at the full return (5%), not at 80% of it', h4.plan.rows.map((row) => row.side))
 
+  // Living costs (a sensitivity input, 0 by default). The pension household keeps 100,000 − 11,729 = 88,271 after its own tax each year.
+  const base0 = computeMultiYear(H2)
+  for (const off of [undefined, 0, -5000, NaN, null, '40000x']) {
+    const q = computeMultiYear({ ...H2, living: off })
+    ok(q.deltaOwn === base0.deltaOwn && q.plan.endSide === base0.plan.endSide && q.plan.rows.every((row) => row.livingFromSavings === 0), `living ${String(off)}: nothing is drawn and every figure is as without it`)
+  }
+  // Income that cannot cover even its own IRMAA (a retiree whose only money is a large IRA: the first two years read the MAGI the RMD creates) must still draw nothing when living costs are 0
+  const iraOnly = { ...H2, birthYear: 1950, endAge: 85, pension: 0, pretax: 5000000, taxable: 0, mode: 'none' }
+  const iraRes = computeMultiYear(iraOnly)
+  ok(iraRes.none.rows.slice(0, 2).some((row) => row.irmaa > 0) && iraRes.none.rows.every((row) => row.wages + row.ss + row.pension + row.other === 0), 'IRA-only retiree: IRMAA is owed in the first two years while income is zero (the setup for the next check)', iraRes.none.rows.slice(0, 2).map((row) => row.irmaa))
+  ok(iraRes.plan.rows.every((row) => row.livingFromSavings === 0) && iraRes.none.rows.every((row) => row.livingFromSavings === 0), 'IRA-only retiree with living costs 0: nothing is drawn, even though income is below its own IRMAA')
+  ok(computeMultiYear({ ...iraOnly, living: 50000 }).none.rows.every((row) => row.livingFromSavings > 0), 'IRA-only retiree with living costs of 50,000: the whole amount (and the IRMAA income cannot pay) is drawn every year')
+  const covered = computeMultiYear({ ...H2, living: 80000 })
+  ok(covered.deltaOwn === base0.deltaOwn && covered.plan.rows.every((row) => row.livingFromSavings === 0), 'living costs the income covers (80,000 against 88,271 after tax) draw nothing from savings')
+  const gap = computeMultiYear({ ...H2, living: 100000 })
+  ok(gap.plan.rows.every((row) => near(row.livingFromSavings, 100000 - (100000 - 11729), 0.01)) && gap.none.rows.every((row) => near(row.livingFromSavings, 11729, 0.01)), 'living costs of 100,000 leave a gap of 11,729 a year, in both runs', gap.plan.rows.map((row) => row.livingFromSavings))
+  ok(near(gap.plan.endSide, -3 * 11729 - irmaaX, 1e-6) && near(gap.none.endSide, -3 * 11729, 1e-6), 'the gap comes out of the taxable account in both runs (no growth here)', [gap.plan.endSide, gap.none.endSide])
+  ok(near(gap.deltaOwn, base0.deltaOwn, 1e-6), 'the same gap in both runs leaves the benefit as it was when nothing else depends on the cash (no growth, conversion tax withheld either way)', [gap.deltaOwn, base0.deltaOwn])
+  const idxd = computeMultiYear({ ...H2, living: 100000, index: true, infl: 0.03 })
+  ok(idxd.plan.rows[1].livingFromSavings > 0 && idxd.plan.rows[2].livingFromSavings > idxd.plan.rows[1].livingFromSavings, 'with indexing on, living costs grow with inflation')
+
   // The household's own income pays the tax and IRMAA it owes: with no RMD and no conversion the taxable account only grows
   const I = { ...SAMPLE, birthYear: 1975, endAge: 70, retireAge: 62, wages: 90000, ssAnnual: 0, pension: 150000, otherIncome: 25000, pretax: 800000, roth: 50000, taxable: 100000, ret: 0.05, mode: 'none', stateRate: 0.05 }
   const ic = computeMultiYear(I)
@@ -264,6 +285,8 @@ for (let k = 0; k < 400; k++) {
       const convTax = Math.max(0, real.tax - withRmd.tax)
       side += row.rmd
       side -= rmdTax + irmaaExtra
+      const livingY = (c.living > 0 ? c.living : 0) * idx
+      if (livingY > 0) side -= Math.max(0, livingY - (own + row.ss - inc.tax - incIrmaa))
       const paid = Math.min(Math.max(0, side), convTax)
       side -= paid
       side *= 1 + (side < 0 ? c.ret : c.ret * 0.8)
@@ -280,6 +303,7 @@ for (let k = 0; k < 400; k++) {
       ret: pickOne([0, 0, 0.03, 0.05, 0.07]), infl: pickOne([0.02, 0.025]), index: pickOne([true, false]), stateRate: pickOne([0, 0.05, 0.1]),
       mode: pickOne(['none', 'flat', 'fill', 'fill']), flatAmount: pickOne([25000, 75000]), flatYears: pickOne([5, 12]), fillBracket: pickOne([12, 22, 24]), fillUntilAge: pickOne([70, 74, 80]),
       beneficiaryRate: pickOne([0.12, 0.24, 0.32, 0.37]),
+      living: pickOne([0, 0, 0, 40000, 90000]),
     }
     const r = computeMultiYear(c)
     const tag = JSON.stringify(c).slice(0, 170)
@@ -287,14 +311,14 @@ for (let k = 0; k < 400; k++) {
       const sim = resim(c, sc)
       const bad = sc.rows.findIndex((row, t) => !(near(row.rmdTax, sim[t].rmdTax, tolOf(sim[t].rmdTax)) && near(row.irmaaExtra, sim[t].irmaaExtra, tolOf(sim[t].irmaaExtra)) && near(row.convTax, sim[t].convTax, tolOf(sim[t].convTax)) && near(row.withheld, sim[t].withheld, tolOf(sim[t].withheld)) && near(row.side, sim[t].side, tolOf(sim[t].side)) && near(row.tax, sim[t].tax, tolOf(sim[t].tax)) && near(row.irmaa, sim[t].irmaa, tolOf(sim[t].irmaa))))
       ok(bad < 0, `cash rule: ${name}: tax, IRMAA, the portfolio’s share of each, the withholding and the taxable balance re-simulate in every year`, `${tag} year index ${bad}`)
-      ok(sc.rows.every((row) => row.rmdTax >= -1e-9 && row.irmaaExtra >= -1e-9 && row.convTax >= -1e-9 && row.withheld >= -1e-9), `cash rule: ${name}: the portfolio’s tax, IRMAA and withholding are never negative`, tag)
+      ok(sc.rows.every((row) => row.rmdTax >= -1e-9 && row.irmaaExtra >= -1e-9 && row.convTax >= -1e-9 && row.withheld >= -1e-9 && row.livingFromSavings >= 0 && (c.living > 0 || row.livingFromSavings === 0)), `cash rule: ${name}: the portfolio’s tax, IRMAA and withholding are never negative`, tag)
       ok(sc.rows.every((row) => (row.rmd > 0 || row.rmdTax === 0) && row.withheld <= row.convTax + 1e-9 && row.withheld <= row.conversion + 1e-9), `cash rule: ${name}: no RMD, no RMD tax; withholding never exceeds the conversion tax or the conversion`, tag)
       ok(near(sc.familyWealth, sc.endPretax * (1 - c.beneficiaryRate) + sc.endRoth + sc.endSide, 1e-6 * Math.max(1, Math.abs(sc.familyWealth))), `cash rule: ${name}: family wealth still adds the taxable balance, negative or not`, tag)
       ok(sc.wealth.length === sc.rows.length + 1 && near(sc.wealth[0], c.pretax * (1 - c.beneficiaryRate) + c.roth + c.taxable, 1e-6 * Math.max(1, c.pretax)) && sc.rows.every((row, j) => near(sc.wealth[j + 1], row.pretax * (1 - c.beneficiaryRate) + row.roth + row.side, 1e-6 * Math.max(1, Math.abs(sc.wealth[j + 1])))), `cash rule: ${name}: the with-heirs wealth series is each year's pre-tax at (1 − heirs' rate) + Roth + taxable, negative or not`, tag)
       if (c.ret === 0) {
         // No growth: the balances lose exactly what the portfolio paid in tax, IRMAA and conversion tax, and nothing else
-        const paid = sc.rows.reduce((a, row) => a + row.rmdTax + row.irmaaExtra + row.convTax, 0)
-        ok(near(sc.endPretax + sc.endRoth + sc.endSide, c.pretax + c.roth + c.taxable - paid, 1e-6 * Math.max(1, c.pretax + c.roth + c.taxable)), `cash rule: ${name}: with no growth the balances fall by exactly the tax and IRMAA the portfolio paid`, tag)
+        const paid = sc.rows.reduce((a, row) => a + row.rmdTax + row.irmaaExtra + row.convTax + row.livingFromSavings, 0)
+        ok(near(sc.endPretax + sc.endRoth + sc.endSide, c.pretax + c.roth + c.taxable - paid, 1e-6 * Math.max(1, c.pretax + c.roth + c.taxable)), `cash rule: ${name}: with no growth the balances fall by exactly the tax, IRMAA and living-cost gap the portfolio paid`, tag)
       }
       if (sc.rows.some((row) => row.side < 0)) negativeSide++
     }
