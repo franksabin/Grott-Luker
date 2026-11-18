@@ -376,11 +376,12 @@ export default function DivorceDivision() {
               </tr>
             </thead>
             <tbody>
-              {lines.map(({ asset, valuation }) => (
+              {lines.map(({ asset, valuation }, i) => (
                 <tr key={asset.id}>
                   <td>
                     <input
                       className="input"
+                      aria-label={`Asset description, row ${i + 1}`}
                       value={asset.label}
                       placeholder="Description"
                       onChange={(e) => updateAsset(asset.id, { label: e.target.value })}
@@ -389,6 +390,7 @@ export default function DivorceDivision() {
                   <td>
                     <select
                       className="select"
+                      aria-label={`Asset type, row ${i + 1}`}
                       value={asset.type}
                       onChange={(e) => updateAsset(asset.id, { type: e.target.value })}
                     >
@@ -402,6 +404,7 @@ export default function DivorceDivision() {
                       className="input"
                       style={{ textAlign: 'right', minWidth: 100 }}
                       inputMode="decimal"
+                      aria-label={`Value, row ${i + 1}`}
                       value={asset.value}
                       onChange={(e) => updateAsset(asset.id, { value: e.target.value })}
                     />
@@ -411,6 +414,7 @@ export default function DivorceDivision() {
                       className="input"
                       style={{ textAlign: 'right', minWidth: 100 }}
                       inputMode="decimal"
+                      aria-label={`Cost basis, row ${i + 1}`}
                       value={asset.basis}
                       onChange={(e) => updateAsset(asset.id, { basis: e.target.value })}
                     />
@@ -420,6 +424,7 @@ export default function DivorceDivision() {
                       className="input"
                       style={{ textAlign: 'right', minWidth: 70 }}
                       inputMode="decimal"
+                      aria-label={`Percent to ${nameA}, row ${i + 1}`}
                       value={asset.allocationA}
                       onChange={(e) => updateAsset(asset.id, { allocationA: e.target.value })}
                     />

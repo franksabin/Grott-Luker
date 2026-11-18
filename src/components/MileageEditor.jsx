@@ -54,7 +54,7 @@ export function MileageEditor({ log, setLog, className = '' }) {
     <div className={className}>
       <Panel title="Tax year">
         <div className="mlog-year">
-          <select className="input" value={year} onChange={(e) => setYear(e.target.value)}>
+          <select className="input" aria-label="Tax year" value={year} onChange={(e) => setYear(e.target.value)}>
             {TAX_YEARS.map((y) => (
               <option key={y} value={y}>
                 {y}
@@ -140,22 +140,22 @@ export function MileageEditor({ log, setLog, className = '' }) {
               </tr>
             </thead>
             <tbody>
-              {r.trips.map((t) => (
+              {r.trips.map((t, i) => (
                 <tr key={t.id}>
                   <td>
-                    <input className="input" type="date" value={t.date} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(e) => updateRow('trips', t.id, { date: e.target.value })} />
+                    <input className="input" type="date" aria-label={`Date, trip ${i + 1}`} value={t.date} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(e) => updateRow('trips', t.id, { date: e.target.value })} />
                   </td>
                   <td>
-                    <input className="input" value={t.client} placeholder="Client" onChange={(e) => updateRow('trips', t.id, { client: e.target.value })} />
+                    <input className="input" aria-label={`Client, trip ${i + 1}`} value={t.client} placeholder="Client" onChange={(e) => updateRow('trips', t.id, { client: e.target.value })} />
                   </td>
                   <td>
-                    <input className="input" value={t.description} placeholder="Where and why" onChange={(e) => updateRow('trips', t.id, { description: e.target.value })} />
+                    <input className="input" aria-label={`Description, trip ${i + 1}`} value={t.description} placeholder="Where and why" onChange={(e) => updateRow('trips', t.id, { description: e.target.value })} />
                   </td>
                   <td className="num">
-                    <input className="input num" inputMode="decimal" value={t.miles} placeholder="0" onChange={(e) => updateRow('trips', t.id, { miles: e.target.value })} />
+                    <input className="input num" aria-label={`Miles, trip ${i + 1}`} inputMode="decimal" value={t.miles} placeholder="0" onChange={(e) => updateRow('trips', t.id, { miles: e.target.value })} />
                   </td>
                   <td>
-                    <select className="input" value={t.purpose} onChange={(e) => updateRow('trips', t.id, { purpose: e.target.value })}>
+                    <select className="input" aria-label={`Purpose, trip ${i + 1}`} value={t.purpose} onChange={(e) => updateRow('trips', t.id, { purpose: e.target.value })}>
                       {PURPOSES.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.label}
@@ -206,22 +206,22 @@ export function MileageEditor({ log, setLog, className = '' }) {
               </tr>
             </thead>
             <tbody>
-              {r.expenses.map((e) => (
+              {r.expenses.map((e, i) => (
                 <tr key={e.id}>
                   <td>
-                    <input className="input" type="date" value={e.date} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(ev) => updateRow('expenses', e.id, { date: ev.target.value })} />
+                    <input className="input" type="date" aria-label={`Date, expense ${i + 1}`} value={e.date} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(ev) => updateRow('expenses', e.id, { date: ev.target.value })} />
                   </td>
                   <td>
-                    <input className="input" value={e.client} placeholder="Client or vendor" onChange={(ev) => updateRow('expenses', e.id, { client: ev.target.value })} />
+                    <input className="input" aria-label={`Client or vendor, expense ${i + 1}`} value={e.client} placeholder="Client or vendor" onChange={(ev) => updateRow('expenses', e.id, { client: ev.target.value })} />
                   </td>
                   <td>
-                    <input className="input" value={e.matter} placeholder="What it was, who was there, why" onChange={(ev) => updateRow('expenses', e.id, { matter: ev.target.value })} />
+                    <input className="input" aria-label={`Description, expense ${i + 1}`} value={e.matter} placeholder="What it was, who was there, why" onChange={(ev) => updateRow('expenses', e.id, { matter: ev.target.value })} />
                   </td>
                   <td className="num">
-                    <input className="input num" inputMode="decimal" value={e.amount} placeholder="0.00" onChange={(ev) => updateRow('expenses', e.id, { amount: ev.target.value })} />
+                    <input className="input num" aria-label={`Amount, expense ${i + 1}`} inputMode="decimal" value={e.amount} placeholder="0.00" onChange={(ev) => updateRow('expenses', e.id, { amount: ev.target.value })} />
                   </td>
                   <td>
-                    <select className="input cat" value={e.type} onChange={(ev) => updateRow('expenses', e.id, { type: ev.target.value })}>
+                    <select className="input cat" aria-label={`Category, expense ${i + 1}`} value={e.type} onChange={(ev) => updateRow('expenses', e.id, { type: ev.target.value })}>
                       {groups.map((g) => (
                         <optgroup key={g.label} label={g.label}>
                           {g.options.map((x) => (

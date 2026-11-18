@@ -13,7 +13,7 @@ export function DonationEditor({ log, setLog, className = '' }) {
   return (
     <div className={className}>
       <Panel title="Tax year">
-        <select className="input" style={{ maxWidth: 160 }} value={year} onChange={(e) => setLog((l) => ({ ...l, taxYear: Number(e.target.value) }))}>
+        <select className="input" aria-label="Tax year" style={{ maxWidth: 160 }} value={year} onChange={(e) => setLog((l) => ({ ...l, taxYear: Number(e.target.value) }))}>
           {TAX_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
         <div className="hint" style={{ marginTop: 8 }}>
@@ -31,20 +31,20 @@ export function DonationEditor({ log, setLog, className = '' }) {
               </tr>
             </thead>
             <tbody>
-              {r.gifts.map((g) => (
+              {r.gifts.map((g, i) => (
                 <tr key={g.id} className={g.flags.length ? 'dlog-flag' : ''}>
-                  <td><input className="input" type="date" value={g.date} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(e) => update(g.id, { date: e.target.value })} /></td>
-                  <td><input className="input" value={g.organization} placeholder="Charity" onChange={(e) => update(g.id, { organization: e.target.value })} /></td>
-                  <td><input className="input" value={g.description} placeholder={g.type === 'cash' ? 'Purpose (optional)' : g.type === 'securities' ? 'Shares / ticker' : 'What was donated'} onChange={(e) => update(g.id, { description: e.target.value })} /></td>
+                  <td><input className="input" type="date" aria-label={`Date, gift ${i + 1}`} value={g.date} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(e) => update(g.id, { date: e.target.value })} /></td>
+                  <td><input className="input" aria-label={`Organization, gift ${i + 1}`} value={g.organization} placeholder="Charity" onChange={(e) => update(g.id, { organization: e.target.value })} /></td>
+                  <td><input className="input" aria-label={`Description, gift ${i + 1}`} value={g.description} placeholder={g.type === 'cash' ? 'Purpose (optional)' : g.type === 'securities' ? 'Shares / ticker' : 'What was donated'} onChange={(e) => update(g.id, { description: e.target.value })} /></td>
                   <td>
-                    <select className="input" value={g.type} onChange={(e) => update(g.id, { type: e.target.value })}>
+                    <select className="input" aria-label={`Type, gift ${i + 1}`} value={g.type} onChange={(e) => update(g.id, { type: e.target.value })}>
                       {GIFT_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </td>
-                  <td className="num"><input className="input num" inputMode="decimal" value={g.amount} placeholder="0.00" onChange={(e) => update(g.id, { amount: e.target.value })} /></td>
+                  <td className="num"><input className="input num" aria-label={`Amount or fair market value, gift ${i + 1}`} inputMode="decimal" value={g.amount} placeholder="0.00" onChange={(e) => update(g.id, { amount: e.target.value })} /></td>
                   <td className="num">
                     {g.type === 'securities' ? (
-                      <input className="input num" inputMode="decimal" value={g.basis} placeholder="0.00" onChange={(e) => update(g.id, { basis: e.target.value })} />
+                      <input className="input num" aria-label={`Cost basis, gift ${i + 1}`} inputMode="decimal" value={g.basis} placeholder="0.00" onChange={(e) => update(g.id, { basis: e.target.value })} />
                     ) : <span className="mlog-muted">—</span>}
                   </td>
                   <td>

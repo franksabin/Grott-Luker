@@ -93,6 +93,7 @@ function AssetCard({ asset, side, onChange, onRemove, canRemove, sellPct, buyPct
           className="input xasset-name"
           type="text"
           value={asset.name}
+          aria-label={isSold ? 'What was sold' : 'What was bought'}
           placeholder={isSold ? 'What was sold' : 'What was bought'}
           onChange={(e) => onChange({ name: e.target.value })}
         />

@@ -1,36 +1,56 @@
+import { useId, isValidElement, cloneElement, Children } from 'react'
 import { HelpCircle, Settings2, Star } from 'lucide-react'
 import { money, percent as pct, toNumber, clampPct } from '../lib/format.js'
 
 /* Inline explanation for unfamiliar financial terms. */
-export function InfoTip({ text }) {
+export function InfoTip({ text, id }) {
   return (
     <span className="infotip" tabIndex={0} role="note">
       <HelpCircle size={14} strokeWidth={2} />
-      <span className="infotip-bubble">{text}</span>
+      <span className="infotip-bubble" id={id}>{text}</span>
     </span>
   )
 }
 
-export function Field({ label, info, children, hint }) {
+// The ids that tie a field's help text to its control: the control is described by its tip and its hint.
+const describedBy = (id, info, hint) => [info ? `${id}-info` : null, hint ? `${id}-hint` : null].filter(Boolean).join(' ') || undefined
+
+/* A labelled field. The label is connected to its control, so a screen reader announces "Sale price" and not just "edit text":
+   - htmlFor: the id of the control inside (the built-in field types pass this);
+   - a single <input>, <select> or <textarea> among the children (next to, say, an error line) is connected automatically;
+   - labelId: for a group of buttons, the id the group names itself by (aria-labelledby). */
+export function Field({ label, info, children, hint, htmlFor, labelId }) {
+  const auto = useId()
+  const kids = Children.toArray(children)
+  const controls = kids.filter((k) => isValidElement(k) && ['input', 'select', 'textarea'].includes(k.type))
+  const single = controls.length === 1 ? controls[0] : null
+  const controlId = htmlFor || (single ? single.props.id || auto : undefined)
+  const base = controlId || auto
+  const body = single
+    ? kids.map((k) => (k === single ? cloneElement(k, { id: controlId, 'aria-describedby': k.props['aria-describedby'] || describedBy(base, info, hint) }) : k))
+    : children
   return (
     <div className="field">
-      <label className="field-label">
-        {label}
-        {info ? <InfoTip text={info} /> : null}
-      </label>
-      {children}
-      {hint ? <div className="hint">{hint}</div> : null}
+      <div className="field-label">
+        {controlId ? <label htmlFor={controlId}>{label}</label> : <span id={labelId || `${base}-label`}>{label}</span>}
+        {info ? <InfoTip text={info} id={`${base}-info`} /> : null}
+      </div>
+      {body}
+      {hint ? <div className="hint" id={`${base}-hint`}>{hint}</div> : null}
     </div>
   )
 }
 
 export function MoneyField({ label, info, value, onChange, hint, placeholder }) {
+  const id = useId()
   return (
-    <Field label={label} info={info} hint={hint}>
+    <Field label={label} info={info} hint={hint} htmlFor={id}>
       <div className="input-money">
         <span>$</span>
         <input
           className="input"
+          id={id}
+          aria-describedby={describedBy(id, info, hint)}
           type="text"
           inputMode="decimal"
           value={value}
@@ -43,9 +63,12 @@ export function MoneyField({ label, info, value, onChange, hint, placeholder }) 
 }
 
 export function NumberField({ label, info, value, onChange, hint, suffix, placeholder }) {
+  const id = useId()
   const inner = (
     <input
       className="input"
+      id={id}
+      aria-describedby={describedBy(id, info, hint)}
       type="text"
       inputMode="decimal"
       value={value}
@@ -54,7 +77,7 @@ export function NumberField({ label, info, value, onChange, hint, suffix, placeh
     />
   )
   return (
-    <Field label={label} info={info} hint={hint}>
+    <Field label={label} info={info} hint={hint} htmlFor={id}>
       {suffix ? (
         <div className="input-suffix">
           {inner}
@@ -68,9 +91,10 @@ export function NumberField({ label, info, value, onChange, hint, suffix, placeh
 }
 
 export function SelectField({ label, info, value, onChange, options, hint }) {
+  const id = useId()
   return (
-    <Field label={label} info={info} hint={hint}>
-      <select className="select" value={value} onChange={(e) => onChange(e.target.value)}>
+    <Field label={label} info={info} hint={hint} htmlFor={id}>
+      <select className="select" id={id} aria-describedby={describedBy(id, info, hint)} value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -240,17 +264,20 @@ export function Narrative({ children }) {
 }
 
 export function SliderField({ label, info, value, onChange, min = 0, max = 100, step = 1, readout }) {
+  const id = useId()
   return (
     <div className="field">
       <div className="slider-head">
-        <label className="field-label" style={{ margin: 0 }}>
-          {label}
-          {info ? <InfoTip text={info} /> : null}
-        </label>
+        <div className="field-label" style={{ margin: 0 }}>
+          <label htmlFor={id}>{label}</label>
+          {info ? <InfoTip text={info} id={`${id}-info`} /> : null}
+        </div>
         <span className="slider-value">{readout != null ? readout : value}</span>
       </div>
       <input
         className="slider"
+        id={id}
+        aria-describedby={describedBy(id, info, null)}
         type="range"
         min={min}
         max={max}
@@ -263,14 +290,16 @@ export function SliderField({ label, info, value, onChange, min = 0, max = 100, 
 }
 
 export function SegmentedField({ label, info, value, onChange, options }) {
+  const labelId = useId()
   return (
-    <Field label={label} info={info}>
-      <div className={`segmented${options.length > 2 ? ' cols-3' : ''}`}>
+    <Field label={label} info={info} labelId={labelId}>
+      <div className={`segmented${options.length > 2 ? ' cols-3' : ''}`} role="group" aria-labelledby={labelId}>
         {options.map((o) => (
           <button
             key={o.value}
             type="button"
             className={value === o.value ? 'is-active' : ''}
+            aria-pressed={value === o.value}
             onClick={() => onChange(o.value)}
           >
             {o.label}
@@ -289,9 +318,10 @@ export function SegmentedField({ label, info, value, onChange, options }) {
 
 /* A discrete choice with six options or fewer. Shows the whole range at a glance. */
 export function PillField({ label, info, value, onChange, options, hint }) {
+  const labelId = useId()
   return (
-    <Field label={label} info={info} hint={hint}>
-      <div className="pills" role="group" aria-label={typeof label === 'string' ? label : undefined}>
+    <Field label={label} info={info} hint={hint} labelId={labelId}>
+      <div className="pills" role="group" aria-labelledby={labelId}>
         {options.map((o) => (
           <button
             key={o.value}

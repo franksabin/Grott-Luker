@@ -84,14 +84,15 @@ export default function RequestInfoModal({ open, onClose, spec, link, templateLi
           </p>
         ) : null}
 
-        <label className="field-label">Subject</label>
-        <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} />
+        <label className="field-label" htmlFor="request-subject">Subject</label>
+        <input className="input" id="request-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
 
-        <label className="field-label" style={{ marginTop: 16 }}>
+        <label className="field-label" htmlFor="request-message" style={{ marginTop: 16 }}>
           Message
         </label>
         <textarea
           className="input modal-textarea"
+          id="request-message"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={16}
