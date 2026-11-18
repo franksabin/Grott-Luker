@@ -243,7 +243,10 @@ for (let k = 0; k < 400; k++) {
   const iraRes = computeMultiYear(iraOnly)
   ok(iraRes.none.rows.slice(0, 2).some((row) => row.irmaa > 0) && iraRes.none.rows.every((row) => row.wages + row.ss + row.pension + row.other === 0), 'IRA-only retiree: IRMAA is owed in the first two years while income is zero (the setup for the next check)', iraRes.none.rows.slice(0, 2).map((row) => row.irmaa))
   ok(iraRes.plan.rows.every((row) => row.livingFromSavings === 0) && iraRes.none.rows.every((row) => row.livingFromSavings === 0), 'IRA-only retiree with living costs 0: nothing is drawn, even though income is below its own IRMAA')
-  ok(computeMultiYear({ ...iraOnly, living: 50000 }).none.rows.every((row) => row.livingFromSavings > 0), 'IRA-only retiree with living costs of 50,000: the whole amount (and the IRMAA income cannot pay) is drawn every year')
+  ok(computeMultiYear({ ...iraOnly, living: 50000 }).none.rows.every((row) => row.livingFromSavings === 50000), 'IRA-only retiree with living costs of 50,000: exactly 50,000 is drawn every year, not 50,000 plus an IRMAA bill that income cannot pay', computeMultiYear({ ...iraOnly, living: 50000 }).none.rows.slice(0, 3).map((row) => row.livingFromSavings))
+  // Earlier wages leave an IRMAA bill after the wages stop: still no more than the spending is drawn
+  const wageThenRetire = computeMultiYear({ ...SAMPLE, birthYear: 1975, wages: 150000, retireAge: 65, ssAnnual: 0, otherIncome: 0, pension: 0, taxable: 5e6, living: 50000 })
+  ok(wageThenRetire.none.rows.every((row) => row.livingFromSavings <= 50000 * 1.02 ** row.t + 1e-6), 'wages that stop at 65 leave IRMAA on earlier income, but the gap never exceeds the spending')
   const covered = computeMultiYear({ ...H2, living: 80000 })
   ok(covered.deltaOwn === base0.deltaOwn && covered.plan.rows.every((row) => row.livingFromSavings === 0), 'living costs the income covers (80,000 against 88,271 after tax) draw nothing from savings')
   const gap = computeMultiYear({ ...H2, living: 100000 })
@@ -286,7 +289,7 @@ for (let k = 0; k < 400; k++) {
       side += row.rmd
       side -= rmdTax + irmaaExtra
       const livingY = (c.living > 0 ? c.living : 0) * idx
-      if (livingY > 0) side -= Math.max(0, livingY - (own + row.ss - inc.tax - incIrmaa))
+      if (livingY > 0) side -= Math.max(0, livingY - Math.max(0, own + row.ss - inc.tax - incIrmaa))
       const paid = Math.min(Math.max(0, side), convTax)
       side -= paid
       side *= 1 + (side < 0 ? c.ret : c.ret * 0.8)

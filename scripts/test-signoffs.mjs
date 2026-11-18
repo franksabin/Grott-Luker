@@ -30,11 +30,14 @@ for (const [id, list] of Object.entries(MATH_CHANGES)) {
 }
 
 // ---------- 2. The Roth planner today
+const rothHistory = MATH_CHANGES[roth.id]
+const rothFirst = rothHistory[0]
 const rothCur = currentChange(roth.id)
-ok(rothCur && rothCur.at === '2026-11-09T00:00:00-05:00' && rothCur.label === 'Nov 9, 2026', 'the Roth planner’s current version is the Nov 9, 2026 change')
-ok(rothCur.extent === 'major' && rothCur.keepsApprovals === true, 'it is a major change, and earlier approvals carry over')
+ok(rothFirst.at === '2026-11-09T00:00:00-05:00' && rothFirst.label === 'Nov 9, 2026' && rothFirst.extent === 'major' && rothFirst.keepsApprovals === true, 'the Roth planner’s first recorded change is the major one of Nov 9, 2026, and earlier approvals carry over')
+ok(rothFirst.done.some((d) => /Unchanged:.*RMDs.*conversions/.test(d)), 'that entry says what did not change')
+ok(rothHistory.length >= 2 && rothCur === rothHistory[rothHistory.length - 1] && rothCur.at === '2026-11-18T00:00:00-05:00' && rothCur.label === 'Nov 18, 2026', 'the current version is the last entry: Nov 18, 2026')
+ok(rothCur.extent === 'minor' && rothCur.keepsApprovals === true && /blank/.test(rothCur.done.join(' ')), 'it is a minor change (the new spending input, blank by default), and approvals carry over')
 ok(lastUpdated(roth.id) === rothCur, 'last updated is the current change')
-ok(rothCur.done.some((d) => /Unchanged:.*RMDs.*conversions/.test(d)), 'the done list says what did not change')
 ok(lastUpdated(other.id) === null && versionOf(other.id) === 'original', 'a tool with no recorded change has no last-updated date and is the original release')
 
 // ---------- 3. Stamping: the version comes from the registry, never from the browser
@@ -56,8 +59,11 @@ const hist = groupSignoffs([
 ])
 ok(hist[roth.id].length === 3, 'all three reviews are kept')
 const rec = reviewRecord(roth.id, hist)
-ok(rec[0].cpa === 'Deb' && rec[0].status === 'Current' && rec[0].versionText === 'Nov 9, 2026 version', 'newest first: Deb is current on Version of Nov 9, 2026')
-ok(rec[1].cpa === 'Jacques' && rec[1].status === 'Current' && rec[1].versionText === 'Nov 9, 2026 version', 'Jacques’s re-review is current')
+ok(rec[0].cpa === 'Deb' && rec[0].status === 'Current' && rec[0].versionText === 'Nov 18, 2026 version', 'newest first: Deb is current on the Nov 18, 2026 version')
+ok(rec[1].cpa === 'Jacques' && rec[1].status === 'Current' && rec[1].versionText === 'Nov 18, 2026 version', 'Jacques’s re-review is current')
+// A review given on the Nov 9 version is still on the record under that date, and carries over to the newer one
+const onFirst = reviewRecord(roth.id, groupSignoffs([row(roth.id, 'Travers', '2026-11-12T09:00:00.000Z', rothFirst.at)]))[0]
+ok(onFirst.versionText === 'Nov 9, 2026 version' && onFirst.status === 'Carried over', 'a review on the Nov 9 version reads Nov 9, 2026 version, carried over to the Nov 18 update')
 ok(rec[2].cpa === 'Jacques' && rec[2].status === 'Superseded by a later review' && rec[2].versionText === 'Before version tracking', 'his earlier review is kept and shown as superseded')
 ok(currentSignoffs(roth.id, hist).length === 2 && staleSignoffs(roth.id, hist).length === 0, 'two reviewers stand')
 
@@ -85,7 +91,7 @@ ok(isReady(other, oldOnly) && reviewRecord(other.id, oldOnly)[0].status === 'Cur
 ok(!isReady(other, {}) && !needsReReview(other, {}) && reviewRecord(other.id, {}).length === 0, 'no reviews: not Ready, and nothing on the record')
 ok(isReady({ ...other, status: 'live' }, {}) && !needsReReview({ ...other, status: 'live' }, {}), 'a tool the registry marks live stays Ready')
 ok(isReady(undefined, {}) === false && needsReReview(undefined, {}) === false, 'no tool, no crash')
-ok(versionLabel(roth.id, '') === 'Before version tracking' && versionLabel(roth.id, 'original') === 'Original release' && versionLabel(roth.id, rothCur.at) === 'Nov 9, 2026 version' && versionLabel(roth.id, '2001-01-01T00:00:00Z') === 'Earlier version', 'version labels')
+ok(versionLabel(roth.id, '') === 'Before version tracking' && versionLabel(roth.id, 'original') === 'Original release' && versionLabel(roth.id, rothCur.at) === 'Nov 18, 2026 version' && versionLabel(roth.id, rothFirst.at) === 'Nov 9, 2026 version' && versionLabel(roth.id, '2001-01-01T00:00:00Z') === 'Earlier version', 'version labels')
 
 // ---------- 8. The database: the upgrade of the live table, the key, and withdrawal, run on the same SQL the Worker and the dev API use
 const db = new DatabaseSync(':memory:')

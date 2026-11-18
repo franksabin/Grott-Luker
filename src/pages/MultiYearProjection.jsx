@@ -73,6 +73,7 @@ const BLANK = {
   index: 'yes',
   discount: '2.5',
   ownRate: '',
+  living: '',
   state: 'NH',
 }
 
@@ -101,6 +102,7 @@ const SAMPLE = {
   index: 'yes',
   discount: '2.5',
   ownRate: '',
+  living: '',
   state: 'NH',
 }
 
@@ -208,6 +210,7 @@ function PlanView({ onView }) {
     beneficiaryRate: toNumber(form.beneficiaryRate) / 100,
     discount: hasDigit(form.discount) ? clampN(toNumber(form.discount) / 100, 0, 0.15) : DISCOUNT_RATE,
     ownRate: hasDigit(form.ownRate) ? clampN(toNumber(form.ownRate) / 100, 0, 0.6) : null,
+    living: hasDigit(form.living) ? clampN(toNumber(form.living), 0, 10000000) : 0,
   }), [form, birthYear, startAge, rmdAge, st])
 
   const r = useMemo(() => computeMultiYear(inputs), [inputs])
@@ -219,6 +222,9 @@ function PlanView({ onView }) {
   const heirsPct = percent(inputs.beneficiaryRate * 100, 0)
   const discHint = typed(form.discount) && !hasDigit(form.discount) ? `Could not read “${String(form.discount).trim()}”, so 2.5% is used.` : hasDigit(form.discount) && Math.abs(toNumber(form.discount) - r.discount * 100) > 1e-9 ? `Used ${discText} (allowed 0% to 15%).` : undefined
   const ownHint = typed(form.ownRate) && !hasDigit(form.ownRate) ? `Could not read “${String(form.ownRate).trim()}”, so the derived ${percent(r.ownRateAuto * 100, 1)} is used.` : hasDigit(form.ownRate) && Math.abs(toNumber(form.ownRate) - r.ownRate * 100) > 1e-9 ? `Used ${ownPct} (allowed 0% to 60%).` : undefined
+  // The first year's gap between spending and what the household's income leaves after its own tax and IRMAA; that comes out of the taxable account.
+  const gap0 = plan.rows[0]?.livingFromSavings || 0
+  const livingHint = inputs.living > 0 ? (gap0 > 0.5 ? `In ${TAX_YEAR} the gap, ${money(gap0)}, comes out of the taxable account.` : 'Income covers it.') : 'Optional. Blank assumes income covers living costs.'
   // What the plan is worth over doing nothing, at the end of the plan and in today's dollars (positive is good).
   const benefitRows = hasPlan
     ? [
@@ -244,7 +250,7 @@ function PlanView({ onView }) {
       { label: 'Net into the Roth this year', formula: `${money(thisYear.conversion)} − tax withheld from the conversion ${money(plan.rows[0].withheld)}`, result: money(thisYear.netToRoth) },
       ...(thisYear.irmaaApplies ? [{ label: `IRMAA triggered in ${TAX_YEAR + 2}`, formula: `surcharge at MAGI ${money(plan.rows[0].agi)} − surcharge at ${money(none.rows[0].agi)} (annual, household)`, result: money(thisYear.irmaaLater) }] : []),
     ] : []),
-    { label: 'Taxable account', formula: 'each year: + RMD − tax the RMD adds − IRMAA the RMD and conversion add − the conversion’s tax while cash lasts, then × (1 + return after tax drag; the full return while below zero); wages, pension, Social Security and other income pay their own tax and IRMAA', result: `${money(plan.endSide)} plan · ${money(none.endSide)} do nothing at ${inputs.endAge}` },
+    { label: 'Taxable account', formula: `each year: + RMD − tax the RMD adds − IRMAA the RMD and conversion add${inputs.living > 0 ? ' − the gap between spending and income after its own tax and IRMAA' : ''} − the conversion’s tax while cash lasts, then × (1 + return after tax drag; the full return while below zero); wages, pension, Social Security and other income pay their own tax and IRMAA`, result: `${money(plan.endSide)} plan · ${money(none.endSide)} do nothing at ${inputs.endAge}` },
     { label: 'Lifetime IRMAA · plan vs. do nothing', formula: 'Medicare surcharge each year from 65, set by MAGI two years earlier', result: `${money(plan.lifetimeIrmaa)} vs. ${money(none.lifetimeIrmaa)}` },
     { label: 'Lifetime tax · plan vs. do nothing', formula: 'sum of every year, federal + state', result: `${money(plan.lifetimeTax)} vs. ${money(none.lifetimeTax)}` },
     { label: `Balances at ${inputs.endAge} · plan`, formula: 'pre-tax · Roth · taxable', result: `${money(plan.endPretax)} · ${money(plan.endRoth)} · ${money(plan.endSide)}` },
@@ -321,14 +327,16 @@ function PlanView({ onView }) {
     ? ` The extra IRMAA outruns the taxable account, which falls ${money(Math.max(shortPlan, shortNone))} below zero${shortPlan > 0.5 && shortNone > 0.5 ? '' : hasPlan ? (shortPlan > 0.5 ? ' with the plan' : ' doing nothing') : ''} with interest; that is charged against wealth.`
     : ''
 
+  const spendNote = inputs.living > 0 ? ` The figures assume ${money(inputs.living)} a year of spending, paid from income first and then from the taxable account.` : ''
+
   // Shared between the screen Narrative and the printed "What this means".
   const narrative = ready ? (
     <>
       Born in {birthYear}, the client is {startAge} and must start RMDs at {rmdAge}.
       {' '}
       {hasPlan
-        ? `${form.mode === 'fill' ? `Filling the ${form.fillBracket}% bracket each year through age ${inputs.fillUntilAge}` : `Converting ${money(inputs.flatAmount)} a year for ${inputs.flatYears} years`} moves ${money(plan.totalConverted)} to Roth and ${r.taxDelta >= 0 ? 'raises' : 'lowers'} lifetime tax by ${money(Math.abs(r.taxDelta))}, from ${money(none.lifetimeTax)} to ${money(plan.lifetimeTax)}${r.taxDelta < 0 ? (r.pv.taxDelta < 0 ? ' — paying at today’s rate beats the RMDs that would come later' : ` — but in today’s dollars it costs ${money(r.pv.taxDelta)} more, because the tax is paid sooner`) : ''}. ${r.irmaaDelta > 0 ? `It also adds ${money(r.irmaaDelta)} of IRMAA. ` : r.irmaaDelta < 0 ? `It also avoids ${money(-r.irmaaDelta)} of IRMAA. ` : ''}For the client alone, valuing what is still pre-tax at ${inputs.endAge} after tax at ${ownPct}, the plan leaves them ${better ? 'ahead' : 'behind'} by ${money(Math.abs(r.deltaOwn))} (${money(Math.abs(r.pv.deltaOwn))} in today’s dollars at ${discText} a year). The pre-tax balance falls from ${money(none.endPretax)} to ${money(plan.endPretax)}, so the heirs’ tax at ${heirsPct} goes from ${money(none.heirsTax)} to ${money(plan.heirsTax)}; with heirs, the family is ${r.delta >= 0 ? 'ahead' : 'behind'} by ${money(Math.abs(r.delta))} (${money(Math.abs(r.pv.delta))} today).${shortNote}`
-        : `Doing nothing, RMDs begin at ${rmdAge} and lifetime tax through ${inputs.endAge} is ${money(none.lifetimeTax)}. The client alone keeps ${money(none.endOwn)} after tax at ${inputs.endAge} (${money(none.pvEndOwn)} in today’s dollars at ${discText} a year, with what is still pre-tax valued at ${ownPct}). The ${money(none.endPretax)} still pre-tax would cost the heirs ${money(none.heirsTax)} at ${heirsPct}, leaving the family ${money(none.familyWealth)}.${form.mode === 'none' ? ' Choose a conversion approach to compare against doing nothing.' : ' The chosen conversion approach converts nothing (the convert-through age is already past, or there is no room below the bracket), so only doing nothing is shown.'}${shortNote}`}
+        ? `${form.mode === 'fill' ? `Filling the ${form.fillBracket}% bracket each year through age ${inputs.fillUntilAge}` : `Converting ${money(inputs.flatAmount)} a year for ${inputs.flatYears} years`} moves ${money(plan.totalConverted)} to Roth and ${r.taxDelta >= 0 ? 'raises' : 'lowers'} lifetime tax by ${money(Math.abs(r.taxDelta))}, from ${money(none.lifetimeTax)} to ${money(plan.lifetimeTax)}${r.taxDelta < 0 ? (r.pv.taxDelta < 0 ? ' — paying at today’s rate beats the RMDs that would come later' : ` — but in today’s dollars it costs ${money(r.pv.taxDelta)} more, because the tax is paid sooner`) : ''}. ${r.irmaaDelta > 0 ? `It also adds ${money(r.irmaaDelta)} of IRMAA. ` : r.irmaaDelta < 0 ? `It also avoids ${money(-r.irmaaDelta)} of IRMAA. ` : ''}For the client alone, valuing what is still pre-tax at ${inputs.endAge} after tax at ${ownPct}, the plan leaves them ${better ? 'ahead' : 'behind'} by ${money(Math.abs(r.deltaOwn))} (${money(Math.abs(r.pv.deltaOwn))} in today’s dollars at ${discText} a year). The pre-tax balance falls from ${money(none.endPretax)} to ${money(plan.endPretax)}, so the heirs’ tax at ${heirsPct} goes from ${money(none.heirsTax)} to ${money(plan.heirsTax)}; with heirs, the family is ${r.delta >= 0 ? 'ahead' : 'behind'} by ${money(Math.abs(r.delta))} (${money(Math.abs(r.pv.delta))} today).${shortNote}${spendNote}`
+        : `Doing nothing, RMDs begin at ${rmdAge} and lifetime tax through ${inputs.endAge} is ${money(none.lifetimeTax)}. The client alone keeps ${money(none.endOwn)} after tax at ${inputs.endAge} (${money(none.pvEndOwn)} in today’s dollars at ${discText} a year, with what is still pre-tax valued at ${ownPct}). The ${money(none.endPretax)} still pre-tax would cost the heirs ${money(none.heirsTax)} at ${heirsPct}, leaving the family ${money(none.familyWealth)}.${form.mode === 'none' ? ' Choose a conversion approach to compare against doing nothing.' : ' The chosen conversion approach converts nothing (the convert-through age is already past, or there is no room below the bracket), so only doing nothing is shown.'}${shortNote}${spendNote}`}
     </>
   ) : (
     'Enter the year of birth, the balances, and income. The plan compares Roth conversions against doing nothing, first for the client alone and then with the heirs, through the end of the plan.'
@@ -337,7 +345,7 @@ function PlanView({ onView }) {
   const assumptions = [
     `${TAX_YEAR} federal brackets and standard deduction. From age 65 the additional standard deduction applies, ${money(ADDITIONAL_STANDARD.married)} for each spouse when married and ${money(ADDITIONAL_STANDARD.single)} when single; both spouses are assumed to be the same age. The senior deduction (${money(SENIOR_DEDUCTION.amount)} per person 65 or older, through ${SENIOR_DEDUCTION.lastYear}) is reduced by ${Math.round(SENIOR_DEDUCTION.phaseRate * 100)}% of MAGI over ${money(SENIOR_DEDUCTION.phaseStart.single)} single or ${money(SENIOR_DEDUCTION.phaseStart.married)} joint, separately for each person, so a married couple loses all of it at ${money(SENIOR_DEDUCTION.phaseStart.married + SENIOR_DEDUCTION.amount / SENIOR_DEDUCTION.phaseRate)} of MAGI. With indexing on, brackets, standard deduction (additional amount included), Social Security, pension, and other income grow with inflation each year, while the senior deduction and its phase-out thresholds stay at the statutory dollars; with indexing off, the ${TAX_YEAR} tables are held flat.`,
     'RMDs begin at 73 for clients born 1951–1959 and 75 for those born 1960 or later, using the IRS Uniform Lifetime Table on the prior year-end balance; they cannot be converted, and conversions come on top. Social Security is taxed through the provisional-income test each year; wages stop at the retirement age entered. Fill-a-bracket conversions reach the top of the chosen bracket after Social Security taxation and the senior deduction phase-out, limited by the pre-tax balance.',
-    `All accounts earn the same return; the taxable account is reduced by a ${percent(TAXABLE_DRAG * 100, 0)} tax drag. Spending is not modeled: the household’s own income (wages, pension, Social Security, other) is assumed to cover living costs and the tax and IRMAA it owes on its own, and the RMD, after the tax it adds, is saved in the taxable account. That account pays the tax the RMD adds and the IRMAA the RMD and the conversion add, in both scenarios, going below zero if need be at the portfolio’s full return. A conversion’s own tax comes from it while it holds cash, then is withheld from the conversion (the gross-up on withheld tax and the 10% additional tax before 59½ are not modeled).`,
+    `All accounts earn the same return; the taxable account is reduced by a ${percent(TAXABLE_DRAG * 100, 0)} tax drag. ${inputs.living > 0 ? `Annual spending of ${money(inputs.living)} (today’s dollars${inputs.index ? ', growing with inflation' : ''}) is paid from the household’s own income after the tax and IRMAA it owes on its own; any gap comes out of the taxable account, in both scenarios. The RMD, after the tax it adds, is saved in the taxable account.` : 'Spending is not modeled: the household’s own income (wages, pension, Social Security, other) is assumed to cover living costs and the tax and IRMAA it owes on its own, and the RMD, after the tax it adds, is saved in the taxable account.'} That account pays the tax the RMD adds and the IRMAA the RMD and the conversion add, in both scenarios, going below zero if need be at the portfolio’s full return. A conversion’s own tax comes from it while it holds cash, then is withheld from the conversion (the gross-up on withheld tax and the 10% additional tax before 59½ are not modeled).`,
     `Client alone (no heirs): what is still pre-tax at the end is valued after tax at the client’s own rate, ${ownPct}${r.ownRateDerived ? ' (RMD-weighted marginal rate, federal plus state, do-nothing run)' : ' as entered'}, the same for both scenarios. With heirs: the beneficiary rate (${heirsPct}) on that balance instead, as if withdrawn under the 10-year rule; growth during those ten years and the heirs’ bracket creep are not modeled. Roth and taxable are counted at face value in both views; embedded gains are not taxed.`,
     `Today’s dollars: ending balances are discounted over all ${r.years} years, each year’s tax and IRMAA from the start of that year, at ${discText} a year${Math.abs(r.discount - DISCOUNT_RATE) < 1e-9 ? ', about inflation' : ''}; not an investment return.`,
     'IRMAA is applied from age 65 using the 2026 Part B and D surcharge tiers (indexed with inflation when indexing is on) against MAGI from two years earlier; the first two years use the current year’s MAGI before any conversion, which stands in for history.',
@@ -358,6 +366,7 @@ function PlanView({ onView }) {
     ['Social Security claiming age', String(inputs.ssStartAge)],
     ['Pension (annual)', money(inputs.pension)],
     ['Interest, dividends, other', money(inputs.otherIncome)],
+    ['Annual spending (today’s $)', inputs.living > 0 ? money(inputs.living) : 'Not entered'],
     ['Roth conversions', (MODE.find((m) => m.value === form.mode) || {}).label || form.mode],
     ...(form.mode === 'fill' ? [['Fill to the top of', `${form.fillBracket}% bracket`], ['Convert through age', `${inputs.fillUntilAge}${inputs.fillUntilAge < startAge ? ' (past)' : ''}`]] : []),
     ...(form.mode === 'flat' ? [['Amount converted each year', money(inputs.flatAmount)], ['For how many years', `${inputs.flatYears} years`]] : []),
@@ -432,7 +441,7 @@ function PlanView({ onView }) {
         <PrintSection title="What this means">
           <PrintProse>{narrative}</PrintProse>
         </PrintSection>
-        <PrintSection title="After-tax wealth to the client, year by year" note={`age ${startAge} to ${inputs.endAge} · future dollars · no heirs · pre-tax valued after tax at ${ownPct}`} className={`pr-chart${cautions.length ? ' is-short' : ''}`}>
+        <PrintSection title="After-tax wealth to the client, year by year" note={`age ${startAge} to ${inputs.endAge} · future dollars · no heirs · pre-tax valued after tax at ${ownPct}`} className={`pr-chart${cautions.length || inputs.living > 0 ? ' is-short' : ''}`}>
           <LineChart
             xStart={`Age ${startAge}`}
             xEnd={`Age ${inputs.endAge}`}
@@ -591,7 +600,7 @@ function PlanView({ onView }) {
             <MoneyField label="Pre-tax IRA / 401(k)" value={form.pretax} onChange={set('pretax')} />
             <div className="field-row">
               <MoneyField label="Roth" value={form.roth} onChange={set('roth')} />
-              <MoneyField label="Taxable / cash" value={form.taxable} onChange={set('taxable')} info="Receives the RMDs. Pays the tax the RMDs add and the IRMAA the RMDs and conversions add, even if that takes it below zero, and a conversion’s own tax while it holds cash; after that the conversion’s tax is withheld from the conversion. The household’s own income pays the tax and IRMAA it owes on its own; spending is not modeled." />
+              <MoneyField label="Taxable / cash" value={form.taxable} onChange={set('taxable')} info="Receives the RMDs. Pays the tax the RMDs add and the IRMAA the RMDs and conversions add, even if that takes it below zero, and a conversion’s own tax while it holds cash; after that the conversion’s tax is withheld from the conversion. The household’s own income pays the tax and IRMAA it owes on its own; spending is not modeled unless you enter it under Income." />
             </div>
           </Panel>
           <Panel title="Income">
@@ -607,6 +616,7 @@ function PlanView({ onView }) {
               <MoneyField label="Pension (annual)" value={form.pension} onChange={set('pension')} />
               <MoneyField label="Interest, dividends, other" value={form.otherIncome} onChange={set('otherIncome')} />
             </div>
+            <MoneyField label="Annual spending (optional)" value={form.living} onChange={set('living')} hint={livingHint} info="What the household spends each year, in today’s dollars; it grows with inflation when indexing is on. The household’s income, after the tax and IRMAA it owes on its own, pays for it first. Any gap comes out of the taxable account, in both scenarios, and past that is carried at the portfolio’s return. Leave it blank to assume income covers living costs." />
           </Panel>
           <Panel title="The plan">
             <PillField label="Roth conversions" value={form.mode} onChange={set('mode')} options={MODE} />

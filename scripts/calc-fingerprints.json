@@ -9,8 +9,8 @@
     },
     "multi-year-projection": {
       "lib/format.js": "e0faa59d891b",
-      "lib/multiYear.js": "c2fba1e8fd7c",
-      "lib/multiYearCautions.js": "5ab70d049b6d",
+      "lib/multiYear.js": "422fe66d1c7f",
+      "lib/multiYearCautions.js": "244f90b6b2b5",
       "lib/oneYear.js": "4fd84fc60096",
       "lib/states.js": "6993fab08407",
       "lib/tax.js": "e7bcf8638c1e"

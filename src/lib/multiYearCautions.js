@@ -48,11 +48,12 @@ export function resultCautions(r, inputs, fmt, opts = {}) {
   const { share, floor } = { ...SENSITIVE, ...opts }
   const bar = Math.max(share * Math.abs(r.deltaOwn), floor * Math.max(1, r.none.endOwn))
 
-  // Living costs: run the same plan with them, holding the client's own rate where it was.
+  // Living costs: run the same plan with them, holding the client's own rate where it was. If the user has entered their own spending the
+  // result already includes it, so there is nothing to probe.
   const living = married ? REFERENCE_LIVING.married : REFERENCE_LIVING.single
-  const s = computeMultiYear({ ...inputs, living, ownRate: r.ownRate })
-  const draws = s.plan.rows.filter((row) => row.livingFromSavings > 0.5)
-  if (draws.length && Math.abs(s.deltaOwn - r.deltaOwn) >= bar) {
+  const s = inputs.living > 0 ? null : computeMultiYear({ ...inputs, living, ownRate: r.ownRate })
+  const draws = s ? s.plan.rows.filter((row) => row.livingFromSavings > 0.5) : []
+  if (s && draws.length && Math.abs(s.deltaOwn - r.deltaOwn) >= bar) {
     // The gap in today's dollars, to compare with the spending quoted, which is in today's dollars.
     const avg = draws.reduce((a, row) => a + row.livingFromSavings / Math.pow(g, row.t), 0) / draws.length
     // Past the taxable account the model finances the gap at the portfolio's return, so the figure is only a rough guide.

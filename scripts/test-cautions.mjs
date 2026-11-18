@@ -54,6 +54,14 @@ ok(yearSpans([{ t: 0, year: 2026 }, { t: 5, year: 2031 }, { t: 9, year: 2035 }])
 
 // ---------- 2. Quiet where it should be
 ok(ids(run({ ...SAMPLE, taxable: 5e6 }).cs) === '', 'ample cash ($5M): the gap is easily paid, nothing to say')
+// When the user enters their own spending, the result already includes it: there is nothing to probe, so no living-costs note
+{
+  const entered = run({ ...SAMPLE, living: 40000 })
+  ok(ids(run(SAMPLE).cs) === 'living-costs' && ids(entered.cs) === '', 'the sample warns about spending; with $40,000 of spending entered, it does not')
+  ok(entered.r.deltaOwn < computeMultiYear(SAMPLE).deltaOwn, 'and the entered spending is in the figures (the benefit is lower than with none)', [entered.r.deltaOwn, computeMultiYear(SAMPLE).deltaOwn])
+  ok(!run({ ...YOUNG, living: 30000 }).cs.some((x) => x.id === 'living-costs'), 'entered spending also silences the note for the other test client')
+  ok(ids(run({ ...SAMPLE, living: 0 }).cs) === 'living-costs' && ids(run({ ...SAMPLE, living: -5 }).cs) === 'living-costs' && ids(run({ ...SAMPLE, living: NaN }).cs) === 'living-costs', 'spending of zero, negative or unreadable counts as not entered')
+}
 ok(ids(run({ ...SAMPLE, pension: 120000 }).cs) === '', 'income of $120k covers $50k of living costs: no gap, nothing to say')
 ok(ids(run({ ...SAMPLE, mode: 'none' }).cs) === '' && ids(run({ ...SAMPLE, fillUntilAge: 50 }).cs) === '', 'no conversions, nothing to caution about')
 ok(resultCautions(undefined, SAMPLE, fmt).length === 0 && resultCautions({}, SAMPLE, fmt).length === 0, 'no result, no crash')
@@ -90,6 +98,14 @@ ok(resultCautions(undefined, SAMPLE, fmt).length === 0 && resultCautions({}, SAM
   // Material? Withholding exists before 60 but the penalty is tiny against the benefit: stay quiet
   const tiny = run({ ...YOUNG, filing: 'married', taxable: 0, mode: 'flat', flatAmount: 50000, flatYears: 3 })
   ok(tiny.r.plan.rows.some((row) => row.withheld > 0.5 && row.age < 60) && ids(tiny.cs).split(',').indexOf('early-withheld') === -1, 'a few hundred dollars withheld before 60 is not worth a caution', ids(tiny.cs))
+  // Tax is also withheld at 60 and after (a larger IRA keeps converting): only the years before 59½ are named and counted. (Lowered bar so it shows.)
+  const bigInputs = { ...YOUNG, pretax: 3e6 }
+  const big = computeMultiYear(bigInputs)
+  const before60 = big.plan.rows.filter((row) => row.withheld > 0.5 && row.age < 60)
+  const at60 = big.plan.rows.find((row) => row.age === 60)
+  ok(at60 && at60.withheld > 0.5 && before60.length === 5, 'setup: this client is also withheld on at 60 and after', [at60?.withheld, before60.length])
+  const eb = resultCautions(big, bigInputs, fmt, { share: 0, floor: 0 }).find((x) => x.id === 'early-withheld')
+  ok(eb && eb.text.includes(money(before60.reduce((a, row) => a + row.withheld, 0))) && eb.text.includes(`${before60[0].year}–${before60[4].year}`) && !eb.text.includes(String(at60.year)), 'withholding at 60 and later is not counted and its year is not named', eb?.text)
 }
 
 // ---------- 4a. Years paid from cash are not named as withheld years (lowered bar: real cases rarely mix the two and still fire)
@@ -122,6 +138,7 @@ for (let k = 0; k < 500; k++) {
     ret: pickOne([0.03, 0.05, 0.07]), infl: pickOne([0.02, 0.025]), index: pickOne([true, false]), stateRate: pickOne([0, 0.05, 0.1]),
     mode: pickOne(['flat', 'fill', 'fill']), flatAmount: pickOne([25000, 75000]), flatYears: pickOne([5, 12]), fillBracket: pickOne([12, 22, 24]), fillUntilAge: pickOne([70, 74, 80]),
     beneficiaryRate: pickOne([0.12, 0.24, 0.32, 0.37]),
+    living: pickOne([0, 0, 0, 0, 40000, 90000]),
   }
   const { r, cs } = run(c)
   const tag = JSON.stringify(c).slice(0, 170)
@@ -129,7 +146,7 @@ for (let k = 0; k < 500; k++) {
   tested++
   const e = livingExpect(c, r)
   const bar = Math.max(0.15 * Math.abs(r.deltaOwn), 0.02 * Math.max(1, r.none.endOwn))
-  const expectLiving = e.draws.length > 0 && Math.abs(e.s.deltaOwn - r.deltaOwn) >= bar
+  const expectLiving = !(c.living > 0) && e.draws.length > 0 && Math.abs(e.s.deltaOwn - r.deltaOwn) >= bar
   const liv = cs.find((x) => x.id === 'living-costs')
   ok(!!liv === expectLiving, 'living-costs fires exactly when a gap exists and the benefit moves by the bar', tag)
   if (liv) {

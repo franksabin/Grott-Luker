@@ -36,6 +36,16 @@ export const MATH_CHANGES = {
       ],
       keepsApprovals: true, // decided 2026-11-09: Jacques's Oct 27 approval of the output carries over
     },
+    {
+      at: '2026-11-18T00:00:00-05:00',
+      label: 'Nov 18, 2026',
+      extent: 'minor',
+      done: [
+        'New optional input, “Annual spending”, under Income. Left blank, every figure is exactly as before.',
+        'When entered, income pays for it first and any gap comes out of the taxable account, in both scenarios; the “Living costs are not modeled” note then steps aside.',
+      ],
+      keepsApprovals: true,
+    },
   ],
 }
 

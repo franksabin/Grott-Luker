@@ -188,7 +188,9 @@ export function runScenario(i, withPlan) {
     // Living costs are not modeled, so `living` is 0 unless a sensitivity run sets it. Then whatever the household's income, after the tax and
     // IRMAA it owes on its own, does not cover comes out of the taxable account, in both scenarios.
     const livingY = (i.living > 0 ? i.living : 0) * idx
-    const livingFromSavings = livingY > 0 ? Math.max(0, livingY - (wagesY + ssY + pensionY + otherY - incomeOnly.tax - incomeIrmaa)) : 0
+    // Income left after its own tax and IRMAA cannot go below zero: an IRMAA bill on earlier wages that today's income cannot pay is not part of spending.
+    const incomeLeft = Math.max(0, wagesY + ssY + pensionY + otherY - incomeOnly.tax - incomeIrmaa)
+    const livingFromSavings = Math.max(0, livingY - incomeLeft)
     side -= livingFromSavings
     const convFromSide = Math.min(Math.max(0, side), convTax)
     side -= convFromSide
