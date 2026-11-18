@@ -1,0 +1,126 @@
+{
+  "recorded": "2026-11-18",
+  "tools": {
+    "exchange-1031": {
+      "lib/exchange1031.js": "f99ce9c800e3",
+      "lib/format.js": "e0faa59d891b",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "multi-year-projection": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/multiYear.js": "c2fba1e8fd7c",
+      "lib/multiYearCautions.js": "5ab70d049b6d",
+      "lib/oneYear.js": "4fd84fc60096",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "charitable-giving-optimizer": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "qbi-optimizer": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "estimated-tax": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "retirement-tax-map": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "withholding-checkup": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "owner-comp": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/ownerComp.js": "2848571ee22a",
+      "lib/stateBusinessTax.js": "801e57a6660a",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "paying-your-kids": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/kidsRoth.js": "9e5ed301a2a1",
+      "lib/payingKids.js": "93c7e2ee8092",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "capital-gains-harvesting": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "cash-balance": {
+      "lib/cashBalance.js": "69c5e768ea57",
+      "lib/format.js": "e0faa59d891b"
+    },
+    "business-sale": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "retirement-plan-comparison": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/retirementPlans.js": "304b62ab64f0",
+      "lib/stateMandates.js": "3a26f7724417",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "retire-track": {
+      "lib/format.js": "e0faa59d891b",
+      "pages/RetireTrack.jsx": "905cb6fbb2fd"
+    },
+    "rollover-401k": {
+      "lib/format.js": "e0faa59d891b",
+      "pages/Rollover401k.jsx": "c1052aec0002"
+    },
+    "divorce-division": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/taxAdjustment.js": "492d0f865bdb"
+    },
+    "social-security-timing": {
+      "lib/format.js": "e0faa59d891b",
+      "pages/SocialSecurityTiming.jsx": "7f904633baeb"
+    },
+    "hsa-planner": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/hsa.js": "db633da66c25",
+      "lib/states.js": "6993fab08407",
+      "lib/tax.js": "e7bcf8638c1e"
+    },
+    "concentrated-wealth": {
+      "lib/format.js": "e0faa59d891b",
+      "pages/ConcentratedWealth.jsx": "de173a05901d"
+    },
+    "arm-vs-fixed": {
+      "lib/format.js": "e0faa59d891b",
+      "pages/ArmVsFixed.jsx": "2c1bbf5dce99"
+    },
+    "solar-panels": {
+      "lib/format.js": "e0faa59d891b",
+      "pages/SolarPanels.jsx": "6e34e97e1c62"
+    },
+    "know-your-numbers": {
+      "lib/format.js": "e0faa59d891b",
+      "lib/knowYourNumbers.js": "151ae65b36b8"
+    },
+    "mileage-log": {
+      "lib/expenseGuide.js": "e15f08c5e2aa",
+      "lib/format.js": "e0faa59d891b",
+      "lib/knowYourNumbers.js": "151ae65b36b8",
+      "lib/mileage.js": "65c8df9698e2"
+    },
+    "charitable-donation-log": {
+      "lib/donations.js": "15ef1e3113e8",
+      "lib/expenseGuide.js": "e15f08c5e2aa",
+      "lib/format.js": "e0faa59d891b",
+      "lib/knowYourNumbers.js": "151ae65b36b8",
+      "lib/mileage.js": "65c8df9698e2"
+    }
+  }
+}

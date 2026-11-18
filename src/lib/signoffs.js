@@ -16,6 +16,7 @@ export const CPAS = REVIEWER_GROUPS.flatMap((g) => g.names)
 //   extent          'major' (figures changed for some clients), 'minor' (wording or layout only), or 'correction' (a wrong figure fixed)
 //   done            what was done, one short sentence each, shown on the tool page
 //   keepsApprovals  true: earlier reviews keep counting and show as "Carried over"; false: they stop counting until someone signs again
+// scripts/calc-fingerprints.mjs (run by `npm run test:engine`) fails when a tool's calculation files change, as a reminder to add an entry here.
 export const EXTENT_LABEL = {
   major: 'Major: figures changed for some clients',
   minor: 'Minor: wording or layout, no figures changed',
