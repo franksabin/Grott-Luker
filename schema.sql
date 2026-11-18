@@ -72,11 +72,14 @@ CREATE TABLE IF NOT EXISTS feedback (
   answers     TEXT NOT NULL
 );
 
--- A Grott Luker CPA's sign-off that a tool is tested and client ready.
+-- A Grott Luker CPA's review that a tool is tested and client ready. One row per review: a reviewer can review the same tool again on a
+-- later version, and every review is kept. version is the tool's change date that was reviewed ('' = recorded before versions were kept).
+-- Same definition as SIGNOFF_SQL.table in src/lib/signoffs.js; existing tables are upgraded by the Worker and the dev API.
 CREATE TABLE IF NOT EXISTS tool_signoffs (
   tool_id     TEXT NOT NULL,
   cpa         TEXT NOT NULL,
+  version     TEXT NOT NULL DEFAULT '',
   created_at  TEXT NOT NULL,
   note        TEXT,
-  PRIMARY KEY (tool_id, cpa)
+  PRIMARY KEY (tool_id, cpa, version)
 );

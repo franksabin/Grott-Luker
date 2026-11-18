@@ -13,7 +13,7 @@ import { normalizeSubmission, LIMITS } from './src/lib/submission.js'
 import { normalizeMileageSubmission, MILEAGE_LIMITS } from './src/lib/mileage.js'
 import { normalizeDonationSubmission, DONATION_LIMITS } from './src/lib/donations.js'
 import { normalizeFeedback, FEEDBACK_LIMITS } from './src/lib/feedback.js'
-import { normalizeSignoff } from './src/lib/signoffs.js'
+import { normalizeSignoff, SIGNOFF_SQL } from './src/lib/signoffs.js'
 
 const DATA_DIR = '.dev-data'
 const DB_FILE = 'snapshots.db'
@@ -24,6 +24,12 @@ function openDb(root) {
   fs.mkdirSync(dir, { recursive: true })
   const db = new DatabaseSync(path.join(dir, DB_FILE))
   db.exec(fs.readFileSync(path.join(root, 'schema.sql'), 'utf8'))
+  // Same upgrade the Worker runs: a sign-off table from before versions were kept is rebuilt, keeping every review.
+  try {
+    db.prepare(SIGNOFF_SQL.probe).all()
+  } catch {
+    db.exec(`BEGIN;\n${SIGNOFF_SQL.upgrade.join(';\n')};\nCOMMIT;`)
+  }
   return db
 }
 
@@ -218,7 +224,7 @@ export default function devApi() {
             return send(res, 200, { log: { ...row, log } })
           }
           if (route === '/signoffs' && req.method === 'GET') {
-            return send(res, 200, { signoffs: db.prepare(`SELECT tool_id, cpa, created_at, note FROM tool_signoffs ORDER BY created_at`).all() })
+            return send(res, 200, { signoffs: db.prepare(SIGNOFF_SQL.list).all() })
           }
           if (route === '/signoffs' && req.method === 'POST') {
             const { raw } = await readBody(req)
@@ -226,12 +232,14 @@ export default function devApi() {
             try { body = JSON.parse(raw) } catch { return send(res, 400, { error: 'Invalid JSON.' }) }
             const { value, error } = normalizeSignoff(body)
             if (error) return send(res, 400, { error })
-            db.prepare(`INSERT OR REPLACE INTO tool_signoffs (tool_id, cpa, created_at, note) VALUES (?, ?, ?, ?)`).run(value.toolId, value.cpa, new Date().toISOString(), value.note || null)
+            db.prepare(SIGNOFF_SQL.add).run(value.toolId, value.cpa, value.version, new Date().toISOString(), value.note || null)
             return send(res, 201, { ok: true })
           }
           const sdel = route.match(/^\/signoffs\/([^/]+)\/([^/]+)$/)
           if (sdel && req.method === 'DELETE') {
-            db.prepare(`DELETE FROM tool_signoffs WHERE tool_id = ? AND cpa = ?`).run(decodeURIComponent(sdel[1]), decodeURIComponent(sdel[2]))
+            const tool = decodeURIComponent(sdel[1])
+            const cpa = decodeURIComponent(sdel[2])
+            db.prepare(SIGNOFF_SQL.withdrawLatest).run(tool, cpa, tool, cpa)
             return send(res, 200, { ok: true })
           }
           if (route === '/feedback' && req.method === 'POST') {

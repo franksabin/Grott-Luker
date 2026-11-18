@@ -1,19 +1,20 @@
 import { useState } from 'react'
 import { CheckCircle2, Circle, Loader2, AlertTriangle } from 'lucide-react'
-import { REVIEWER_GROUPS, MATH_CHANGES, isReady, needsReReview, currentSignoffs, staleSignoffs } from '../lib/signoffs.js'
+import { REVIEWER_GROUPS, EXTENT_SHORT, isReady, needsReReview, currentSignoffs, staleSignoffs, reviewRecord, lastUpdated } from '../lib/signoffs.js'
 import { useSignoffs } from '../lib/useSignoffs.js'
 
 const when = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
-// Shown under the toolbar on every tool: who has tested it, and buttons for
-// each CPA to sign off (or withdraw). Open during the beta — no login.
+// Shown under the toolbar on every tool: who has tested it, buttons for each CPA to sign off (or withdraw), when the tool last changed,
+// and the record of every review with its date and the version it was given on. Open during the beta — no login.
 export default function SignoffPanel({ tool }) {
   const { signoffs, loaded, signOff, withdraw } = useSignoffs()
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const mine = currentSignoffs(tool.id, signoffs)
   const old = staleSignoffs(tool.id, signoffs)
-  const change = MATH_CHANGES[tool.id]
+  const change = lastUpdated(tool.id)
+  const record = reviewRecord(tool.id, signoffs)
   const ready = isReady(tool, signoffs)
   const again = needsReReview(tool, signoffs)
 
@@ -84,7 +85,24 @@ export default function SignoffPanel({ tool }) {
           </span>
         ))}
       </div>
-      {change ? <div className="signoff-note">Updated {change.label}: {change.what}</div> : null}
+      {change ? (
+        <details className="signoff-note signoff-updated">
+          <summary>Last updated {change.label} · {EXTENT_SHORT[change.extent]} · what changed</summary>
+          <ul>{change.done.map((d) => <li key={d}>{d}</li>)}</ul>
+        </details>
+      ) : null}
+      <div className="signoff-note review-record">
+        <strong>Reviews</strong>
+        {record.length ? (
+          <ul>
+            {record.map((r) => (
+              <li key={`${r.cpa}-${r.created_at}`}>{r.cpa} · {when(r.created_at)} · {r.versionText}</li>
+            ))}
+          </ul>
+        ) : (
+          <span> none yet</span>
+        )}
+      </div>
       {tool.id === 'multi-year-projection' ? <div className="signoff-note">This sign-off covers both views: Plan to the end and This year only.</div> : null}
       {error ? <div className="form-error" style={{ marginTop: 8 }}>{error}</div> : null}
     </div>

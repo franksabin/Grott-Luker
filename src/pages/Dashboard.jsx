@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Mail, Phone, Inbox, Link2, Check } from 'lucide-react'
 import { GROUPS, GROUP_ORDER, TOOLS } from '../lib/tools.js'
-import { isReady, CPAS, REVIEWER_GROUPS, MATH_CHANGES, currentSignoffs, staleSignoffs } from '../lib/signoffs.js'
+import { isReady, CPAS, REVIEWER_GROUPS, lastUpdated, currentSignoffs, staleSignoffs } from '../lib/signoffs.js'
 
 // Dashboard review filter: 'all' | one of CPAS | 'none' (no sign-off yet). Remembered per browser.
 const FILTER_KEY = 'gl-review-filter'
@@ -46,7 +46,7 @@ function ReviewStrip({ tool, signoffs }) {
           <span className="rev-grp">{g.label}</span>
           <span className="rev-names">
             {g.names.map((cpa) => (
-              <span key={cpa} className={`rev-name${done.has(cpa) ? ' is-done' : stale.has(cpa) ? ' is-stale' : ''}`} title={done.has(cpa) ? `${cpa} tested this tool and signed off on ${when(cpa)}` : stale.has(cpa) ? `${cpa} signed off on ${oldWhen(cpa)}, before the ${MATH_CHANGES[tool.id].label} update, and has not looked at the new numbers` : `${cpa} has not signed off yet`}>
+              <span key={cpa} className={`rev-name${done.has(cpa) ? ' is-done' : stale.has(cpa) ? ' is-stale' : ''}`} title={done.has(cpa) ? `${cpa} tested this tool and signed off on ${when(cpa)}` : stale.has(cpa) ? `${cpa} signed off on ${oldWhen(cpa)}, before the ${lastUpdated(tool.id)?.label} update, and has not looked at the new numbers` : `${cpa} has not signed off yet`}>
                 {done.has(cpa) ? <Check size={11} strokeWidth={3} /> : null}
                 {cpa}
               </span>
@@ -68,7 +68,7 @@ function ToolCard({ tool, signoffs, usage }) {
   const u = usage?.[tool.id]
   const Icon = tool.icon
   const ready = isReady(tool, signoffs)
-  const who = (signoffs[tool.id] || []).map((s) => s.cpa)
+  const who = currentSignoffs(tool.id, signoffs).map((s) => s.cpa)
   const testing = !ready
   const cpa = false
   return (

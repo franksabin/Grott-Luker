@@ -20,7 +20,7 @@ import { normalizeSubmission, LIMITS } from '../src/lib/submission.js'
 import { normalizeMileageSubmission, MILEAGE_LIMITS } from '../src/lib/mileage.js'
 import { normalizeDonationSubmission, DONATION_LIMITS } from '../src/lib/donations.js'
 import { normalizeFeedback, FEEDBACK_LIMITS } from '../src/lib/feedback.js'
-import { normalizeSignoff } from '../src/lib/signoffs.js'
+import { normalizeSignoff, SIGNOFF_SQL } from '../src/lib/signoffs.js'
 
 const LIST_LIMIT = 200
 
@@ -37,9 +37,28 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS donation_logs (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT, notes TEXT, tax_year INTEGER NOT NULL, log TEXT NOT NULL, total_gifts REAL, estimated_deduction REAL)`,
   `CREATE INDEX IF NOT EXISTS idx_donation_logs_created_at ON donation_logs (created_at DESC)`,
   `CREATE TABLE IF NOT EXISTS feedback (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, name TEXT, email TEXT, firm TEXT, answers TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS tool_signoffs (tool_id TEXT NOT NULL, cpa TEXT NOT NULL, created_at TEXT NOT NULL, note TEXT, PRIMARY KEY (tool_id, cpa))`,
+  SIGNOFF_SQL.table,
 ]
 let schemaReady = null
+// A sign-off table created before versions were tracked is upgraded in one transaction: every review is kept, the old ones with no version.
+// It runs only for sign-off requests, so a failure here cannot take the rest of the site down.
+let signoffsReady = null
+async function upgradeSignoffs(env) {
+  try {
+    await env.DB.prepare(SIGNOFF_SQL.probe).all()
+  } catch {
+    await env.DB.batch(SIGNOFF_SQL.upgrade.map((sql) => env.DB.prepare(sql)))
+  }
+}
+function ensureSignoffs(env) {
+  if (!signoffsReady) {
+    signoffsReady = upgradeSignoffs(env).catch((err) => {
+      signoffsReady = null // allow retry on the next sign-off request
+      throw err
+    })
+  }
+  return signoffsReady
+}
 function ensureSchema(env) {
   if (!schemaReady) {
     schemaReady = env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql))).catch((err) => {
@@ -344,8 +363,9 @@ export default {
 
       // Tool sign-offs (open during the beta, like Client results).
       if (pathname === '/api/signoffs') {
+        await ensureSignoffs(env)
         if (request.method === 'GET') {
-          const { results } = await env.DB.prepare(`SELECT tool_id, cpa, created_at, note FROM tool_signoffs ORDER BY created_at`).all()
+          const { results } = await env.DB.prepare(SIGNOFF_SQL.list).all()
           return json({ signoffs: results || [] })
         }
         if (request.method === 'POST') {
@@ -353,8 +373,8 @@ export default {
           try { body = JSON.parse(await request.text()) } catch { return json({ error: 'Invalid JSON.' }, 400) }
           const { value, error } = normalizeSignoff(body)
           if (error) return json({ error }, 400)
-          await env.DB.prepare(`INSERT OR REPLACE INTO tool_signoffs (tool_id, cpa, created_at, note) VALUES (?, ?, ?, ?)`)
-            .bind(value.toolId, value.cpa, new Date().toISOString(), value.note || null).run()
+          await env.DB.prepare(SIGNOFF_SQL.add)
+            .bind(value.toolId, value.cpa, value.version, new Date().toISOString(), value.note || null).run()
           return json({ ok: true }, 201)
         }
         return json({ error: 'Method not allowed.' }, 405)
@@ -362,7 +382,10 @@ export default {
       const sdel = pathname.match(/^\/api\/signoffs\/([^/]+)\/([^/]+)$/)
       if (sdel) {
         if (request.method !== 'DELETE') return json({ error: 'Method not allowed.' }, 405)
-        await env.DB.prepare(`DELETE FROM tool_signoffs WHERE tool_id = ? AND cpa = ?`).bind(decodeURIComponent(sdel[1]), decodeURIComponent(sdel[2])).run()
+        await ensureSignoffs(env)
+        const tool = decodeURIComponent(sdel[1])
+        const cpa = decodeURIComponent(sdel[2])
+        await env.DB.prepare(SIGNOFF_SQL.withdrawLatest).bind(tool, cpa, tool, cpa).run()
         return json({ ok: true })
       }
 
